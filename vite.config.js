@@ -1,0 +1,57 @@
+// =====================================================================
+// vite.config.js — la "receta" de cómo Vite construye tu app.
+//
+// ¿Por qué Vite y no Create React App o Next.js?
+//  - Create React App está abandonado (ya no recibe mantenimiento).
+//  - Next.js es excelente, pero trae servidor, SSR y rutas propias: complejidad
+//    que NO necesitas. Tu app es una "SPA" (Single Page Application): el
+//    navegador descarga una sola vez el HTML + JS y luego todo ocurre en el
+//    celular; los datos vienen de Supabase. Vite es el camino más simple.
+//  - Vite arranca en milisegundos en desarrollo y genera una carpeta `dist/`
+//    de archivos estáticos que cualquier hosting (Netlify/Vercel) sirve gratis.
+// =====================================================================
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
+import { VitePWA } from 'vite-plugin-pwa'
+
+export default defineConfig({
+  plugins: [
+    // Enseña a Vite a entender JSX (el HTML dentro de JavaScript de React).
+    react(),
+
+    // Tailwind v4 se integra como plugin de Vite: lee tus clases (bg-fondo,
+    // p-4, etc.) y genera SOLO el CSS que realmente usas. No hay que
+    // configurar nada más: la configuración vive en src/index.css.
+    tailwindcss(),
+
+    // Convierte la web en PWA: genera el "manifest" (nombre, íconos, colores
+    // para instalarla en el celular) y un "service worker" (script que el
+    // navegador guarda para abrir la app rápido y detectar versiones nuevas).
+    VitePWA({
+      // 'autoUpdate': cuando subes una versión nueva, la app se actualiza
+      // sola la próxima vez que se abre. Ideal para 15-30 atletas.
+      registerType: 'autoUpdate',
+      includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
+      manifest: {
+        name: '[Nombre de tu app]',
+        short_name: 'Entreno',
+        description: 'Seguimiento privado de entrenamiento y nutrición',
+        lang: 'es',
+        display: 'standalone',        // se abre sin barra del navegador, como app nativa
+        orientation: 'portrait',
+        start_url: '/',
+        theme_color: '#0F1115',       // color de la barra de estado del celular
+        background_color: '#0F1115',  // color de la pantalla de carga al abrir
+        icons: [
+          { src: 'pwa-192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'pwa-512.png', sizes: '512x512', type: 'image/png' },
+          { src: 'pwa-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
+      },
+      // IMPORTANTE: por defecto el service worker solo guarda los archivos de
+      // la app (HTML/JS/CSS), NO las respuestas de Supabase. Así los datos
+      // siempre son frescos y nunca se mezclan entre usuarios.
+    }),
+  ],
+})

@@ -1,0 +1,4 @@
+# Netlify: cualquier ruta (/admin, /atleta...) debe devolver index.html.
+# Sin esto, al recargar la página en /admin daría "404 Not Found", porque
+# esa ruta solo existe dentro de React, no como archivo en el servidor.
+/*    /index.html   200

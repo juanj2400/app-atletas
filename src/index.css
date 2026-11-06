@@ -1,0 +1,40 @@
+/* =====================================================================
+   index.css — estilos globales + tema de Tailwind.
+   Tailwind v4 se configura AQUÍ, en CSS (ya no existe tailwind.config.js).
+   ===================================================================== */
+@import "tailwindcss";
+
+/* Colores propios de la app (la misma paleta oscura de las maquetas).
+   Cada variable crea clases utilizables: --color-fondo => bg-fondo,
+   text-fondo, border-fondo... Así los componentes dicen "bg-superficie"
+   en vez de un código hexadecimal, y cambiar el tema es tocar UN lugar. */
+@theme {
+  --color-fondo: #0F1115;        /* fondo de la pantalla */
+  --color-superficie: #181B22;   /* tarjetas */
+  --color-hundido: #12151B;      /* tarjetas dentro de tarjetas */
+  --color-borde: #2A2F3A;
+  --color-texto: #E8EAEE;
+  --color-suave: #A3A9B5;        /* texto secundario */
+  --color-primario: #2F5FE3;     /* botones principales (texto blanco encima) */
+  --color-enlace: #7AA2FF;       /* enlaces y acentos azules */
+  --color-alerta: #F0A040;       /* avisos y pendientes */
+}
+
+@layer base {
+  /* Le dice al navegador que la app es oscura: barras de scroll, campos
+     numéricos y menús nativos también se ven oscuros. */
+  html { color-scheme: dark; }
+
+  body {
+    @apply bg-fondo text-texto antialiased;
+    min-height: 100dvh; /* dvh = altura real visible en el celular (descuenta la barra del navegador) */
+    /* "Safe areas": márgenes para no quedar bajo el notch ni la barra de
+       gestos cuando la app está instalada (PWA a pantalla completa). */
+    padding: env(safe-area-inset-top) env(safe-area-inset-right)
+             env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+
+  /* Mobile-first: los controles táctiles deben medir al menos 44 px de alto
+     (recomendación de Apple/Google para dedos). min-h-11 de Tailwind = 44 px. */
+  button, input { font: inherit; }
+}

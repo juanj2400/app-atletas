@@ -1,0 +1,14 @@
+# Dependencias: se regeneran con "npm install"; pesan cientos de MB.
+node_modules
+# Resultado de "npm run build": se regenera siempre.
+dist
+dev-dist
+# Secretos locales: NUNCA se suben a GitHub.
+.env
+.env.local
+.env.*.local
+# Basura del sistema / editor
+.DS_Store
+*.log
+.vscode/*
+!.vscode/extensions.json

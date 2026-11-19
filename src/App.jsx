@@ -9,6 +9,7 @@ import Login from './pages/Login'
 import Inicio from './pages/Inicio'
 import PantallaAtleta from './atleta/PantallaAtleta'
 import ListaAtletas from './admin/ListaAtletas'
+import DetalleAtleta from './admin/DetalleAtleta'
 
 export default function App() {
   return (
@@ -22,6 +23,11 @@ export default function App() {
       <Route
         path="/admin"
         element={<RutaProtegida rol="admin"><ListaAtletas /></RutaProtegida>}
+      />
+      {/* ":id" es un PARÁMETRO: /admin/atletas/abc123 -> useParams() entrega id = 'abc123' */}
+      <Route
+        path="/admin/atletas/:id"
+        element={<RutaProtegida rol="admin"><DetalleAtleta /></RutaProtegida>}
       />
       {/* Cualquier otra URL: de vuelta al inicio */}
       <Route path="*" element={<Navigate to="/" replace />} />

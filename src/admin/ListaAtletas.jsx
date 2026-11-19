@@ -1,11 +1,9 @@
 // =====================================================================
-// Zona del admin. Ya hace una consulta REAL para demostrar RLS:
-// pedimos todos los perfiles con rol 'client'. Como TÚ eres admin, la
-// política "profiles_select" de la base de datos te los entrega todos.
-// Si un atleta ejecutara exactamente la misma consulta, recibiría solo su
-// propia fila: el filtrado lo hace la base de datos, no React.
+// Lista de atletas (admin). Novedad: cada atleta es ahora un ENLACE a su
+// pantalla de detalle. El id del atleta viaja en la URL: /admin/atletas/<id>
 // =====================================================================
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import Encabezado from '../components/Encabezado'
 
@@ -25,7 +23,7 @@ export default function ListaAtletas() {
         else setAtletas(data)
         setCargando(false)
       })
-  }, []) // [] = ejecutar solo una vez, cuando la pantalla aparece
+  }, [])
 
   return (
     <>
@@ -38,9 +36,19 @@ export default function ListaAtletas() {
         )}
         <ul className="flex flex-col gap-3">
           {atletas.map((a) => (
-            <li key={a.id} className="rounded-2xl border border-borde bg-superficie p-4">
-              <p className="font-semibold">{a.nombre_completo || 'Sin nombre'}</p>
-              <p className="text-sm text-suave">{a.email}</p>
+            <li key={a.id}>
+              {/* Las comillas invertidas (`...`) permiten insertar variables con ${...}.
+                  Resultado: /admin/atletas/3f2a-... */}
+              <Link
+                to={`/admin/atletas/${a.id}`}
+                className="flex items-center justify-between rounded-2xl border border-borde bg-superficie p-4"
+              >
+                <div>
+                  <p className="font-semibold">{a.nombre_completo || 'Sin nombre'}</p>
+                  <p className="text-sm text-suave">{a.email}</p>
+                </div>
+                <span className="text-xl text-enlace" aria-hidden="true">›</span>
+              </Link>
             </li>
           ))}
         </ul>

@@ -1,0 +1,26 @@
+// =====================================================================
+// src/lib/opciones.js — valores que se repiten en varias pantallas.
+//
+// El estado de ánimo se GUARDA en la base de datos como texto simple
+// ('mal' | 'regular' | 'bien'; así lo definimos en el CHECK de la tabla),
+// pero se MUESTRA con emoji. Separar "lo que se guarda" de "cómo se ve"
+// permite cambiar los emojis cuando quieras sin tocar la base de datos.
+// =====================================================================
+export const ANIMOS = [
+  { valor: 'mal', emoji: '😞', etiqueta: 'Mal' },
+  { valor: 'regular', emoji: '😐', etiqueta: 'Regular' },
+  { valor: 'bien', emoji: '😄', etiqueta: 'Bien' },
+]
+
+// Dado 'bien' devuelve '😄 Bien'. Si no hay dato (null) devuelve un guion.
+export function textoAnimo(valor) {
+  const animo = ANIMOS.find((a) => a.valor === valor)
+  return animo ? `${animo.emoji} ${animo.etiqueta}` : '—'
+}
+
+// true -> 'Sí', false -> 'No', null -> '—'
+export function textoSiNo(valor) {
+  if (valor === true) return 'Sí'
+  if (valor === false) return 'No'
+  return '—'
+}

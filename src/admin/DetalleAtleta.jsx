@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import Encabezado from '../components/Encabezado'
+import Mediciones from './Mediciones'
 import { fechaLocalISO, formatearFecha } from '../lib/fechas'
 import { textoAnimo, textoSiNo } from '../lib/opciones'
 
@@ -90,6 +91,9 @@ export default function DetalleAtleta() {
                 </p>
               </div>
             </div>
+
+            {/* Componente autónomo: solo necesita saber de qué atleta es. */}
+            <Mediciones atletaId={atleta.id} />
 
             <section>
               <h3 className="mb-2 text-lg font-bold">Check-ins recientes</h3>

@@ -24,3 +24,16 @@ export function textoSiNo(valor) {
   if (valor === false) return 'No'
   return '—'
 }
+
+// Estado calórico de una medición. Se guarda 'deficit' | 'superavit' |
+// 'normocalorica' (así lo restringe la tabla metrics) y se muestra con tilde.
+export const ESTADOS_CALORICOS = [
+  { valor: 'deficit', etiqueta: 'Déficit' },
+  { valor: 'superavit', etiqueta: 'Superávit' },
+  { valor: 'normocalorica', etiqueta: 'Normocalórica' },
+]
+
+export function textoEstadoCalorico(valor) {
+  // ?. = "si es undefined no falles"; ?? = "si queda vacío, usa este valor"
+  return ESTADOS_CALORICOS.find((e) => e.valor === valor)?.etiqueta ?? '—'
+}

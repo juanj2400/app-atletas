@@ -14,7 +14,10 @@ import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { fechaLocalISO, formatearFecha } from '../lib/fechas'
 import { aNumero } from '../lib/numeros'
-import { ESTADOS_CALORICOS, textoEstadoCalorico } from '../lib/opciones'
+import { ESTADOS_CALORICOS } from '../lib/opciones'
+import { resumirMediciones, textoMedicion } from '../lib/mediciones'
+import ResumenMediciones from '../components/ResumenMediciones'
+import GraficoEvolucion from '../components/GraficoEvolucionLazy'
 
 const CAMPO = 'min-h-11 w-full rounded-xl border border-[#5B6372] bg-fondo px-3'
 
@@ -22,18 +25,6 @@ const CAMPO = 'min-h-11 w-full rounded-xl border border-[#5B6372] bg-fondo px-3'
 // de usarla: si la app queda abierta pasada la medianoche, "hoy" sigue siendo correcto.
 function formVacio() {
   return { fecha: fechaLocalISO(), peso: '', cintura: '', calorias: '', estado: '', notas: '' }
-}
-
-// Arma el texto de una medición: "82.4 kg · cintura 88 cm · 2.600 kcal · Déficit"
-function resumen(m) {
-  return [
-    m.peso_corporal_kg !== null && `${m.peso_corporal_kg} kg`,
-    m.perimetro_cintura_cm !== null && `cintura ${m.perimetro_cintura_cm} cm`,
-    m.calorias_consumidas !== null && `${m.calorias_consumidas.toLocaleString('es-CO')} kcal`,
-    m.estado_calorico && textoEstadoCalorico(m.estado_calorico),
-  ]
-    .filter(Boolean) // descarta los false/null/'' de los datos que no existen
-    .join(' · ')
 }
 
 export default function Mediciones({ atletaId }) {
@@ -73,14 +64,8 @@ export default function Mediciones({ atletaId }) {
   }, [atletaId, version])
 
   // ---- Datos DERIVADOS (se calculan, no se guardan en el estado) ----
-  // Están ordenadas de la más reciente a la más antigua, así que [0] es la última.
-  const conPeso = mediciones.filter((m) => m.peso_corporal_kg !== null)
-  const pesoActual = conPeso[0] ?? null // ?? = "si no existe, null"
-  const pesoPrevio = conPeso[1] ?? null
-  const delta = pesoActual && pesoPrevio
-    ? Number(pesoActual.peso_corporal_kg) - Number(pesoPrevio.peso_corporal_kg)
-    : null
-  const cinturaActual = mediciones.find((m) => m.perimetro_cintura_cm !== null) ?? null
+  // Resumen compartido con la pantalla del atleta (ver lib/mediciones.js).
+  const datos = resumirMediciones(mediciones)
   // ¿Ya hay una medición en la fecha elegida? Cambia el título y el botón.
   const existente = mediciones.find((m) => m.fecha === form.fecha)
 
@@ -174,25 +159,9 @@ export default function Mediciones({ atletaId }) {
     <section className="flex flex-col gap-4">
       <h3 className="text-lg font-bold">Mediciones</h3>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-2xl border border-borde bg-superficie p-4">
-          <p className="text-sm text-suave">Peso actual</p>
-          <p className="text-2xl font-bold">
-            {pesoActual ? `${pesoActual.peso_corporal_kg} kg` : '—'}
-          </p>
-          {delta !== null && (
-            <p className="text-sm text-suave">
-              {delta > 0 ? '+' : ''}{delta.toFixed(1)} kg vs. medición anterior
-            </p>
-          )}
-        </div>
-        <div className="rounded-2xl border border-borde bg-superficie p-4">
-          <p className="text-sm text-suave">Cintura actual</p>
-          <p className="text-2xl font-bold">
-            {cinturaActual ? `${cinturaActual.perimetro_cintura_cm} cm` : '—'}
-          </p>
-        </div>
-      </div>
+      <ResumenMediciones resumen={datos} />
+
+      <GraficoEvolucion mediciones={mediciones} />
 
       <form
         ref={formRef}
@@ -281,7 +250,7 @@ export default function Mediciones({ atletaId }) {
           {mediciones.map((m) => (
             <li key={m.id} className="rounded-2xl border border-borde bg-superficie p-4">
               <p className="font-semibold capitalize">{formatearFecha(m.fecha)}</p>
-              <p className="mt-1 text-sm text-suave">{resumen(m)}</p>
+              <p className="mt-1 text-sm text-suave">{textoMedicion(m)}</p>
               {m.notas && <p className="mt-1 text-sm">{m.notas}</p>}
               <div className="mt-3 flex gap-2">
                 <button

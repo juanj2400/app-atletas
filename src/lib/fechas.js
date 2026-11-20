@@ -33,3 +33,9 @@ export function formatearFecha(iso) {
     month: 'short',
   })
 }
+
+// Versión corta para ejes de gráficos: "2026-10-30" -> "30 oct"
+export function formatearFechaCorta(iso) {
+  const [anio, mes, dia] = iso.split('-').map(Number)
+  return new Date(anio, mes - 1, dia).toLocaleDateString('es', { day: 'numeric', month: 'short' })
+}

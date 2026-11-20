@@ -1,13 +1,13 @@
 // =====================================================================
 // App.jsx — el MAPA de la aplicación: qué pantalla se ve en cada URL.
-// React Router cambia de pantalla SIN recargar la página (por eso es una SPA
-// y se siente como una app nativa).
 // =====================================================================
 import { Routes, Route, Navigate } from 'react-router-dom'
 import RutaProtegida from './auth/RutaProtegida'
 import Login from './pages/Login'
 import Inicio from './pages/Inicio'
 import PantallaAtleta from './atleta/PantallaAtleta'
+import CheckIn from './atleta/CheckIn'
+import MisDatos from './atleta/MisDatos'
 import ListaAtletas from './admin/ListaAtletas'
 import DetalleAtleta from './admin/DetalleAtleta'
 
@@ -16,10 +16,19 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/" element={<Inicio />} />
+
+      {/* Rutas ANIDADAS: el portero y el marco se declaran una sola vez en el
+          padre; las pantallas concretas son hijas y aparecen en el <Outlet />. */}
       <Route
         path="/atleta"
         element={<RutaProtegida rol="client"><PantallaAtleta /></RutaProtegida>}
-      />
+      >
+        {/* index = lo que se ve en "/atleta" exacto */}
+        <Route index element={<CheckIn />} />
+        {/* "datos" = "/atleta/datos" */}
+        <Route path="datos" element={<MisDatos />} />
+      </Route>
+
       <Route
         path="/admin"
         element={<RutaProtegida rol="admin"><ListaAtletas /></RutaProtegida>}

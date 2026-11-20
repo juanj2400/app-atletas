@@ -37,3 +37,10 @@ export function textoEstadoCalorico(valor) {
   // ?. = "si es undefined no falles"; ?? = "si queda vacío, usa este valor"
   return ESTADOS_CALORICOS.find((e) => e.valor === valor)?.etiqueta ?? '—'
 }
+
+// Estados de una rutina. En la base de datos se guarda el texto simple.
+export const ESTADOS_RUTINA = { borrador: 'Borrador', activa: 'Activa', archivada: 'Archivada' }
+
+export function textoEstadoRutina(valor) {
+  return ESTADOS_RUTINA[valor] ?? '—'
+}

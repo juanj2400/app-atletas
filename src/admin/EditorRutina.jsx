@@ -1,0 +1,407 @@
+// =====================================================================
+// EditorRutina — aquí el entrenador ARMA la rutina de un atleta.
+//   Rutina  ->  Días  ->  Ejercicios (series, reps, RPE, descanso)
+//
+// Patrón de la pantalla: cada acción (agregar, guardar, quitar...) hace UN cambio
+// en Supabase y después RECARGA la rutina completa. Es simple y siempre muestra
+// lo que de verdad quedó guardado en la base de datos.
+// =====================================================================
+import { useEffect, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
+import Encabezado from '../components/Encabezado'
+import SelectorEjercicio from './SelectorEjercicio'
+import { aNumero } from '../lib/numeros'
+import { textoEstadoRutina } from '../lib/opciones'
+import { CAMPO, BOTON, BOTON_SEC, TARJETA } from '../lib/estilos'
+
+const porOrden = (a, b) => a.orden - b.orden
+
+// Si una política RLS impide un cambio, Supabase NO da error: afecta 0 filas.
+// Por eso pedimos .select('id') en cada operación y comprobamos que volvió algo.
+const fallo = (res) => res.error || !res.data || res.data.length === 0
+
+// ---------------------------------------------------------------------
+// Una fila de ejercicio dentro de un día
+// ---------------------------------------------------------------------
+function FilaEjercicio({ fila, listaNegra, aplicar }) {
+  const [f, setF] = useState({
+    series: String(fila.series),
+    repsMin: String(fila.reps_min ?? ''),
+    repsMax: String(fila.reps_max ?? ''),
+    rpe: String(fila.rpe_objetivo ?? ''),
+    descanso: String(fila.descanso_seg ?? ''),
+    notas: fila.notas ?? '',
+  })
+  const [error, setError] = useState('')
+  const cambiar = (campo, valor) => { setF((a) => ({ ...a, [campo]: valor })); setError('') }
+
+  const aviso = fila.exercises.restringido
+    ? 'Ejercicio restringido'
+    : listaNegra.has(fila.exercise_id) ? 'En la lista negra de este atleta' : null
+
+  function guardar() {
+    const series = aNumero(f.series)
+    const repsMin = aNumero(f.repsMin)
+    const repsMax = aNumero(f.repsMax)
+    const rpe = aNumero(f.rpe)
+    const descanso = aNumero(f.descanso)
+
+    if ([series, repsMin, repsMax, rpe, descanso].some(Number.isNaN)) return setError('Revisa los números.')
+    if (series === null || !Number.isInteger(series) || series < 1 || series > 20) {
+      return setError('Las series deben ser un número entero entre 1 y 20.')
+    }
+    for (const reps of [repsMin, repsMax]) {
+      if (reps !== null && (!Number.isInteger(reps) || reps < 1 || reps > 100)) {
+        return setError('Las repeticiones deben ser enteros entre 1 y 100.')
+      }
+    }
+    if (repsMin !== null && repsMax !== null && repsMax < repsMin) {
+      return setError('Las reps máximas no pueden ser menores que las mínimas.')
+    }
+    if (rpe !== null && (rpe < 1 || rpe > 10)) return setError('El RPE debe estar entre 1 y 10.')
+    if (descanso !== null && (!Number.isInteger(descanso) || descanso < 0 || descanso > 900)) {
+      return setError('El descanso debe ser un entero entre 0 y 900 segundos.')
+    }
+
+    aplicar(
+      supabase.from('routine_exercises')
+        .update({
+          series, reps_min: repsMin, reps_max: repsMax, rpe_objetivo: rpe,
+          descanso_seg: descanso, notas: f.notas.trim() || null,
+        })
+        .eq('id', fila.id).select('id'),
+      'Ejercicio guardado.'
+    )
+  }
+
+  function quitar() {
+    if (!window.confirm(`¿Quitar ${fila.exercises.nombre} de este día?`)) return
+    aplicar(supabase.from('routine_exercises').delete().eq('id', fila.id).select('id'), 'Ejercicio quitado.')
+  }
+
+  const mini = 'text-xs text-suave'
+  return (
+    <li className="rounded-xl border border-borde bg-hundido p-3">
+      <p className="font-semibold">{fila.exercises.nombre}</p>
+      <p className="text-sm text-suave">{fila.exercises.grupo_muscular || 'Sin grupo'}</p>
+      {aviso && <p className="text-sm text-alerta">Atención: {aviso}</p>}
+
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        <div>
+          <label className={mini} htmlFor={`s-${fila.id}`}>Series</label>
+          <input id={`s-${fila.id}`} inputMode="numeric" value={f.series} onChange={(e) => cambiar('series', e.target.value)} className={CAMPO} />
+        </div>
+        <div>
+          <label className={mini} htmlFor={`rmin-${fila.id}`}>Reps mín.</label>
+          <input id={`rmin-${fila.id}`} inputMode="numeric" value={f.repsMin} onChange={(e) => cambiar('repsMin', e.target.value)} className={CAMPO} />
+        </div>
+        <div>
+          <label className={mini} htmlFor={`rmax-${fila.id}`}>Reps máx.</label>
+          <input id={`rmax-${fila.id}`} inputMode="numeric" value={f.repsMax} onChange={(e) => cambiar('repsMax', e.target.value)} className={CAMPO} />
+        </div>
+        <div>
+          <label className={mini} htmlFor={`rpe-${fila.id}`}>RPE</label>
+          <input id={`rpe-${fila.id}`} inputMode="decimal" value={f.rpe} onChange={(e) => cambiar('rpe', e.target.value)} className={CAMPO} />
+        </div>
+        <div className="col-span-2">
+          <label className={mini} htmlFor={`d-${fila.id}`}>Descanso (segundos)</label>
+          <input id={`d-${fila.id}`} inputMode="numeric" value={f.descanso} onChange={(e) => cambiar('descanso', e.target.value)} className={CAMPO} />
+        </div>
+      </div>
+      <p className="mt-1 text-xs text-suave">Si las repeticiones son fijas, repite el mismo número en mín. y máx.</p>
+
+      <label className={`${mini} mt-2 block`} htmlFor={`n-${fila.id}`}>Notas</label>
+      <input id={`n-${fila.id}`} value={f.notas} onChange={(e) => cambiar('notas', e.target.value)} className={CAMPO} />
+
+      {error && <p role="alert" className="mt-2 text-sm text-alerta">{error}</p>}
+      <div className="mt-3 flex gap-2">
+        <button type="button" onClick={guardar} className={BOTON}>Guardar</button>
+        <button type="button" onClick={quitar} className={`${BOTON_SEC} text-alerta`}>Quitar</button>
+      </div>
+    </li>
+  )
+}
+
+// ---------------------------------------------------------------------
+// Un día de la rutina con sus ejercicios
+// ---------------------------------------------------------------------
+function DiaRutina({ dia, listaNegra, aplicar }) {
+  const [nombre, setNombre] = useState(dia.nombre)
+  const [notas, setNotas] = useState(dia.notas ?? '')
+  const [eligiendo, setEligiendo] = useState(false)
+
+  const siguienteOrden = dia.routine_exercises.reduce((max, e) => Math.max(max, e.orden), 0) + 1
+
+  function guardarDia() {
+    if (!nombre.trim()) return
+    aplicar(
+      supabase.from('routine_days').update({ nombre: nombre.trim(), notas: notas.trim() || null }).eq('id', dia.id).select('id'),
+      'Día guardado.'
+    )
+  }
+
+  function quitarDia() {
+    if (!window.confirm(`¿Eliminar "${dia.nombre}" y todos sus ejercicios?`)) return
+    aplicar(supabase.from('routine_days').delete().eq('id', dia.id).select('id'), 'Día eliminado.')
+  }
+
+  async function agregarEjercicio(ejercicio) {
+    const ok = await aplicar(
+      supabase.from('routine_exercises')
+        .insert({ day_id: dia.id, exercise_id: ejercicio.id, orden: siguienteOrden, series: 3 })
+        .select('id'),
+      `${ejercicio.nombre} agregado. Ajusta series y repeticiones.`
+    )
+    if (ok) setEligiendo(false)
+  }
+
+  return (
+    <div className={`${TARJETA} flex flex-col gap-3`}>
+      <label htmlFor={`dia-${dia.id}`} className="text-sm text-suave">Nombre del día</label>
+      <input id={`dia-${dia.id}`} value={nombre} onChange={(e) => setNombre(e.target.value)} className={CAMPO} />
+      <input value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Notas del día (opcional)" aria-label="Notas del día" className={CAMPO} />
+      <div className="flex gap-2">
+        <button type="button" onClick={guardarDia} className={BOTON_SEC}>Guardar día</button>
+        <button type="button" onClick={quitarDia} className={`${BOTON_SEC} text-alerta`}>Eliminar día</button>
+      </div>
+
+      {dia.routine_exercises.length === 0 && <p className="text-sm text-suave">Este día aún no tiene ejercicios.</p>}
+      <ul className="flex flex-col gap-3">
+        {dia.routine_exercises.map((fila) => (
+          <FilaEjercicio key={fila.id} fila={fila} listaNegra={listaNegra} aplicar={aplicar} />
+        ))}
+      </ul>
+
+      {eligiendo ? (
+        <SelectorEjercicio listaNegra={listaNegra} onElegir={agregarEjercicio} onCerrar={() => setEligiendo(false)} />
+      ) : (
+        <button type="button" onClick={() => setEligiendo(true)} className={BOTON}>Agregar ejercicio</button>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------
+// Datos generales de la rutina (nombre, objetivo, notas)
+// ---------------------------------------------------------------------
+function FormDatos({ rutina, aplicar }) {
+  const [nombre, setNombre] = useState(rutina.nombre)
+  const [objetivo, setObjetivo] = useState(rutina.objetivo ?? '')
+  const [notas, setNotas] = useState(rutina.notas ?? '')
+  const [error, setError] = useState('')
+
+  function guardar(evento) {
+    evento.preventDefault()
+    if (!nombre.trim()) return setError('La rutina necesita un nombre.')
+    setError('')
+    aplicar(
+      supabase.from('routines')
+        .update({ nombre: nombre.trim(), objetivo: objetivo.trim() || null, notas: notas.trim() || null })
+        .eq('id', rutina.id).select('id'),
+      'Datos de la rutina guardados.'
+    )
+  }
+
+  return (
+    <form onSubmit={guardar} className={`${TARJETA} flex flex-col gap-3`}>
+      <label htmlFor="r-nombre" className="text-sm text-suave">Nombre</label>
+      <input id="r-nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} className={CAMPO} />
+      <label htmlFor="r-objetivo" className="text-sm text-suave">Objetivo (opcional)</label>
+      <input id="r-objetivo" value={objetivo} onChange={(e) => setObjetivo(e.target.value)} placeholder="Ej: fuerza máxima" className={CAMPO} />
+      <label htmlFor="r-notas" className="text-sm text-suave">Notas (opcional)</label>
+      <textarea id="r-notas" rows={2} value={notas} onChange={(e) => setNotas(e.target.value)} className="w-full rounded-xl border border-[#5B6372] bg-fondo p-3" />
+      {error && <p role="alert" className="text-alerta">{error}</p>}
+      <button type="submit" className={BOTON_SEC}>Guardar datos</button>
+    </form>
+  )
+}
+
+// ---------------------------------------------------------------------
+// Pantalla principal del editor
+// ---------------------------------------------------------------------
+export default function EditorRutina() {
+  const { rutinaId } = useParams()
+  const navigate = useNavigate()
+
+  const [rutina, setRutina] = useState(null)
+  const [listaNegra, setListaNegra] = useState(new Set())
+  const [atletas, setAtletas] = useState([])
+  const [cargando, setCargando] = useState(true)
+  const [error, setError] = useState('')
+  const [mensaje, setMensaje] = useState(null)
+  const [version, setVersion] = useState(0)
+  const [nuevoDia, setNuevoDia] = useState('')
+  const [destino, setDestino] = useState('')
+
+  const recargar = () => setVersion((v) => v + 1)
+
+  useEffect(() => {
+    let cancelado = false
+    async function cargar() {
+      // Una sola consulta trae la rutina con sus días, ejercicios y el nombre de cada ejercicio.
+      const { data, error } = await supabase
+        .from('routines')
+        .select(`
+          id, user_id, nombre, objetivo, notas, estado, origen,
+          routine_days (
+            id, orden, nombre, notas,
+            routine_exercises (
+              id, orden, exercise_id, series, reps_min, reps_max, rpe_objetivo, descanso_seg, notas,
+              exercises ( nombre, grupo_muscular, restringido )
+            )
+          )
+        `)
+        .eq('id', rutinaId)
+        .maybeSingle()
+      if (cancelado) return
+      if (error) { setError('No se pudo cargar la rutina.'); setCargando(false); return }
+      if (!data) { setRutina(null); setError(''); setCargando(false); return }
+
+      // La base de datos no garantiza el orden de las listas anidadas: lo ordenamos aquí.
+      data.routine_days.sort(porOrden)
+      data.routine_days.forEach((d) => d.routine_exercises.sort(porOrden))
+
+      const [lista, todos] = await Promise.all([
+        supabase.from('athlete_exercise_blacklist').select('exercise_id').eq('user_id', data.user_id),
+        supabase.from('profiles').select('id, nombre_completo, email').eq('rol', 'client').order('nombre_completo'),
+      ])
+      if (cancelado) return
+      setRutina(data)
+      setListaNegra(new Set((lista.data ?? []).map((x) => x.exercise_id)))
+      setAtletas(todos.data ?? [])
+      setError('')
+      setCargando(false)
+    }
+    cargar()
+    return () => { cancelado = true }
+  }, [rutinaId, version])
+
+  // Ejecuta una operación de escritura, avisa del resultado y recarga si salió bien.
+  async function aplicar(operacion, textoOk) {
+    setMensaje(null)
+    const res = await operacion
+    if (fallo(res)) {
+      setMensaje({ tipo: 'error', texto: 'No se pudo guardar el cambio. Inténtalo de nuevo.' })
+      return false
+    }
+    if (textoOk) setMensaje({ tipo: 'ok', texto: textoOk })
+    recargar()
+    return true
+  }
+
+  async function activar() {
+    setMensaje(null)
+    // La función de la base de datos archiva la rutina activa anterior y activa esta.
+    const { error } = await supabase.rpc('activate_routine', { p_routine_id: rutina.id })
+    if (error) setMensaje({ tipo: 'error', texto: error.message })
+    else { setMensaje({ tipo: 'ok', texto: 'Rutina activada: el atleta ya puede verla.' }); recargar() }
+  }
+
+  function cambiarEstado(estado, texto) {
+    aplicar(supabase.from('routines').update({ estado }).eq('id', rutina.id).select('id'), texto)
+  }
+
+  function agregarDia(evento) {
+    evento.preventDefault()
+    if (!nuevoDia.trim()) return
+    const orden = rutina.routine_days.reduce((max, d) => Math.max(max, d.orden), 0) + 1
+    aplicar(
+      supabase.from('routine_days').insert({ routine_id: rutina.id, orden, nombre: nuevoDia.trim() }).select('id'),
+      'Día agregado.'
+    ).then((ok) => { if (ok) setNuevoDia('') })
+  }
+
+  async function copiar() {
+    if (!destino) return setMensaje({ tipo: 'error', texto: 'Elige a qué atleta copiarla.' })
+    setMensaje(null)
+    const { data, error } = await supabase.rpc('duplicate_routine', { p_routine_id: rutina.id, p_target_user: destino })
+    if (error) return setMensaje({ tipo: 'error', texto: error.message })
+    navigate(`/admin/rutinas/${data}`) // abre la copia (nace como borrador)
+  }
+
+  async function eliminar() {
+    if (!window.confirm('¿Eliminar esta rutina completa? No se puede deshacer.')) return
+    const res = await supabase.from('routines').delete().eq('id', rutina.id).select('id')
+    if (fallo(res)) return setMensaje({ tipo: 'error', texto: 'No se pudo eliminar la rutina.' })
+    navigate(`/admin/atletas/${rutina.user_id}`)
+  }
+
+  if (cargando) {
+    return <><Encabezado titulo="Rutina" /><main className="p-4 text-suave">Cargando rutina...</main></>
+  }
+  if (error || !rutina) {
+    return (
+      <>
+        <Encabezado titulo="Rutina" volverA="/admin" textoVolver="Atletas" />
+        <main className="p-4 text-alerta">{error || 'No encontramos esta rutina.'}</main>
+      </>
+    )
+  }
+
+  const colorMensaje = mensaje?.tipo === 'error' ? 'text-alerta' : 'text-enlace'
+
+  return (
+    <>
+      <Encabezado titulo={rutina.nombre} volverA={`/admin/atletas/${rutina.user_id}`} textoVolver="Atleta" />
+      <main className="mx-auto flex max-w-3xl flex-col gap-4 p-4">
+        {/* Aviso fijo arriba: así se ve aunque estés editando más abajo en la página. */}
+        {mensaje && (
+          <p role={mensaje.tipo === 'error' ? 'alert' : 'status'}
+             className={`sticky top-2 z-10 rounded-xl border border-borde bg-superficie p-3 ${colorMensaje}`}>
+            {mensaje.texto}
+          </p>
+        )}
+
+        <div className={`${TARJETA} flex flex-col gap-3`}>
+          <p>
+            Estado: <span className="font-semibold">{textoEstadoRutina(rutina.estado)}</span>
+            {rutina.origen === 'ia' && <span className="text-suave"> · propuesta por la IA</span>}
+          </p>
+          <p className="text-sm text-suave">
+            {rutina.estado === 'activa'
+              ? 'El atleta ve esta rutina.'
+              : 'El atleta NO ve esta rutina hasta que la actives.'}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {rutina.estado !== 'activa' && <button type="button" onClick={activar} className={BOTON}>Activar rutina</button>}
+            {rutina.estado === 'activa' && (
+              <>
+                <button type="button" onClick={() => cambiarEstado('archivada', 'Rutina archivada.')} className={BOTON_SEC}>Archivar</button>
+                <button type="button" onClick={() => cambiarEstado('borrador', 'La rutina volvió a borrador.')} className={BOTON_SEC}>Volver a borrador</button>
+              </>
+            )}
+            {rutina.estado === 'archivada' && (
+              <button type="button" onClick={() => cambiarEstado('borrador', 'La rutina volvió a borrador.')} className={BOTON_SEC}>Volver a borrador</button>
+            )}
+          </div>
+        </div>
+
+        <FormDatos rutina={rutina} aplicar={aplicar} />
+
+        <h3 className="text-lg font-bold">Días y ejercicios</h3>
+        {rutina.routine_days.length === 0 && <p className="text-suave">Empieza agregando el primer día.</p>}
+        {rutina.routine_days.map((dia) => (
+          <DiaRutina key={dia.id} dia={dia} listaNegra={listaNegra} aplicar={aplicar} />
+        ))}
+
+        <form onSubmit={agregarDia} className={`${TARJETA} flex flex-col gap-3`}>
+          <label htmlFor="nuevo-dia" className="text-sm text-suave">Agregar día</label>
+          <input id="nuevo-dia" value={nuevoDia} onChange={(e) => setNuevoDia(e.target.value)} placeholder="Ej: Día 1 · Pierna" className={CAMPO} />
+          <button type="submit" className={BOTON}>Agregar día</button>
+        </form>
+
+        <div className={`${TARJETA} flex flex-col gap-3`}>
+          <p className="font-semibold">Copiar a un atleta</p>
+          <p className="text-sm text-suave">Crea una copia como borrador (sin los pesos sugeridos).</p>
+          <select value={destino} onChange={(e) => setDestino(e.target.value)} aria-label="Atleta destino" className={CAMPO}>
+            <option value="">Elige un atleta...</option>
+            {atletas.map((a) => <option key={a.id} value={a.id}>{a.nombre_completo || a.email}</option>)}
+          </select>
+          <button type="button" onClick={copiar} className={BOTON_SEC}>Copiar rutina</button>
+          <button type="button" onClick={eliminar} className={`${BOTON_SEC} text-alerta`}>Eliminar esta rutina</button>
+        </div>
+      </main>
+    </>
+  )
+}

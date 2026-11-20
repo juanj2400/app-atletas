@@ -10,6 +10,7 @@ import CheckIn from './atleta/CheckIn'
 import MisDatos from './atleta/MisDatos'
 import ListaAtletas from './admin/ListaAtletas'
 import DetalleAtleta from './admin/DetalleAtleta'
+import EditorRutina from './admin/EditorRutina'
 
 export default function App() {
   return (
@@ -37,6 +38,10 @@ export default function App() {
       <Route
         path="/admin/atletas/:id"
         element={<RutaProtegida rol="admin"><DetalleAtleta /></RutaProtegida>}
+      />
+      <Route
+        path="/admin/rutinas/:rutinaId"
+        element={<RutaProtegida rol="admin"><EditorRutina /></RutaProtegida>}
       />
       {/* Cualquier otra URL: de vuelta al inicio */}
       <Route path="*" element={<Navigate to="/" replace />} />

@@ -8,9 +8,12 @@ import Inicio from './pages/Inicio'
 import PantallaAtleta from './atleta/PantallaAtleta'
 import CheckIn from './atleta/CheckIn'
 import MisDatos from './atleta/MisDatos'
+import Entrenar from './atleta/Entrenar'
+import EntrenarDia from './atleta/EntrenarDia'
 import ListaAtletas from './admin/ListaAtletas'
 import DetalleAtleta from './admin/DetalleAtleta'
 import EditorRutina from './admin/EditorRutina'
+import Ejercicios from './admin/Ejercicios'
 
 export default function App() {
   return (
@@ -26,6 +29,8 @@ export default function App() {
       >
         {/* index = lo que se ve en "/atleta" exacto */}
         <Route index element={<CheckIn />} />
+        <Route path="entrenar" element={<Entrenar />} />
+        <Route path="entrenar/:diaId" element={<EntrenarDia />} />
         {/* "datos" = "/atleta/datos" */}
         <Route path="datos" element={<MisDatos />} />
       </Route>
@@ -42,6 +47,10 @@ export default function App() {
       <Route
         path="/admin/rutinas/:rutinaId"
         element={<RutaProtegida rol="admin"><EditorRutina /></RutaProtegida>}
+      />
+      <Route
+        path="/admin/ejercicios"
+        element={<RutaProtegida rol="admin"><Ejercicios /></RutaProtegida>}
       />
       {/* Cualquier otra URL: de vuelta al inicio */}
       <Route path="*" element={<Navigate to="/" replace />} />

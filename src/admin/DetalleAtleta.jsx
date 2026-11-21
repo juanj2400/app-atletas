@@ -11,6 +11,8 @@ import { supabase } from '../lib/supabase'
 import Encabezado from '../components/Encabezado'
 import Mediciones from './Mediciones'
 import RutinasAtleta from './RutinasAtleta'
+import VolumenMuscular from './VolumenMuscular'
+import HistorialEntrenamiento from './HistorialEntrenamiento'
 import { fechaLocalISO, formatearFecha } from '../lib/fechas'
 import { textoAnimo, textoSiNo } from '../lib/opciones'
 
@@ -95,8 +97,12 @@ export default function DetalleAtleta() {
 
             <RutinasAtleta atletaId={atleta.id} />
 
+            <VolumenMuscular atletaId={atleta.id} titulo="Volumen semanal (rutina activa)" />
+
             {/* Componente autónomo: solo necesita saber de qué atleta es. */}
             <Mediciones atletaId={atleta.id} />
+
+            <HistorialEntrenamiento atletaId={atleta.id} />
 
             <section>
               <h3 className="mb-2 text-lg font-bold">Check-ins recientes</h3>

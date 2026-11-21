@@ -29,6 +29,9 @@ export default function ListaAtletas() {
     <>
       <Encabezado titulo="Atletas" />
       <main className="mx-auto max-w-3xl p-4">
+        <Link to="/admin/ejercicios" className="mb-4 flex min-h-11 items-center justify-center rounded-xl border border-borde bg-superficie px-4 text-sm font-semibold">
+          Biblioteca de ejercicios y músculos
+        </Link>
         {cargando && <p className="text-suave">Cargando atletas...</p>}
         {error && <p role="alert" className="text-alerta">{error}</p>}
         {!cargando && !error && atletas.length === 0 && (

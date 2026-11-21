@@ -11,6 +11,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import Encabezado from '../components/Encabezado'
 import SelectorEjercicio from './SelectorEjercicio'
+import VolumenMuscular from './VolumenMuscular'
 import { aNumero } from '../lib/numeros'
 import { textoEstadoRutina } from '../lib/opciones'
 import { CAMPO, BOTON, BOTON_SEC, TARJETA } from '../lib/estilos'
@@ -390,6 +391,9 @@ export default function EditorRutina() {
           <input id="nuevo-dia" value={nuevoDia} onChange={(e) => setNuevoDia(e.target.value)} placeholder="Ej: Día 1 · Pierna" className={CAMPO} />
           <button type="submit" className={BOTON}>Agregar día</button>
         </form>
+
+        {/* Se recalcula solo cada vez que cambias algo en la rutina (version) */}
+        <VolumenMuscular rutinaId={rutina.id} version={version} titulo="Volumen semanal de esta rutina" />
 
         <div className={`${TARJETA} flex flex-col gap-3`}>
           <p className="font-semibold">Copiar a un atleta</p>

@@ -1,0 +1,35 @@
+# Scripts SQL de la base de datos
+
+Estos archivos son la **fuente de verdad del esquema** de Supabase. Se ejecutan **a mano**, una sola vez cada uno y **en orden**, en el SQL Editor (*New snippet* → pegar → *Run*). Guardarlos aquí no los ejecuta: son el registro de lo que ya se aplicó.
+
+## Orden de aplicación
+
+| Orden | Archivo del repositorio | Nombre del snippet en el SQL Editor | Qué hace | Estado |
+|---|---|---|---|---|
+| 0 | `schema_supabase.sql` | `Gestion_Atletas_Inicial` | Tablas base (`profiles`, `exercises`, `metrics`, `routine_logs`, `ai_load_suggestions`, `daily_check_ins`), trigger que crea el perfil, RLS y 14 ejercicios iniciales | Aplicado |
+| 2 | `migracion_02_nutricion_dashboard.sql` | `migracion_02` | Plan nutricional, buzón nutricional de la IA, ciclos de entrenamiento, lista negra por atleta, vistas del dashboard, triggers de seguridad de la IA, `resolve_nutrition_suggestion` | Aplicado |
+| 3 | `migracion_03_metricas_admin.sql` | `migracion_03_metricas_admin.sql` | Mediciones solo del admin (el atleta solo lee) e índice único `(user_id, fecha)` | Aplicado |
+| 4 | `migracion_04_rutinas.sql` | `migracion_04_Rutinas` | `routines`, `routine_days`, `routine_exercises`, enlace desde `routine_logs`, `activate_routine`, `duplicate_routine` | Aplicado |
+| 5 | `migracion_05_checkin_una_vez.sql` | `migracion_05_checkin_una_sola_vez` | El atleta solo crea su check-in (sin modificar ni borrar) | Aplicado |
+| 6 | `migracion_06_volumen_muscular.sql` | `migracion_06_volumen_por_musculo` | `muscle_groups`, `exercise_muscles`, `set_exercise_muscles` y músculos de los 14 ejercicios iniciales | Aplicado |
+
+No existe una "migración 01": el esquema inicial hace de base. La numeración sigue la de las migraciones.
+
+## Dependencias
+
+- La 02 requiere el esquema inicial.
+- La 03 y la 05 modifican políticas de tablas creadas antes.
+- La 04 requiere la 02 (usa `training_cycles`).
+- La 06 requiere el esquema inicial (usa `exercises`).
+
+## Reglas
+
+1. **Nunca edites un script ya aplicado.** Un cambio nuevo es un archivo nuevo: `migracion_07_descripcion.sql`, luego `08`, etc.
+2. Cada migración nueva debe: explicar en comentarios qué hace y por qué, activar RLS con políticas si crea tablas, y validar su sintaxis antes de entregarse.
+3. **Primero la base de datos, después el código** que depende de ella.
+4. **No vuelvas a ejecutar** un script ya aplicado: fallaría con "already exists" o duplicaría datos.
+5. Al agregar una migración: súbela aquí, añade su fila a la tabla de arriba y actualiza `docs/ARQUITECTURA.md` y `docs/CHANGELOG.md`.
+
+## Avisos esperables del SQL Editor
+
+Supabase muestra "Potential issue detected" cuando un script contiene `drop` o `delete`. Es normal en estos casos: la 02, la 03 y la 05 eliminan políticas o índices antiguos para reemplazarlos, y la 06 contiene un `delete` dentro de una función que solo se ejecuta cuando guardas los músculos de un ejercicio desde la app. Ninguna borra tablas ni datos de los usuarios.

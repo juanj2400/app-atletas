@@ -49,7 +49,7 @@ Node >= 20.19 (requisito de Vite 8). Gestor: npm; `package-lock.json` versionado
 │  ├─ sql/                        scripts SQL (esquema y migraciones), se aplican a mano en el SQL Editor
 │  │   ├─ README.md               orden de aplicación y nombre de cada uno en el SQL Editor
 │  │   ├─ schema_supabase.sql
-│  │   └─ migracion_02 … migracion_06 (…y las que sigan)
+│  │   └─ migracion_02 … migracion_07 (…y las que sigan)
 │  └─ functions/generate-weekly-proposals/index.ts   Edge Function de IA (TypeScript/Deno)
 ├─ public/                        _redirects (Netlify SPA), favicon, íconos PWA
 ├─ index.html · vite.config.js · package.json · .env.example
@@ -64,15 +64,17 @@ Node >= 20.19 (requisito de Vite 8). Gestor: npm; `package-lock.json` versionado
    │   ├─ numeros.js              aNumero (texto → número/null/NaN)
    │   ├─ opciones.js             ánimos, estados calóricos, estados de rutina + textos
    │   ├─ estilos.js              CAMPO, BOTON, BOTON_SEC, TARJETA
+   │   ├─ coloresGrafico.js       colores de los gráficos (SVG necesita texto, no clases)
    │   ├─ mediciones.js           resumirMediciones, textoMedicion
    │   ├─ rutinas.js              textos de prescripción/series, última vez, agrupar historial
-   │   └─ volumen.js              calcularVolumen (series semanales por músculo)
+   │   ├─ volumen.js              calcularVolumen (series semanales por músculo)
+   │   └─ records.js              1RM (Epley), progreso por día, textos y fechas de los récords
    ├─ auth/
    │   ├─ AuthProvider.jsx        sesión + perfil (rol); useAuth()
    │   └─ RutaProtegida.jsx       "portero" por rol
    ├─ pages/                      Login.jsx, Inicio.jsx (redirige por rol)
-   ├─ components/                 Encabezado, Estados, Selector, ResumenMediciones, GraficoEvolucion, GraficoEvolucionLazy
-   ├─ atleta/                     PantallaAtleta (marco), CheckIn, Entrenar, EntrenarDia, MisDatos
+   ├─ components/                 Encabezado, Estados, Selector, ResumenMediciones, GraficoEvolucion, GraficoEvolucionLazy, RecordsAtleta, GraficosRecord, GraficosRecordLazy
+   ├─ atleta/                     PantallaAtleta (marco), CheckIn, Entrenar, EntrenarDia, MisDatos (marco con secciones), MisMediciones, Records
    └─ admin/                      ListaAtletas, DetalleAtleta, Mediciones, RutinasAtleta, EditorRutina,
                                   SelectorEjercicio, HistorialEntrenamiento, VolumenMuscular, Ejercicios
 ```
@@ -88,7 +90,8 @@ Node >= 20.19 (requisito de Vite 8). Gestor: npm; `package-lock.json` versionado
 | `/atleta` | client | `PantallaAtleta` (marco). Índice: `CheckIn` (si ya está hecho, redirige a `/atleta/entrenar`) |
 | `/atleta/entrenar` | client | `Entrenar` (días de la rutina activa) |
 | `/atleta/entrenar/:diaId` | client | `EntrenarDia` (registro de series) |
-| `/atleta/datos` | client | `MisDatos` |
+| `/atleta/datos` | client | `MisDatos` (marco con dos secciones); índice: `MisMediciones` (Medidas) |
+| `/atleta/datos/records` | client | `Records` (récords con gráficas) |
 | `/admin` | admin | `ListaAtletas` |
 | `/admin/atletas/:id` | admin | `DetalleAtleta` |
 | `/admin/rutinas/:rutinaId` | admin | `EditorRutina` |
@@ -99,7 +102,7 @@ Node >= 20.19 (requisito de Vite 8). Gestor: npm; `package-lock.json` versionado
 
 ## 5. Base de datos (Supabase / PostgreSQL)
 
-Scripts aplicados, en orden: `schema_supabase.sql` → `migracion_02_nutricion_dashboard.sql` → `03_metricas_admin` → `04_rutinas` → `05_checkin_una_vez` → `06_volumen_muscular`.
+Scripts aplicados, en orden: `schema_supabase.sql` → `migracion_02_nutricion_dashboard.sql` → `03_metricas_admin` → `04_rutinas` → `05_checkin_una_vez` → `06_volumen_muscular` → `07_records_por_peso`.
 
 ### 5.1 Tablas
 
@@ -141,7 +144,7 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 ### 5.3 Funciones, triggers y vistas
 - **Funciones:** `is_admin()` · `activate_routine(uuid)` · `duplicate_routine(uuid, uuid)` · `set_exercise_muscles(uuid, jsonb)` · `resolve_nutrition_suggestion(...)` (RPC solo admin, `security definer`, `search_path=''`).
 - **Triggers:** `handle_new_user` (crea el perfil) · `force_suggestion_pending` (toda propuesta nace `pendiente`) · `guard_suggestion_resolution` (resuelta = inmutable; sella fecha y autor) · `block_blacklisted_suggestion` (la IA no puede proponer ejercicios en lista negra).
-- **Vistas** (`security_invoker`): `v_athlete_overview`, `v_metrics_trend`, `v_athlete_prs`, `v_current_training_cycle`, `v_pending_ai_suggestions`. La app actual calcula en el cliente; las vistas están listas para los pasos 8–11.
+- **Vistas** (`security_invoker`): `v_athlete_overview`, `v_metrics_trend`, `v_athlete_prs`, `v_current_training_cycle`, `v_pending_ai_suggestions` y `v_best_reps_by_weight` (migración 07: mejor cantidad de repeticiones por peso). La app usa `v_athlete_prs` y `v_best_reps_by_weight` (récords); el resto está listo para los pasos 9–11. `v_athlete_prs` calcula el 1RM (Epley) sin límite de repeticiones.
 
 ## 6. Flujos clave
 
@@ -150,6 +153,7 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 - **Registrar serie:** cada "Guardar serie" hace un `insert` en `routine_logs` con `routine_exercise_id` y `sesion_id` (se reutiliza el de hoy si ya hay series). "Hoy" = desde la medianoche local; "última vez" = serie del entrenamiento anterior del mismo ejercicio.
 - **Activar rutina:** RPC `activate_routine` (archiva la activa anterior y activa la nueva, todo o nada).
 - **Volumen:** `calcularVolumen()` multiplica series × factor de cada músculo, separando directas (factor ≥ 1) e indirectas.
+- **Récords:** `RecordsAtleta` pide a `v_athlete_prs` una fila por ejercicio; al desplegar uno, pide a `v_best_reps_by_weight` sus marcas por peso y hasta 500 series recientes de ese ejercicio (para "última vez" y la evolución del 1RM, agrupada por día local). Las vistas respetan RLS (`security_invoker`): el atleta ve lo suyo y el entrenador, todo.
 - **IA (pendiente):** botón admin → Edge Function por lotes de 3 atletas → Gemini con esquema JSON → validación con límites (±10 % en kcal y cargas) → inserción como `pendiente` → el admin aprueba/edita/rechaza.
 
 ## 7. Diseño visual
@@ -180,7 +184,7 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 - Barra inferior del atleta: `fixed`, pestañas `min-h-14`, con `env(safe-area-inset-bottom)`; el `body` aplica los márgenes seguros del notch.
 - Avisos: `role="alert"` (errores, `text-alerta`) / `role="status"` (éxito, `text-enlace`).
 
-**Componentes clave:** `Selector` (botones Sí/No y ánimo, controlado, `aria-pressed`) · `Encabezado` (título, enlace "volver", botón Salir) · `Estados` (`Cargando`, `SinPerfil`) · `ResumenMediciones` (4 tarjetas, de presentación) · `GraficoEvolucion` (ComposedChart: peso en línea, calorías en barras, dos ejes; colores como constantes porque SVG necesita texto) y `GraficoEvolucionLazy` (carga perezosa con `Suspense`) · `VolumenMuscular` (barras CSS por músculo).
+**Componentes clave:** `Selector` (botones Sí/No y ánimo, controlado, `aria-pressed`) · `Encabezado` (título, enlace "volver", botón Salir) · `Estados` (`Cargando`, `SinPerfil`) · `ResumenMediciones` (4 tarjetas, de presentación) · `GraficoEvolucion` (ComposedChart: peso en línea, calorías en barras, dos ejes; colores como constantes porque SVG necesita texto) y `GraficoEvolucionLazy` (carga perezosa con `Suspense`) · `VolumenMuscular` (barras CSS por músculo) · `RecordsAtleta` (compartido por atleta y entrenador; carga sus propios datos desde las vistas) · `GraficosRecord` (evolución del 1RM y repeticiones por peso; carga perezosa).
 
 ## 8. Decisiones técnicas importantes
 
@@ -199,6 +203,7 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 13. **Carga perezosa del gráfico:** Recharts pesa mucho; se separa en su propio archivo para no penalizar el login.
 14. **Rutas anidadas** en la zona del atleta (`Outlet` + contexto) para compartir el estado del check-in con una sola consulta.
 15. **Netlify** en lugar de Vercel por permitir uso comercial en el plan gratuito.
+16. **Los récords los resume la base de datos** (vistas), no la app: Supabase devuelve como máximo 1.000 filas por consulta y el historial de series crece sin parar. El detalle por ejercicio se carga solo al desplegarlo. 1RM con fórmula de Epley; marcas por peso exacto. La evolución del 1RM se agrupa por día **local** en el cliente (agrupar en SQL por día UTC movería un día los entrenamientos nocturnos), por eso se limita a 500 series por ejercicio.
 
 ## 9. Configuración y despliegue
 
@@ -216,9 +221,11 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 
 ## 10. Deuda técnica conocida
 
-- `border-[#5B6372]` y los colores del gráfico están fuera del tema; mover a tokens.
+- `border-[#5B6372]` y los colores de los gráficos (`lib/coloresGrafico.js`) están fuera del tema; mover a tokens.
 - `Mediciones.jsx` define su propio `CAMPO` en vez de importarlo de `estilos.js`.
 - `npm audit` reporta 4 avisos moderados en herramientas de construcción (`vite-plugin-pwa → workbox-build → glob/minimatch`): no afectan al código publicado; esperar versión corregida y entonces `npm update`. **No** usar `npm audit fix --force`.
+- `v_athlete_prs` no limita las repeticiones al estimar el 1RM (Epley pierde fiabilidad con muchas repeticiones).
+- La evolución del 1RM usa como máximo las 500 series más recientes de cada ejercicio.
 - Sin pruebas automáticas ni ESLint.
 - El eje X del gráfico trata las fechas como categorías, no como escala de tiempo.
 - En `Mediciones.jsx`, el aviso "ya hay una medición en esta fecha" solo mira las últimas 30.

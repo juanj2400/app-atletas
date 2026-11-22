@@ -36,11 +36,12 @@ React 19 + Vite 8 · Tailwind CSS 4 (configuración en `src/index.css`) · PWA c
 - Tablas SQL: inglés, plural, `snake_case` (`routine_logs`). Columnas: español `snake_case` (`peso_corporal_kg`, `fecha`), salvo llaves foráneas `*_id` y `created_at`.
 
 **Organización**
-- `src/atleta/` pantallas del atleta · `src/admin/` pantallas del entrenador · `src/auth/` sesión y rutas protegidas · `src/pages/` pantallas comunes · `src/components/` piezas reutilizables y de presentación · `src/lib/` funciones puras, constantes y conexión a Supabase.
+- `src/atleta/` pantallas del atleta · `src/admin/` pantallas del entrenador · `src/auth/` sesión y rutas protegidas · `src/pages/` pantallas comunes · `src/components/` piezas reutilizables (casi todas de presentación; `RecordsAtleta` carga sus propios datos porque lo usan las dos zonas) · `src/lib/` funciones puras, constantes y conexión a Supabase.
 - La lógica reutilizable o calculable va en `src/lib/` como **función pura** (recibe datos, devuelve resultado), no dentro de componentes. Si algo se usa en dos sitios, se extrae (DRY).
 
 **Patrones obligatorios**
 - Carga de datos: `useEffect` con bandera `cancelado` y limpieza; recarga con un contador `version`. Siempre se manejan los tres estados: **cargando, error y vacío**.
+- **Límite de filas:** Supabase devuelve como máximo 1.000 filas por consulta. Para históricos que crecen (series, mediciones) usa vistas o funciones RPC que resuman en la base de datos, o `limit` explícito; no traigas todo para calcular en el cliente.
 - Después de un `update`/`delete` por Supabase, encadena `.select('id')` y comprueba que volvió al menos una fila: RLS no da error cuando bloquea, solo afecta 0 filas.
 - Estado de React: **nunca se muta**. Copia antes de ordenar (`[...lista].sort(...)`) y actualiza con `setX((anterior) => ({ ...anterior, campo }))`.
 - Formularios controlados. Todo `<button>` dentro de un `<form>` que no deba enviarlo lleva `type="button"`.
@@ -54,12 +55,12 @@ React 19 + Vite 8 · Tailwind CSS 4 (configuración en `src/index.css`) · PWA c
 ## 4. Estilo visual (resumen; detalle en `docs/ARQUITECTURA.md`)
 
 - App **solo oscura** (`color-scheme: dark`). No se implementa modo claro sin autorización.
-- Colores **solo** mediante los tokens de `@theme` en `src/index.css`: `fondo`, `superficie`, `hundido`, `borde`, `texto`, `suave`, `primario`, `enlace`, `alerta` (clases `bg-superficie`, `text-suave`, etc.). No escribas colores hexadecimales nuevos en componentes. Excepciones ya existentes (deuda técnica): `border-[#5B6372]` en campos y las constantes de color de `GraficoEvolucion.jsx`.
+- Colores **solo** mediante los tokens de `@theme` en `src/index.css`: `fondo`, `superficie`, `hundido`, `borde`, `texto`, `suave`, `primario`, `enlace`, `alerta` (clases `bg-superficie`, `text-suave`, etc.). No escribas colores hexadecimales nuevos en componentes. Excepciones ya existentes (deuda técnica): `border-[#5B6372]` en campos y los colores de los gráficos en `src/lib/coloresGrafico.js`.
 - Mobile-first. Controles táctiles **mínimo 44 px** (`min-h-11`); barra inferior del atleta `min-h-14`. Zona del atleta `max-w-md`; zona del admin `max-w-3xl`.
 - Reutiliza `src/lib/estilos.js` (`CAMPO`, `BOTON`, `BOTON_SEC`, `TARJETA`) y los componentes existentes antes de crear estilos nuevos. Tarjetas: `rounded-2xl border border-borde bg-superficie p-4`.
 - Tipografía: la del sistema (pila por defecto de Tailwind). No se cargan fuentes externas.
 - Sin emojis salvo los del estado de ánimo del check-in (😞 😐 😄).
-- Los gráficos con Recharts se cargan con `GraficoEvolucionLazy` (carga perezosa); no importes Recharts en el paquete principal.
+- Los gráficos con Recharts se cargan con carga perezosa (`GraficoEvolucionLazy`, `GraficosRecordLazy`); no importes Recharts en el paquete principal. Los colores de gráficos se toman de `src/lib/coloresGrafico.js`.
 
 ## 5. Seguridad (no negociable)
 

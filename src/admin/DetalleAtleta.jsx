@@ -13,6 +13,7 @@ import Mediciones from './Mediciones'
 import RutinasAtleta from './RutinasAtleta'
 import VolumenMuscular from './VolumenMuscular'
 import HistorialEntrenamiento from './HistorialEntrenamiento'
+import RecordsAtleta from '../components/RecordsAtleta'
 import { fechaLocalISO, formatearFecha } from '../lib/fechas'
 import { textoAnimo, textoSiNo } from '../lib/opciones'
 
@@ -101,6 +102,11 @@ export default function DetalleAtleta() {
 
             {/* Componente autónomo: solo necesita saber de qué atleta es. */}
             <Mediciones atletaId={atleta.id} />
+
+            <section className="flex flex-col gap-3">
+              <h3 className="text-lg font-bold">Récords personales</h3>
+              <RecordsAtleta userId={atleta.id} />
+            </section>
 
             <HistorialEntrenamiento atletaId={atleta.id} />
 

@@ -8,6 +8,8 @@ import Inicio from './pages/Inicio'
 import PantallaAtleta from './atleta/PantallaAtleta'
 import CheckIn from './atleta/CheckIn'
 import MisDatos from './atleta/MisDatos'
+import MisMediciones from './atleta/MisMediciones'
+import Records from './atleta/Records'
 import Entrenar from './atleta/Entrenar'
 import EntrenarDia from './atleta/EntrenarDia'
 import ListaAtletas from './admin/ListaAtletas'
@@ -31,8 +33,11 @@ export default function App() {
         <Route index element={<CheckIn />} />
         <Route path="entrenar" element={<Entrenar />} />
         <Route path="entrenar/:diaId" element={<EntrenarDia />} />
-        {/* "datos" = "/atleta/datos" */}
-        <Route path="datos" element={<MisDatos />} />
+        {/* "datos" tiene sus propias hijas: Medidas (índice) y Récords */}
+        <Route path="datos" element={<MisDatos />}>
+          <Route index element={<MisMediciones />} />
+          <Route path="records" element={<Records />} />
+        </Route>
       </Route>
 
       <Route

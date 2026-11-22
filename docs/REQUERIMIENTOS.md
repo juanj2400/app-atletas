@@ -1,6 +1,6 @@
 # REQUERIMIENTOS — Qué hace la app y qué falta
 
-> Última actualización: 2026-11-21 · Estado: pasos 1 a 7 construidos y publicados.
+> Última actualización: 2026-11-21 · Estado: pasos 1 a 8 construidos y publicados.
 > Mantener este archivo al día es obligatorio (ver regla en `AGENTS.md`).
 
 ## 1. Resumen del producto
@@ -32,13 +32,17 @@ El primer admin se asigna a mano en SQL (`update public.profiles set rol='admin'
 - Desplegada en Netlify con despliegue continuo desde GitHub.
 
 ### 3.2 Zona del atleta (`/atleta`)
-Barra inferior con pestañas: **Check-in** (solo mientras esté pendiente), **Entrenar**, **Mis datos**.
+Barra inferior con pestañas: **Check-in** (solo mientras esté pendiente), **Entrenar**, **Mis datos** (con dos secciones: *Medidas* y *Récords*).
 
 - **Check-in diario:** ¿cumpliste las calorías de ayer? (sí/no), horas dormidas, estado de ánimo (😞 😐 😄) y ¿te sientes recuperado? (sí/no).
   - Se llena **una sola vez por día** y no se puede modificar. Al guardarlo, la pestaña desaparece y la app lo lleva a "Entrenar" con un aviso.
   - El día cambia a las **12 a. m. hora del celular**; la pestaña reaparece sola (aunque la app quede abierta).
 - **Entrenar:** ve su rutina **activa** y elige el día a entrenar. En cada día ve, por ejercicio: lo prescrito (series × reps · RPE · descanso), notas del entrenador, "última vez" (marca del entrenamiento anterior), "Cómo se hace" (descripción y video si existen) y registra **cada serie** (peso, repeticiones, RPE obligatorio). La serie se guarda al instante; puede borrarla. El peso de la siguiente serie viene precargado.
-- **Mis datos (solo lectura):** tarjetas de resumen (peso actual y cambio, cintura, calorías promedio de 7 días, estado calórico), gráfico de evolución (peso en línea y calorías en barras) e historial de mediciones.
+- **Mis datos › Medidas (solo lectura):** tarjetas de resumen (peso actual y cambio, cintura, calorías promedio de 7 días, estado calórico), gráfico de evolución (peso en línea y calorías en barras) e historial de mediciones.
+- **Mis datos › Récords (solo lectura, con gráficas):**
+  - Arriba, un **ranking visual** del 1RM estimado de los ejercicios con mayor marca.
+  - Una tarjeta por ejercicio con su mejor serie y el **1RM estimado**; etiqueta "Nuevo" si se logró en los últimos 14 días.
+  - Al desplegar un ejercicio: **gráfica de la evolución del 1RM**, **gráfica de repeticiones máximas con cada peso**, lo que hizo la última vez y la lista de marcas por peso.
 
 ### 3.3 Zona del entrenador (`/admin`)
 - **Lista de atletas** (nombre y correo) con acceso a cada ficha y a la Biblioteca de ejercicios.
@@ -47,6 +51,7 @@ Barra inferior con pestañas: **Check-in** (solo mientras esté pendiente), **En
   - **Rutinas** del atleta: lista y creación de una nueva.
   - **Volumen semanal por músculo** de su rutina activa.
   - **Mediciones:** resumen, gráfico, formulario para registrar/editar/eliminar (una por día; reemplazo por fecha).
+  - **Récords personales (con gráficas):** ranking de 1RM, y por ejercicio: mejor serie, evolución del 1RM, repeticiones máximas por peso y última vez.
   - **Entrenamientos recientes:** series registradas, agrupadas por día y ejercicio.
   - **Check-ins recientes** (últimos 14).
 - **Editor de rutinas** (`/admin/rutinas/:rutinaId`):
@@ -63,6 +68,7 @@ Barra inferior con pestañas: **Check-in** (solo mientras esté pendiente), **En
 - Prescripción: series 1–20, repeticiones 1–100 (mín ≤ máx), RPE 1–10 (admite decimales), descanso 0–900 s.
 - Una sola rutina activa por atleta; el atleta nunca ve borradores ni archivadas.
 - Volumen: series semanales × factor del músculo (1 principal, 0,5 secundario). **Supone que cada día de la rutina se entrena una vez por semana.** Muestra también los músculos en 0.
+- Récords: el **1RM estimado** usa la fórmula de Epley (peso × (1 + reps/30); con 1 repetición es el propio peso) y solo cuenta series con peso mayor que 0. Las **marcas por peso** agrupan por peso exacto y guardan la mayor cantidad de repeticiones (si empatan, la fecha más antigua). **Gráficas:** evolución del 1RM (un punto por día de entrenamiento en **hora local**, con la mejor serie del día; usa hasta las 500 series más recientes del ejercicio), repeticiones máximas por peso y un ranking con los 8 mayores 1RM.
 
 ## 4. Ya existe en la base de datos, pero aún sin pantalla
 
@@ -74,14 +80,14 @@ Creado en el esquema inicial y la migración 02; listo para usar cuando se const
 | `ai_nutrition_suggestions` / `ai_load_suggestions` | Buzones de propuestas de la IA (siempre `pendiente` hasta que el admin resuelve) |
 | `training_cycles` | Macro/mesociclos del atleta |
 | `athlete_exercise_blacklist` | Lista negra de ejercicios por atleta (el editor de rutinas ya la **lee** para advertir) |
-| Vistas `v_athlete_overview`, `v_athlete_prs`, `v_current_training_cycle`, `v_pending_ai_suggestions`, `v_metrics_trend` | Listado enriquecido, récords, mesociclo vigente, bandeja de pendientes, tendencia de peso (esta última la usa la Edge Function) |
+| Vistas `v_athlete_overview`, `v_current_training_cycle`, `v_pending_ai_suggestions`, `v_metrics_trend` | Listado enriquecido, mesociclo vigente, bandeja de pendientes, tendencia de peso (esta última la usa la Edge Function). Las vistas `v_athlete_prs` y `v_best_reps_by_weight` **ya las usa la app** (récords) |
 | `supabase/functions/generate-weekly-proposals/` | Edge Function que llama a Gemini. **Escrita, no desplegada ni probada contra Supabase.** |
 
 ## 5. Lo que falta por construir (en este orden)
 
 | Paso | Qué | Notas |
 |---|---|---|
-| **8** | **Récords personales** por ejercicio + **mejores repeticiones con cada peso** | Base de la Idea 1. Usa la vista `v_athlete_prs`; visible para el entrenador y el atleta. |
+| ~~**8**~~ | ~~Récords personales y mejores repeticiones por peso~~ | **Hecho (2026-11-21).** Base de la Idea 1. Visible para el entrenador y el atleta. |
 | **9** | **Plan nutricional manual** | El entrenador define kcal y macros por atleta; el atleta los ve. Línea de objetivo en el gráfico de calorías. |
 | **10** | **Mesociclos y lista negra** (interfaz) + **crear/editar ejercicios** | Hoy los ejercicios nuevos se agregan desde Table Editor. |
 | **11** | **La IA** | Desplegar la Edge Function y sus secrets; botón "Generar propuestas de la semana"; bandeja de aprobación (Aceptar / Editar / Rechazar) para nutrición, cargas y rutinas; **progresión semanal (Idea 1)**; uso del volumen por músculo al proponer rutinas. |
@@ -91,7 +97,7 @@ Creado en el esquema inicial y la migración 02; listo para usar cuando se const
 - El entrenador da un **rango de repeticiones**; el atleta anota las que logró con cada peso.
 - Según lo logrado (criterio de la IA **y** del entrenador) se define la meta de la semana siguiente (ej.: hizo 6 → intentar 7; al llegar al tope del rango → subir el peso).
 - Se guarda cuántas repeticiones se lograron con cada peso, para llevar **marcas personales** y saber con cuánto trabajar cada vez que se use ese ejercicio.
-- Conexión: la base son las **mejores repeticiones por peso** (paso 8); la propuesta la genera la IA (paso 11) en `ai_load_suggestions` y el entrenador aprueba; el atleta ve su **meta del día** en "Entrenar" (usará `peso_sugerido_kg` y un objetivo de repeticiones).
+- Conexión: la base ya está construida: las **mejores repeticiones por peso** (paso 8, vista `v_best_reps_by_weight`); la propuesta la genera la IA (paso 11) en `ai_load_suggestions` y el entrenador aprueba; el atleta ve su **meta del día** en "Entrenar" (usará `peso_sugerido_kg` y un objetivo de repeticiones).
 - **Decisión pendiente del dueño:** regla exacta (cuántas repeticiones antes de subir el peso, cuánto subir, si cuenta la mejor serie o todas).
 
 ## 6. Backlog técnico sugerido (no solicitado aún)
@@ -110,4 +116,5 @@ Creado en el esquema inicial y la migración 02; listo para usar cuando se const
 - Supabase gratis **pausa el proyecto tras una semana sin actividad** y no incluye copias diarias: hacer respaldos manuales.
 - La capa gratuita de Gemini puede usar el contenido enviado para mejorar productos de Google (por eso no se envían identificadores).
 - El gráfico reparte las fechas a distancias iguales aunque haya huecos entre mediciones.
+- El 1RM estimado (Epley) es solo una referencia: poco fiable con más de ~10 repeticiones.
 - Sin pruebas automáticas ni ESLint.

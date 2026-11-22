@@ -1,78 +1,41 @@
 // =====================================================================
-// MisDatos — el atleta VE sus mediciones (peso, cintura, calorías). Solo lectura.
-//
-// Fíjate en lo que NO hay aquí: ningún formulario, ningún botón de guardar o
-// borrar. Y aunque los hubiera, la base de datos no se lo permitiría (RLS).
-// Son DOS capas: la pantalla no ofrece la acción, y la base de datos la prohíbe.
+// MisDatos — marco de la pestaña "Mis datos" con DOS secciones:
+//   - Medidas  (/atleta/datos)          peso, cintura, calorías y su gráfico.
+//   - Récords  (/atleta/datos/records)  mejores marcas y gráficas por ejercicio.
+// Es otra ruta anidada: este marco se queda fijo y <Outlet /> cambia la sección.
+// Cada sección tiene su propia URL, así el botón "atrás" y recargar funcionan.
 // =====================================================================
-import { useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase'
-import { useAuth } from '../auth/AuthProvider'
-import { formatearFecha } from '../lib/fechas'
-import { resumirMediciones, textoMedicion } from '../lib/mediciones'
-import ResumenMediciones from '../components/ResumenMediciones'
-import GraficoEvolucion from '../components/GraficoEvolucionLazy'
+import { NavLink, Outlet } from 'react-router-dom'
+
+const SECCIONES = [
+  { a: '/atleta/datos', texto: 'Medidas', fin: true },   // fin: solo activa en la URL exacta
+  { a: '/atleta/datos/records', texto: 'Récords', fin: false },
+]
 
 export default function MisDatos() {
-  const { perfil } = useAuth()
-  const [mediciones, setMediciones] = useState([])
-  const [cargando, setCargando] = useState(true)
-  const [error, setError] = useState('')
-
-  useEffect(() => {
-    let cancelado = false
-    supabase
-      .from('metrics')
-      .select('id, fecha, peso_corporal_kg, perimetro_cintura_cm, calorias_consumidas, estado_calorico, notas')
-      // Este .eq NO es lo que protege tus datos (RLS ya devolvería solo tus filas);
-      // lo ponemos para que la intención sea explícita y la consulta, más eficiente.
-      .eq('user_id', perfil.id)
-      .order('fecha', { ascending: false })
-      .limit(30)
-      .then(({ data, error }) => {
-        if (cancelado) return
-        if (error) setError('No se pudieron cargar tus datos.')
-        else setMediciones(data)
-        setCargando(false)
-      })
-    return () => { cancelado = true }
-  }, [perfil.id])
-
-  if (cargando) return <p className="text-suave">Cargando tus datos...</p>
-  if (error) return <p role="alert" className="text-alerta">{error}</p>
-
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h2 className="text-xl font-bold">Mis datos</h2>
-        <p className="mt-1 text-sm text-suave">
-          Tu entrenador registra estas mediciones. Aquí puedes ver tu progreso.
-        </p>
-      </div>
+      <h2 className="text-xl font-bold">Mis datos</h2>
 
-      {mediciones.length === 0 ? (
-        <p className="rounded-2xl border border-borde bg-superficie p-4 text-suave">
-          Aún no tienes mediciones registradas. Cuando tu entrenador las cargue, las verás aquí.
-        </p>
-      ) : (
-        <>
-          <ResumenMediciones resumen={resumirMediciones(mediciones)} />
-          <GraficoEvolucion mediciones={mediciones} />
+      {/* Selector de sección: dos botones tipo "pestañas" */}
+      <nav aria-label="Secciones de mis datos" className="flex gap-1 rounded-2xl border border-borde bg-superficie p-1">
+        {SECCIONES.map((s) => (
+          <NavLink
+            key={s.a}
+            to={s.a}
+            end={s.fin}
+            className={({ isActive }) =>
+              `flex min-h-11 flex-1 items-center justify-center rounded-xl text-sm font-semibold ${
+                isActive ? 'bg-primario text-white' : 'text-suave'
+              }`
+            }
+          >
+            {s.texto}
+          </NavLink>
+        ))}
+      </nav>
 
-          <section>
-            <h3 className="mb-2 font-semibold">Historial</h3>
-            <ul className="flex flex-col gap-3">
-              {mediciones.map((m) => (
-                <li key={m.id} className="rounded-2xl border border-borde bg-superficie p-4">
-                  <p className="font-semibold capitalize">{formatearFecha(m.fecha)}</p>
-                  <p className="mt-1 text-sm text-suave">{textoMedicion(m)}</p>
-                  {m.notas && <p className="mt-1 text-sm">{m.notas}</p>}
-                </li>
-              ))}
-            </ul>
-          </section>
-        </>
-      )}
+      <Outlet />
     </div>
   )
 }

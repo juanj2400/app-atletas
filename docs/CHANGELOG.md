@@ -5,6 +5,29 @@ Tipos: `feat`, `fix`, `style`, `refactor`, `docs`, `chore`, `db`.
 
 ---
 
+## 2026-11-21 · Paso 8b — Récords con gráficas dentro de "Mis datos"
+
+- **feat:** el atleta ve sus récords **con gráficas**: ranking visual de 1RM y, por ejercicio, evolución del 1RM en el tiempo y repeticiones máximas con cada peso. También las ve el entrenador en la ficha del atleta.
+- **refactor:** los récords dejan de ser una pestaña aparte; ahora son la sección **Récords** dentro de **Mis datos** (secciones *Medidas* y *Récords*, con rutas anidadas `/atleta/datos` y `/atleta/datos/records`). La barra inferior vuelve a tener 3 pestañas.
+- **refactor:** lo que era `MisDatos` (peso, cintura, calorías) pasa a `MisMediciones.jsx`; `MisDatos.jsx` es ahora el marco con las dos secciones.
+- **refactor:** colores de gráficos centralizados en `src/lib/coloresGrafico.js` (antes duplicados en `GraficoEvolucion.jsx`).
+- **docs:** `REQUERIMIENTOS.md`, `ARQUITECTURA.md` y `AGENTS.md` actualizados. Sin cambios de base de datos.
+
+**Commit sugerido:** `feat: mostrar récords con gráficas dentro de Mis datos`
+
+---
+
+## 2026-11-21 · Paso 8 — Récords personales y mejores repeticiones por peso
+
+- **feat:** nueva pestaña **Récords** para el atleta y sección "Récords personales" en la ficha del entrenador: por ejercicio, mejor serie y 1RM estimado (Epley), etiqueta "Nuevo" (últimos 14 días), y al desplegar: mejores repeticiones con cada peso y "última vez".
+- **db:** `migracion_07_records_por_peso.sql` — vista `v_best_reps_by_weight` (resume en la base de datos para esquivar el límite de 1.000 filas de Supabase). Probada con un Postgres real en datos de ejemplo.
+- **docs:** `AGENTS.md` (regla del límite de filas), `REQUERIMIENTOS.md`, `ARQUITECTURA.md` y `supabase/sql/README.md` actualizados.
+- Prepara la **Idea 1** (progresión semanal de repeticiones): ya existe el dato "reps logradas con cada peso".
+
+**Commit sugerido:** `feat: agregar récords personales y mejores repeticiones por peso`
+
+---
+
 ## 2026-11-21 · Estado inicial documentado (pasos 1 a 7)
 
 **docs:** se crean `AGENTS.md`, `docs/REQUERIMIENTOS.md`, `docs/ARQUITECTURA.md` y este archivo para que el contexto del proyecto viva en el repositorio.

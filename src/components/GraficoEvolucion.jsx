@@ -14,16 +14,8 @@ import {
   Tooltip, Legend, ResponsiveContainer,
 } from 'recharts'
 import { formatearFecha, formatearFechaCorta } from '../lib/fechas'
+import { COLOR } from '../lib/coloresGrafico'
 
-// Recharts pinta en SVG y recibe colores como texto, por eso repetimos aquí los
-// valores del tema de index.css. Si cambias la paleta allí, actualízalos también.
-const COLOR = {
-  peso: '#E8EAEE',
-  kcal: '#2F5FE3',
-  texto: '#A3A9B5',
-  rejilla: '#2A2F3A',
-  fondo: '#181B22',
-}
 const TICK = { fill: COLOR.texto, fontSize: 12 }
 
 export default function GraficoEvolucion({ mediciones }) {

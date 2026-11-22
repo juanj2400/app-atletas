@@ -5,6 +5,18 @@ Tipos: `feat`, `fix`, `style`, `refactor`, `docs`, `chore`, `db`.
 
 ---
 
+## 2026-11-22 · Paso 9 — Plan nutricional manual
+
+- **feat:** el entrenador define y cambia el **plan nutricional** de cada atleta (calorías, proteína, carbohidratos, grasas, estado calórico, notas) desde su ficha, con historial de planes anteriores y opción de finalizar el vigente. Avisa si los macros no cuadran con las calorías (sin bloquear).
+- **feat:** el atleta ve su plan en **Mis datos › Nutrición** (tercera sección) junto con su promedio de calorías de los últimos 7 días frente al objetivo.
+- **feat:** los gráficos de evolución (atleta y entrenador) dibujan una **línea punteada con el objetivo de calorías** que cambia en la fecha de cada plan nuevo; la tarjeta de calorías muestra el objetivo.
+- **db:** `migracion_08_plan_nutricional.sql` — función `set_nutrition_plan` (cierra el plan vigente y crea el nuevo, todo o nada; valida rangos). Probada con un Postgres real. La tabla `nutrition_plans` y sus permisos ya existían desde la migración 02.
+- **docs:** `REQUERIMIENTOS.md`, `ARQUITECTURA.md`, `AGENTS.md` y `supabase/sql/README.md` actualizados.
+
+**Commit sugerido:** `feat: agregar plan nutricional manual con línea de objetivo en el gráfico`
+
+---
+
 ## 2026-11-21 · Paso 8b — Récords con gráficas dentro de "Mis datos"
 
 - **feat:** el atleta ve sus récords **con gráficas**: ranking visual de 1RM y, por ejercicio, evolución del 1RM en el tiempo y repeticiones máximas con cada peso. También las ve el entrenador en la ficha del atleta.

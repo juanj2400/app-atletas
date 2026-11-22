@@ -10,6 +10,7 @@ import CheckIn from './atleta/CheckIn'
 import MisDatos from './atleta/MisDatos'
 import MisMediciones from './atleta/MisMediciones'
 import Records from './atleta/Records'
+import Nutricion from './atleta/Nutricion'
 import Entrenar from './atleta/Entrenar'
 import EntrenarDia from './atleta/EntrenarDia'
 import ListaAtletas from './admin/ListaAtletas'
@@ -33,10 +34,11 @@ export default function App() {
         <Route index element={<CheckIn />} />
         <Route path="entrenar" element={<Entrenar />} />
         <Route path="entrenar/:diaId" element={<EntrenarDia />} />
-        {/* "datos" tiene sus propias hijas: Medidas (índice) y Récords */}
+        {/* "datos" tiene sus propias hijas: Medidas (índice), Récords y Nutrición */}
         <Route path="datos" element={<MisDatos />}>
           <Route index element={<MisMediciones />} />
           <Route path="records" element={<Records />} />
+          <Route path="nutricion" element={<Nutricion />} />
         </Route>
       </Route>
 

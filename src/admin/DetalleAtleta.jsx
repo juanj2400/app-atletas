@@ -10,6 +10,7 @@ import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import Encabezado from '../components/Encabezado'
 import Mediciones from './Mediciones'
+import PlanNutricional from './PlanNutricional'
 import RutinasAtleta from './RutinasAtleta'
 import VolumenMuscular from './VolumenMuscular'
 import HistorialEntrenamiento from './HistorialEntrenamiento'
@@ -25,6 +26,7 @@ export default function DetalleAtleta() {
   const [checkIns, setCheckIns] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
+  const [versionPlan, setVersionPlan] = useState(0) // sube cuando se cambia el plan, para refrescar el gráfico de Mediciones
 
   // El efecto depende de [id]: si el id de la URL cambia, se vuelve a ejecutar.
   useEffect(() => {
@@ -100,8 +102,10 @@ export default function DetalleAtleta() {
 
             <VolumenMuscular atletaId={atleta.id} titulo="Volumen semanal (rutina activa)" />
 
+            <PlanNutricional atletaId={atleta.id} onCambio={() => setVersionPlan((v) => v + 1)} />
+
             {/* Componente autónomo: solo necesita saber de qué atleta es. */}
-            <Mediciones atletaId={atleta.id} />
+            <Mediciones atletaId={atleta.id} versionPlan={versionPlan} />
 
             <section className="flex flex-col gap-3">
               <h3 className="text-lg font-bold">Récords personales</h3>

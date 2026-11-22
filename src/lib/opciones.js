@@ -44,3 +44,10 @@ export const ESTADOS_RUTINA = { borrador: 'Borrador', activa: 'Activa', archivad
 export function textoEstadoRutina(valor) {
   return ESTADOS_RUTINA[valor] ?? '—'
 }
+
+// De dónde viene un plan nutricional (columna `origen` de nutrition_plans).
+export const ORIGENES_PLAN = { manual: 'Manual', ia_aceptada: 'IA (aceptada)', ia_editada: 'IA (editada por ti)' }
+
+export function textoOrigenPlan(valor) {
+  return ORIGENES_PLAN[valor] ?? '—'
+}

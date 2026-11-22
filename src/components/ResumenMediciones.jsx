@@ -13,7 +13,7 @@ function Tarjeta({ titulo, valor, detalle }) {
   )
 }
 
-export default function ResumenMediciones({ resumen }) {
+export default function ResumenMediciones({ resumen, objetivoKcal = null }) {
   const { pesoActual, delta, cinturaActual, estadoActual, promedioKcal7, diasKcal7 } = resumen
   return (
     <div className="grid grid-cols-2 gap-3">
@@ -34,7 +34,12 @@ export default function ResumenMediciones({ resumen }) {
       <Tarjeta
         titulo="Calorías (prom. 7 días)"
         valor={promedioKcal7 === null ? '—' : promedioKcal7.toLocaleString('es-CO')}
-        detalle={diasKcal7 > 0 ? `${diasKcal7} ${diasKcal7 === 1 ? 'día' : 'días'} con registro` : null}
+        detalle={
+          [
+            diasKcal7 > 0 && `${diasKcal7} ${diasKcal7 === 1 ? 'día' : 'días'} con registro`,
+            objetivoKcal && `objetivo ${objetivoKcal.toLocaleString('es-CO')}`,
+          ].filter(Boolean).join(' · ') || null
+        }
       />
       <Tarjeta
         titulo="Estado calórico"

@@ -18,6 +18,7 @@ export default function MisMediciones() {
   const [mediciones, setMediciones] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
+  const [planes, setPlanes] = useState([]) // planes nutricionales (para la línea de objetivo)
 
   useEffect(() => {
     let cancelado = false
@@ -38,6 +39,18 @@ export default function MisMediciones() {
     return () => { cancelado = true }
   }, [perfil.id])
 
+  // Planes nutricionales del atleta. Si falla no es grave: el gráfico simplemente no muestra la línea.
+  useEffect(() => {
+    let cancelado = false
+    supabase
+      .from('nutrition_plans')
+      .select('calorias_objetivo, vigente_desde, vigente_hasta')
+      .eq('user_id', perfil.id)
+      .order('vigente_desde')
+      .then(({ data }) => { if (!cancelado && data) setPlanes(data) })
+    return () => { cancelado = true }
+  }, [perfil.id])
+
   if (cargando) return <p className="text-suave">Cargando tus datos...</p>
   if (error) return <p role="alert" className="text-alerta">{error}</p>
 
@@ -53,8 +66,11 @@ export default function MisMediciones() {
         </p>
       ) : (
         <>
-          <ResumenMediciones resumen={resumirMediciones(mediciones)} />
-          <GraficoEvolucion mediciones={mediciones} />
+          <ResumenMediciones
+            resumen={resumirMediciones(mediciones)}
+            objetivoKcal={planes.find((p) => p.vigente_hasta === null)?.calorias_objetivo ?? null}
+          />
+          <GraficoEvolucion mediciones={mediciones} planes={planes} />
 
           <section>
             <h3 className="mb-2 font-semibold">Historial</h3>

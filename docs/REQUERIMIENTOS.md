@@ -1,6 +1,6 @@
 # REQUERIMIENTOS — Qué hace la app y qué falta
 
-> Última actualización: 2026-11-21 · Estado: pasos 1 a 8 construidos y publicados.
+> Última actualización: 2026-11-21 · Estado: pasos 1 a 9 construidos y publicados.
 > Mantener este archivo al día es obligatorio (ver regla en `AGENTS.md`).
 
 ## 1. Resumen del producto
@@ -32,17 +32,18 @@ El primer admin se asigna a mano en SQL (`update public.profiles set rol='admin'
 - Desplegada en Netlify con despliegue continuo desde GitHub.
 
 ### 3.2 Zona del atleta (`/atleta`)
-Barra inferior con pestañas: **Check-in** (solo mientras esté pendiente), **Entrenar**, **Mis datos** (con dos secciones: *Medidas* y *Récords*).
+Barra inferior con pestañas: **Check-in** (solo mientras esté pendiente), **Entrenar**, **Mis datos** (con tres secciones: *Medidas*, *Récords* y *Nutrición*).
 
 - **Check-in diario:** ¿cumpliste las calorías de ayer? (sí/no), horas dormidas, estado de ánimo (😞 😐 😄) y ¿te sientes recuperado? (sí/no).
   - Se llena **una sola vez por día** y no se puede modificar. Al guardarlo, la pestaña desaparece y la app lo lleva a "Entrenar" con un aviso.
   - El día cambia a las **12 a. m. hora del celular**; la pestaña reaparece sola (aunque la app quede abierta).
 - **Entrenar:** ve su rutina **activa** y elige el día a entrenar. En cada día ve, por ejercicio: lo prescrito (series × reps · RPE · descanso), notas del entrenador, "última vez" (marca del entrenamiento anterior), "Cómo se hace" (descripción y video si existen) y registra **cada serie** (peso, repeticiones, RPE obligatorio). La serie se guarda al instante; puede borrarla. El peso de la siguiente serie viene precargado.
-- **Mis datos › Medidas (solo lectura):** tarjetas de resumen (peso actual y cambio, cintura, calorías promedio de 7 días, estado calórico), gráfico de evolución (peso en línea y calorías en barras) e historial de mediciones.
+- **Mis datos › Medidas (solo lectura):** tarjetas de resumen (peso actual y cambio, cintura, calorías promedio de 7 días, estado calórico), gráfico de evolución (peso en línea, calorías en barras y una **línea punteada con el objetivo de calorías** del plan vigente) e historial de mediciones. La tarjeta de calorías muestra también el objetivo.
 - **Mis datos › Récords (solo lectura, con gráficas):**
   - Arriba, un **ranking visual** del 1RM estimado de los ejercicios con mayor marca.
   - Una tarjeta por ejercicio con su mejor serie y el **1RM estimado**; etiqueta "Nuevo" si se logró en los últimos 14 días.
   - Al desplegar un ejercicio: **gráfica de la evolución del 1RM**, **gráfica de repeticiones máximas con cada peso**, lo que hizo la última vez y la lista de marcas por peso.
+- **Mis datos › Nutrición (solo lectura):** el plan definido por su entrenador (calorías, macros, estado calórico, desde cuándo, notas) y su promedio de calorías de los últimos 7 días frente al objetivo ("X % por encima/por debajo").
 
 ### 3.3 Zona del entrenador (`/admin`)
 - **Lista de atletas** (nombre y correo) con acceso a cada ficha y a la Biblioteca de ejercicios.
@@ -50,6 +51,7 @@ Barra inferior con pestañas: **Check-in** (solo mientras esté pendiente), **En
   - Resumen: check-ins de los últimos 7 días y sueño promedio.
   - **Rutinas** del atleta: lista y creación de una nueva.
   - **Volumen semanal por músculo** de su rutina activa.
+  - **Plan nutricional:** ver el plan vigente, definir o **cambiar** el plan (calorías, proteína, carbohidratos, grasas, estado calórico, notas), finalizarlo y consultar el historial de planes anteriores.
   - **Mediciones:** resumen, gráfico, formulario para registrar/editar/eliminar (una por día; reemplazo por fecha).
   - **Récords personales (con gráficas):** ranking de 1RM, y por ejercicio: mejor serie, evolución del 1RM, repeticiones máximas por peso y última vez.
   - **Entrenamientos recientes:** series registradas, agrupadas por día y ejercicio.
@@ -69,6 +71,7 @@ Barra inferior con pestañas: **Check-in** (solo mientras esté pendiente), **En
 - Una sola rutina activa por atleta; el atleta nunca ve borradores ni archivadas.
 - Volumen: series semanales × factor del músculo (1 principal, 0,5 secundario). **Supone que cada día de la rutina se entrena una vez por semana.** Muestra también los músculos en 0.
 - Récords: el **1RM estimado** usa la fórmula de Epley (peso × (1 + reps/30); con 1 repetición es el propio peso) y solo cuenta series con peso mayor que 0. Las **marcas por peso** agrupan por peso exacto y guardan la mayor cantidad de repeticiones (si empatan, la fecha más antigua). **Gráficas:** evolución del 1RM (un punto por día de entrenamiento en **hora local**, con la mejor serie del día; usa hasta las 500 series más recientes del ejercicio), repeticiones máximas por peso y un ranking con los 8 mayores 1RM.
+- Plan nutricional: calorías enteras 500–10.000; proteína, carbohidratos y grasas 0–1.000 g (opcionales). **Un solo plan vigente por atleta.** Cambiar el plan no lo edita: crea uno nuevo y el anterior pasa al historial (función `set_nutrition_plan`). La app avisa si los macros (4/4/9 kcal por gramo) difieren más de un 10 % de las calorías objetivo, sin bloquear el guardado. El atleta solo lee su plan.
 
 ## 4. Ya existe en la base de datos, pero aún sin pantalla
 
@@ -76,7 +79,6 @@ Creado en el esquema inicial y la migración 02; listo para usar cuando se const
 
 | Elemento | Para qué |
 |---|---|
-| `nutrition_plans` | Plan nutricional oficial (kcal y macros) con historial por atleta |
 | `ai_nutrition_suggestions` / `ai_load_suggestions` | Buzones de propuestas de la IA (siempre `pendiente` hasta que el admin resuelve) |
 | `training_cycles` | Macro/mesociclos del atleta |
 | `athlete_exercise_blacklist` | Lista negra de ejercicios por atleta (el editor de rutinas ya la **lee** para advertir) |
@@ -88,7 +90,7 @@ Creado en el esquema inicial y la migración 02; listo para usar cuando se const
 | Paso | Qué | Notas |
 |---|---|---|
 | ~~**8**~~ | ~~Récords personales y mejores repeticiones por peso~~ | **Hecho (2026-11-21).** Base de la Idea 1. Visible para el entrenador y el atleta. |
-| **9** | **Plan nutricional manual** | El entrenador define kcal y macros por atleta; el atleta los ve. Línea de objetivo en el gráfico de calorías. |
+| ~~**9**~~ | ~~Plan nutricional manual~~ | **Hecho (2026-11-22).** El entrenador define kcal y macros por atleta; el atleta los ve; línea de objetivo en el gráfico de calorías. |
 | **10** | **Mesociclos y lista negra** (interfaz) + **crear/editar ejercicios** | Hoy los ejercicios nuevos se agregan desde Table Editor. |
 | **11** | **La IA** | Desplegar la Edge Function y sus secrets; botón "Generar propuestas de la semana"; bandeja de aprobación (Aceptar / Editar / Rechazar) para nutrición, cargas y rutinas; **progresión semanal (Idea 1)**; uso del volumen por músculo al proponer rutinas. |
 | **12** | **Pulido** | Aviso de "hay versión nueva" en la PWA, recuperar contraseña, respaldos periódicos, pantalla para que el admin corrija un check-in. |
@@ -117,4 +119,5 @@ Creado en el esquema inicial y la migración 02; listo para usar cuando se const
 - La capa gratuita de Gemini puede usar el contenido enviado para mejorar productos de Google (por eso no se envían identificadores).
 - El gráfico reparte las fechas a distancias iguales aunque haya huecos entre mediciones.
 - El 1RM estimado (Epley) es solo una referencia: poco fiable con más de ~10 repeticiones.
+- La línea de objetivo de calorías solo se dibuja en las fechas con medición, y las calorías las carga el entrenador (el atleta no las registra).
 - Sin pruebas automáticas ni ESLint.

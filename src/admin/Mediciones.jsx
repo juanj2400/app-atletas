@@ -27,7 +27,7 @@ function formVacio() {
   return { fecha: fechaLocalISO(), peso: '', cintura: '', calorias: '', estado: '', notas: '' }
 }
 
-export default function Mediciones({ atletaId }) {
+export default function Mediciones({ atletaId, versionPlan = 0 }) {
   const [mediciones, setMediciones] = useState([])
   const [cargando, setCargando] = useState(true)
   const [errorCarga, setErrorCarga] = useState('')
@@ -64,6 +64,20 @@ export default function Mediciones({ atletaId }) {
   }, [atletaId, version])
 
   // ---- Datos DERIVADOS (se calculan, no se guardan en el estado) ----
+  // Planes nutricionales: para la línea de objetivo del gráfico. `versionPlan` sube cuando
+  // el entrenador cambia el plan en la misma ficha, y así la línea se actualiza sola.
+  const [planes, setPlanes] = useState([])
+  useEffect(() => {
+    let cancelado = false
+    supabase
+      .from('nutrition_plans')
+      .select('calorias_objetivo, vigente_desde, vigente_hasta')
+      .eq('user_id', atletaId)
+      .order('vigente_desde')
+      .then(({ data }) => { if (!cancelado && data) setPlanes(data) })
+    return () => { cancelado = true }
+  }, [atletaId, versionPlan])
+
   // Resumen compartido con la pantalla del atleta (ver lib/mediciones.js).
   const datos = resumirMediciones(mediciones)
   // ¿Ya hay una medición en la fecha elegida? Cambia el título y el botón.
@@ -159,9 +173,9 @@ export default function Mediciones({ atletaId }) {
     <section className="flex flex-col gap-4">
       <h3 className="text-lg font-bold">Mediciones</h3>
 
-      <ResumenMediciones resumen={datos} />
+      <ResumenMediciones resumen={datos} objetivoKcal={planes.find((p) => p.vigente_hasta === null)?.calorias_objetivo ?? null} />
 
-      <GraficoEvolucion mediciones={mediciones} />
+      <GraficoEvolucion mediciones={mediciones} planes={planes} />
 
       <form
         ref={formRef}

@@ -13,6 +13,7 @@ Estos archivos son la **fuente de verdad del esquema** de Supabase. Se ejecutan 
 | 5 | `migracion_05_checkin_una_vez.sql` | `migracion_05_checkin_una_sola_vez` | El atleta solo crea su check-in (sin modificar ni borrar) | Aplicado |
 | 6 | `migracion_06_volumen_muscular.sql` | `migracion_06_volumen_por_musculo` | `muscle_groups`, `exercise_muscles`, `set_exercise_muscles` y músculos de los 14 ejercicios iniciales | Aplicado |
 | 7 | `migracion_07_records_por_peso.sql` | `migracion_07_records_por_peso` (nombre sugerido) | Vista `v_best_reps_by_weight`: mejor cantidad de repeticiones con cada peso (récords) | Aplicado con el paso 8 |
+| 8 | `migracion_08_plan_nutricional.sql` | `migracion_08_plan_nutricional` (nombre sugerido) | Función `set_nutrition_plan`: el entrenador define o cambia el plan nutricional (cierra el vigente y crea el nuevo) | Aplicado con el paso 9 |
 
 No existe una "migración 01": el esquema inicial hace de base. La numeración sigue la de las migraciones.
 
@@ -22,6 +23,7 @@ No existe una "migración 01": el esquema inicial hace de base. La numeración s
 - La 03 y la 05 modifican políticas de tablas creadas antes.
 - La 04 requiere la 02 (usa `training_cycles`).
 - La 06 requiere el esquema inicial (usa `exercises`).
+- La 08 requiere la 02 (usa `nutrition_plans`).
 - La 07 requiere el esquema inicial y la 02 (usa `routine_logs`; complementa la vista `v_athlete_prs`).
 
 ## Reglas
@@ -34,4 +36,4 @@ No existe una "migración 01": el esquema inicial hace de base. La numeración s
 
 ## Avisos esperables del SQL Editor
 
-Supabase muestra "Potential issue detected" cuando un script contiene `drop` o `delete`. Es normal en estos casos: la 02, la 03 y la 05 eliminan políticas o índices antiguos para reemplazarlos, y la 06 contiene un `delete` dentro de una función que solo se ejecuta cuando guardas los músculos de un ejercicio desde la app. Ninguna borra tablas ni datos de los usuarios. La 07 no elimina nada: solo crea una vista, así que no debería mostrar el aviso.
+Supabase muestra "Potential issue detected" cuando un script contiene `drop` o `delete`. Es normal en estos casos: la 02, la 03 y la 05 eliminan políticas o índices antiguos para reemplazarlos, y la 06 contiene un `delete` dentro de una función que solo se ejecuta cuando guardas los músculos de un ejercicio desde la app. Ninguna borra tablas ni datos de los usuarios. La 07 y la 08 no eliminan nada (una vista y una función nuevas), así que no deberían mostrar el aviso.

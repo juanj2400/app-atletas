@@ -1,7 +1,8 @@
 // =====================================================================
-// MisDatos — marco de la pestaña "Mis datos" con DOS secciones:
+// MisDatos — marco de la pestaña "Mis datos" con TRES secciones:
 //   - Medidas  (/atleta/datos)          peso, cintura, calorías y su gráfico.
 //   - Récords  (/atleta/datos/records)  mejores marcas y gráficas por ejercicio.
+//   - Nutrición (/atleta/datos/nutricion) plan de calorías y macros del entrenador.
 // Es otra ruta anidada: este marco se queda fijo y <Outlet /> cambia la sección.
 // Cada sección tiene su propia URL, así el botón "atrás" y recargar funcionan.
 // =====================================================================
@@ -10,6 +11,7 @@ import { NavLink, Outlet } from 'react-router-dom'
 const SECCIONES = [
   { a: '/atleta/datos', texto: 'Medidas', fin: true },   // fin: solo activa en la URL exacta
   { a: '/atleta/datos/records', texto: 'Récords', fin: false },
+  { a: '/atleta/datos/nutricion', texto: 'Nutrición', fin: false },
 ]
 
 export default function MisDatos() {

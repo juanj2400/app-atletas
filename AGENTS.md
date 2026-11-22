@@ -82,10 +82,10 @@ React 19 + Vite 8 · Tailwind CSS 4 (configuración en `src/index.css`) · PWA c
 ## 7. Qué NO romper (invariantes del sistema)
 
 1. **Sesión y rol** (`src/auth/AuthProvider.jsx`): el listener `onAuthStateChange` solo guarda la sesión; el perfil se consulta en un `useEffect` aparte. No hacer consultas a Supabase dentro del listener.
-2. **Permisos por rol:** `metrics` solo la escribe el admin (el atleta solo lee). `daily_check_ins`: el atleta solo **crea** (una vez por día), nunca modifica ni borra. `routines`: el atleta solo ve la **activa**. El atleta puede escribir y borrar solo sus propias series (`routine_logs`).
-3. **Unicidades:** `metrics (user_id, fecha)`, `daily_check_ins (user_id, fecha)`, una sola rutina `activa` por atleta (índice parcial), `exercise_muscles (exercise_id, muscle)`.
+2. **Permisos por rol:** `metrics` solo la escribe el admin (el atleta solo lee). `daily_check_ins`: el atleta solo **crea** (una vez por día), nunca modifica ni borra. `routines`: el atleta solo ve la **activa**. `nutrition_plans`: el atleta solo lo lee; solo el admin lo cambia. El atleta puede escribir y borrar solo sus propias series (`routine_logs`).
+3. **Unicidades:** `metrics (user_id, fecha)`, `daily_check_ins (user_id, fecha)`, una sola rutina `activa` por atleta (índice parcial), un solo plan nutricional vigente por atleta (índice parcial), `exercise_muscles (exercise_id, muscle)`.
 4. **Cambio de día a medianoche local** del dispositivo (`useHoy`, `fechaLocalISO`). El check-in desaparece al completarse y reaparece solo el día siguiente.
-5. **Activar y copiar rutinas** se hace por RPC (`activate_routine`, `duplicate_routine`), no con varios `update` sueltos. Igual los músculos de un ejercicio (`set_exercise_muscles`) y la resolución de propuestas nutricionales (`resolve_nutrition_suggestion`).
+5. **Activar y copiar rutinas** se hace por RPC (`activate_routine`, `duplicate_routine`), no con varios `update` sueltos. Igual los músculos de un ejercicio (`set_exercise_muscles`), el plan nutricional manual (`set_nutrition_plan`) y la resolución de propuestas nutricionales (`resolve_nutrition_suggestion`).
 6. **PWA:** el service worker solo guarda archivos de la app, **no** respuestas de Supabase. Mantén `public/_redirects` (sin él, recargar `/admin` da 404 en Netlify).
 7. **No ejecutes** `npm audit fix --force` ni bajes `vite-plugin-pwa` a 1.x (no es compatible con Vite 8). Los 4 avisos de `npm audit` son de herramientas de construcción y no afectan a la app publicada.
 8. Los scripts SQL y la Edge Function ya entregados se consideran aplicados salvo que `docs/` diga lo contrario.

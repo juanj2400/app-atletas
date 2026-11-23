@@ -11,6 +11,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../auth/AuthProvider'
 import { TARJETA } from '../lib/estilos'
+import CicloActual from './CicloActual'
 
 export default function Entrenar() {
   const { perfil } = useAuth()
@@ -48,6 +49,7 @@ export default function Entrenar() {
     return (
       <div className="flex flex-col gap-4">
         {aviso}
+        <CicloActual />
         <div className={TARJETA}>
           <h2 className="text-xl font-bold">Entrenar</h2>
           <p className="mt-1 text-suave">Tu entrenador aún no te ha asignado una rutina.</p>
@@ -61,6 +63,7 @@ export default function Entrenar() {
   return (
     <div className="flex flex-col gap-4">
       {aviso}
+      <CicloActual />
       <div>
         <h2 className="text-xl font-bold">{rutina.nombre}</h2>
         {rutina.objetivo && <p className="text-sm text-suave">Objetivo: {rutina.objetivo}</p>}

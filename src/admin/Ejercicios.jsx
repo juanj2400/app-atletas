@@ -7,6 +7,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import Encabezado from '../components/Encabezado'
+import FormEjercicio from './FormEjercicio'
 import { CAMPO, BOTON, BOTON_SEC, TARJETA } from '../lib/estilos'
 
 const normalizar = (t) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
@@ -88,12 +89,13 @@ export default function Ejercicios() {
   const [version, setVersion] = useState(0)
   const [busqueda, setBusqueda] = useState('')
   const [soloSin, setSoloSin] = useState(false)
-  const [editando, setEditando] = useState(null) // id del ejercicio en edición
+  const [editando, setEditando] = useState(null) // id del ejercicio cuyos MÚSCULOS se editan
+  const [formEj, setFormEj] = useState(null)     // null | 'nuevo' | id del ejercicio cuyos DATOS se editan
 
   useEffect(() => {
     let cancelado = false
     Promise.all([
-      supabase.from('exercises').select('id, nombre, grupo_muscular').order('nombre'),
+      supabase.from('exercises').select('id, nombre, grupo_muscular, descripcion, video_url, restringido').order('nombre'),
       supabase.from('exercise_muscles').select('exercise_id, muscle, factor'),
       supabase.from('muscle_groups').select('codigo, nombre, orden').order('orden'),
     ]).then(([ej, mus, gru]) => {
@@ -113,6 +115,8 @@ export default function Ejercicios() {
   const nombreMusculo = Object.fromEntries(grupos.map((g) => [g.codigo, g.nombre]))
   const asignadosDe = (id) => musculos.filter((m) => m.exercise_id === id)
   const sinAsignar = ejercicios.filter((e) => asignadosDe(e.id).length === 0).length
+  // Grupos escritos hasta ahora (para sugerirlos al crear un ejercicio)
+  const gruposExistentes = [...new Set(ejercicios.map((e) => e.grupo_muscular).filter(Boolean))].sort()
 
   const visibles = ejercicios.filter((e) =>
     normalizar(e.nombre).includes(normalizar(busqueda)) && (!soloSin || asignadosDe(e.id).length === 0)
@@ -123,9 +127,20 @@ export default function Ejercicios() {
       <Encabezado titulo="Biblioteca de ejercicios" volverA="/admin" textoVolver="Atletas" />
       <main className="mx-auto flex max-w-3xl flex-col gap-4 p-4">
         <p className="text-sm text-suave">
-          Define los músculos de cada ejercicio para calcular el volumen semanal de las rutinas.
+          Crea ejercicios y define los músculos de cada uno para calcular el volumen semanal de las rutinas.
           {sinAsignar > 0 && <span className="text-alerta"> {sinAsignar} sin músculos asignados.</span>}
         </p>
+
+        {formEj === 'nuevo' ? (
+          <FormEjercicio
+            ejercicio={null} gruposExistentes={gruposExistentes}
+            onCancelar={() => setFormEj(null)}
+            // Al crearlo, se abre de una vez el editor de músculos de ese ejercicio nuevo.
+            onGuardado={(id) => { setFormEj(null); setEditando(id); setBusqueda(''); setSoloSin(false); setVersion((v) => v + 1) }}
+          />
+        ) : (
+          <button type="button" onClick={() => setFormEj('nuevo')} className={BOTON}>Nuevo ejercicio</button>
+        )}
 
         <input
           value={busqueda} onChange={(e) => setBusqueda(e.target.value)}
@@ -147,6 +162,7 @@ export default function Ejercicios() {
               <li key={e.id} className={TARJETA}>
                 <p className="font-semibold">{e.nombre}</p>
                 <p className="text-sm text-suave">{e.grupo_muscular || 'Sin grupo'}</p>
+                {e.restringido && <p className="text-sm text-alerta">Restringido (lista negra global)</p>}
                 {asignados.length === 0 ? (
                   <p className="mt-1 text-sm text-alerta">Sin músculos asignados</p>
                 ) : (
@@ -159,16 +175,29 @@ export default function Ejercicios() {
                   </ul>
                 )}
 
-                {editando === e.id ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {editando !== e.id && (
+                    <button type="button" onClick={() => setEditando(e.id)} className={BOTON_SEC}>Editar músculos</button>
+                  )}
+                  {formEj !== e.id && (
+                    <button type="button" onClick={() => setFormEj(e.id)} className={BOTON_SEC}>Editar datos</button>
+                  )}
+                </div>
+                {editando === e.id && (
                   <EditorMusculos
                     ejercicio={e} asignados={asignados} grupos={grupos}
                     onCancelar={() => setEditando(null)}
                     onGuardado={() => { setEditando(null); setVersion((v) => v + 1) }}
                   />
-                ) : (
-                  <button type="button" onClick={() => setEditando(e.id)} className={`${BOTON_SEC} mt-3`}>
-                    Editar músculos
-                  </button>
+                )}
+                {formEj === e.id && (
+                  <div className="mt-3">
+                    <FormEjercicio
+                      ejercicio={e} gruposExistentes={gruposExistentes}
+                      onCancelar={() => setFormEj(null)}
+                      onGuardado={() => { setFormEj(null); setVersion((v) => v + 1) }}
+                    />
+                  </div>
                 )}
               </li>
             )

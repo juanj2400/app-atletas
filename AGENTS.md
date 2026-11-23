@@ -68,6 +68,7 @@ React 19 + Vite 8 · Tailwind CSS 4 (configuración en `src/index.css`) · PWA c
 - **Ocultar un botón no es seguridad.** Toda regla de permisos debe existir como política RLS en Supabase. `RutaProtegida` solo mejora la experiencia.
 - Toda tabla nueva en `public` debe tener `enable row level security` y políticas explícitas en el mismo script.
 - **La IA nunca cambia datos del atleta por su cuenta.** Solo inserta propuestas con estado `pendiente` en los buzones; el entrenador las aprueba (rutinas, nutrición y cargas). Se aplican únicamente por funciones RPC que verifican `is_admin()`.
+- Todo enlace externo que se guarde (por ejemplo `video_url`) se valida como `http://` o `https://` **en la interfaz y con un CHECK en la base de datos**. Nunca renderices un `href` con un valor sin validar.
 - A Gemini **no** se envían nombres, correos ni IDs de usuario: solo cifras. (La capa gratuita de Google puede usar el contenido para mejorar sus productos.)
 - Las funciones SQL `security definer` deben fijar `set search_path = ''` y comprobar `public.is_admin()` si son de administración.
 
@@ -89,6 +90,7 @@ React 19 + Vite 8 · Tailwind CSS 4 (configuración en `src/index.css`) · PWA c
 6. **PWA:** el service worker solo guarda archivos de la app, **no** respuestas de Supabase. Mantén `public/_redirects` (sin él, recargar `/admin` da 404 en Netlify).
 7. **No ejecutes** `npm audit fix --force` ni bajes `vite-plugin-pwa` a 1.x (no es compatible con Vite 8). Los 4 avisos de `npm audit` son de herramientas de construcción y no afectan a la app publicada.
 8. Los scripts SQL y la Edge Function ya entregados se consideran aplicados salvo que `docs/` diga lo contrario.
+9. **Ciclos:** el ciclo en curso se calcula en el cliente con la fecha local (`lib/ciclos.js`); no uses la vista `v_current_training_cycle` (trabaja con la fecha UTC).
 
 ## 8. Cómo verificar antes de entregar
 

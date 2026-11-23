@@ -9,7 +9,12 @@ import { CAMPO, BOTON_SEC, TARJETA } from '../lib/estilos'
 // Quita tildes y mayúsculas para que "sentadilla" encuentre "Sentadilla" y "Bíceps" se halle con "biceps".
 const normalizar = (texto) => texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 
-export default function SelectorEjercicio({ listaNegra, onElegir, onCerrar }) {
+// avisarRestringidos: pide confirmación si el ejercicio es restringido (lo usa el editor de rutinas).
+// Se desactiva cuando el propio selector sirve para AGREGAR a la lista negra.
+export default function SelectorEjercicio({
+  listaNegra, onElegir, onCerrar,
+  avisarRestringidos = true, textoBoton = 'Agregar', titulo = 'Elegir ejercicio',
+}) {
   const [ejercicios, setEjercicios] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
@@ -41,14 +46,14 @@ export default function SelectorEjercicio({ listaNegra, onElegir, onCerrar }) {
       : listaNegra.has(ejercicio.id)
         ? 'Este ejercicio está en la lista negra de este atleta.'
         : null
-    if (aviso && !window.confirm(`${aviso} ¿Agregarlo de todos modos?`)) return
+    if (aviso && avisarRestringidos && !window.confirm(`${aviso} ¿Agregarlo de todos modos?`)) return
     onElegir(ejercicio)
   }
 
   return (
     <div className={`${TARJETA} flex flex-col gap-3 bg-hundido`}>
       <div className="flex items-center justify-between">
-        <h4 className="font-semibold">Elegir ejercicio</h4>
+        <h4 className="font-semibold">{titulo}</h4>
         <button type="button" onClick={onCerrar} className={BOTON_SEC}>Cerrar</button>
       </div>
 
@@ -78,7 +83,7 @@ export default function SelectorEjercicio({ listaNegra, onElegir, onCerrar }) {
                 <p className="text-sm text-alerta">En la lista negra de este atleta</p>
               )}
             </div>
-            <button type="button" onClick={() => elegir(e)} className={BOTON_SEC}>Agregar</button>
+            <button type="button" onClick={() => elegir(e)} className={BOTON_SEC}>{textoBoton}</button>
           </li>
         ))}
       </ul>

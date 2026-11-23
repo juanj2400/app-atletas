@@ -5,6 +5,21 @@ Tipos: `feat`, `fix`, `style`, `refactor`, `docs`, `chore`, `db`.
 
 ---
 
+## 2026-11-22 · Paso 10 — Ciclos, lista negra y biblioteca de ejercicios editable
+
+- **feat:** el entrenador crea y edita **macrociclos y mesociclos** de cada atleta (nombre, fase, fechas, objetivo, notas) con validación de fechas (dentro del macrociclo, sin solapes). Muestra el ciclo en curso con su semana y progreso.
+- **feat:** el atleta ve su **ciclo en curso** (fase y semana) en la parte superior de *Entrenar*.
+- **feat:** **lista negra por atleta**: el entrenador agrega ejercicios (con motivo) y los quita; el editor de rutinas ya advertía al usarlos.
+- **feat:** **crear y editar ejercicios** desde la biblioteca (nombre único, grupo, cómo se hace, enlace de video, restringido). Al crear uno se abre su editor de músculos.
+- **refactor:** la **ficha del atleta pasa a tres pestañas** (*Resumen*, *Entrenamiento*, *Cuerpo y nutrición*) porque ya tenía demasiadas secciones en una sola página.
+- **refactor:** `SelectorEjercicio` acepta opciones (`avisarRestringidos`, `textoBoton`, `titulo`) para reutilizarlo en la lista negra.
+- **db:** `migracion_09_ejercicios_video_seguro.sql` — CHECK: `video_url` solo http/https. Probada con un Postgres real.
+- **docs:** `REQUERIMIENTOS.md`, `ARQUITECTURA.md`, `AGENTS.md` (regla de enlaces externos e invariante de ciclos) y `supabase/sql/README.md` actualizados.
+
+**Commit sugerido:** `feat: agregar ciclos de entrenamiento, lista negra y gestión de ejercicios`
+
+---
+
 ## 2026-11-22 · Paso 9 — Plan nutricional manual
 
 - **feat:** el entrenador define y cambia el **plan nutricional** de cada atleta (calorías, proteína, carbohidratos, grasas, estado calórico, notas) desde su ficha, con historial de planes anteriores y opción de finalizar el vigente. Avisa si los macros no cuadran con las calorías (sin bloquear).

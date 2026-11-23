@@ -49,7 +49,7 @@ Node >= 20.19 (requisito de Vite 8). Gestor: npm; `package-lock.json` versionado
 │  ├─ sql/                        scripts SQL (esquema y migraciones), se aplican a mano en el SQL Editor
 │  │   ├─ README.md               orden de aplicación y nombre de cada uno en el SQL Editor
 │  │   ├─ schema_supabase.sql
-│  │   └─ migracion_02 … migracion_08 (…y las que sigan)
+│  │   └─ migracion_02 … migracion_09 (…y las que sigan)
 │  └─ functions/generate-weekly-proposals/index.ts   Edge Function de IA (TypeScript/Deno)
 ├─ public/                        _redirects (Netlify SPA), favicon, íconos PWA
 ├─ index.html · vite.config.js · package.json · .env.example
@@ -69,15 +69,16 @@ Node >= 20.19 (requisito de Vite 8). Gestor: npm; `package-lock.json` versionado
    │   ├─ rutinas.js              textos de prescripción/series, última vez, agrupar historial
    │   ├─ volumen.js              calcularVolumen (series semanales por músculo)
    │   ├─ nutricion.js            macros↔kcal, objetivo de calorías por fecha, adherencia
+   │   ├─ ciclos.js               semana del mesociclo, ciclo vigente, validación de fechas
    │   └─ records.js              1RM (Epley), progreso por día, textos y fechas de los récords
    ├─ auth/
    │   ├─ AuthProvider.jsx        sesión + perfil (rol); useAuth()
    │   └─ RutaProtegida.jsx       "portero" por rol
    ├─ pages/                      Login.jsx, Inicio.jsx (redirige por rol)
-   ├─ components/                 Encabezado, Estados, Selector, ResumenMediciones, GraficoEvolucion, GraficoEvolucionLazy, RecordsAtleta, GraficosRecord, GraficosRecordLazy, PlanNutricionalCard
-   ├─ atleta/                     PantallaAtleta (marco), CheckIn, Entrenar, EntrenarDia, MisDatos (marco con secciones), MisMediciones, Records, Nutricion
+   ├─ components/                 Encabezado, Estados, Selector, ResumenMediciones, GraficoEvolucion, GraficoEvolucionLazy, RecordsAtleta, GraficosRecord, GraficosRecordLazy, PlanNutricionalCard, CicloVigenteCard
+   ├─ atleta/                     PantallaAtleta (marco), CheckIn, Entrenar, EntrenarDia, MisDatos (marco con secciones), MisMediciones, Records, Nutricion, CicloActual
    └─ admin/                      ListaAtletas, DetalleAtleta, Mediciones, RutinasAtleta, EditorRutina,
-                                  SelectorEjercicio, HistorialEntrenamiento, VolumenMuscular, PlanNutricional, Ejercicios
+                                  SelectorEjercicio, HistorialEntrenamiento, VolumenMuscular, PlanNutricional, CiclosAtleta, ListaNegraAtleta, FormEjercicio, Ejercicios
 ```
 
 > Los scripts SQL viven en `supabase/sql/`. Si se adopta la CLI de Supabase en el futuro, esta carpeta se reconciliará con `supabase/migrations/`.
@@ -104,14 +105,14 @@ Node >= 20.19 (requisito de Vite 8). Gestor: npm; `package-lock.json` versionado
 
 ## 5. Base de datos (Supabase / PostgreSQL)
 
-Scripts aplicados, en orden: `schema_supabase.sql` → `migracion_02_nutricion_dashboard.sql` → `03_metricas_admin` → `04_rutinas` → `05_checkin_una_vez` → `06_volumen_muscular` → `07_records_por_peso` → `08_plan_nutricional`.
+Scripts aplicados, en orden: `schema_supabase.sql` → `migracion_02_nutricion_dashboard.sql` → `03_metricas_admin` → `04_rutinas` → `05_checkin_una_vez` → `06_volumen_muscular` → `07_records_por_peso` → `08_plan_nutricional` → `09_ejercicios_video_seguro`.
 
 ### 5.1 Tablas
 
 | Tabla | Propósito | Claves y restricciones destacadas |
 |---|---|---|
 | `profiles` | 1 fila por usuario (se crea con trigger desde `auth.users`) | `rol` ∈ {admin, client}; el cliente solo puede editar `nombre_completo` |
-| `exercises` | Biblioteca global | `nombre` único; `restringido` (lista negra global); `video_url`, `descripcion` |
+| `exercises` | Biblioteca global | `nombre` único; `restringido` (lista negra global); `video_url` (solo http/https: CHECK de la migración 09), `descripcion` |
 | `muscle_groups` | Catálogo de 14 músculos | `codigo` PK, `orden` |
 | `exercise_muscles` | Músculos de cada ejercicio | PK (`exercise_id`,`muscle`); `factor` ∈ (0,1] (1 principal, 0,5 secundario) |
 | `metrics` | Mediciones (peso, cintura, calorías, estado calórico) | **único** (`user_id`,`fecha`) |
@@ -123,7 +124,7 @@ Scripts aplicados, en orden: `schema_supabase.sql` → `migracion_02_nutricion_d
 | `nutrition_plans` | Plan nutricional oficial (manual: `set_nutrition_plan`; IA: `resolve_nutrition_suggestion`) | **único parcial**: un plan vigente por atleta (`vigente_hasta is null`) |
 | `ai_load_suggestions` | Buzón de cargas de la IA | estados pendiente/aceptado/rechazado |
 | `ai_nutrition_suggestions` | Buzón nutricional de la IA | estados pendiente/aceptado/editado/rechazado |
-| `training_cycles` | Macro/meso/microciclos | jerárquica (`parent_id`) |
+| `training_cycles` | Macro/meso/microciclos | jerárquica (`parent_id`); la app usa macrociclo y mesociclo (el microciclo no tiene interfaz) |
 | `athlete_exercise_blacklist` | Lista negra por atleta | único (`user_id`,`exercise_id`) |
 
 Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; `routine_logs.exercise_id` y `routine_exercises.exercise_id` usan `restrict` (no se borra un ejercicio con historial).
@@ -157,6 +158,8 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 - **Volumen:** `calcularVolumen()` multiplica series × factor de cada músculo, separando directas (factor ≥ 1) e indirectas.
 - **Récords:** `RecordsAtleta` pide a `v_athlete_prs` una fila por ejercicio; al desplegar uno, pide a `v_best_reps_by_weight` sus marcas por peso y hasta 500 series recientes de ese ejercicio (para "última vez" y la evolución del 1RM, agrupada por día local). Las vistas respetan RLS (`security_invoker`): el atleta ve lo suyo y el entrenador, todo.
 - **Plan nutricional:** el entrenador guarda un plan con `set_nutrition_plan` (RPC: cierra el vigente y crea el nuevo, todo o nada; valida rangos). El atleta lo lee en *Mis datos › Nutrición*. Los gráficos de calorías reciben el historial de planes y dibujan el objetivo vigente en cada fecha (`kcalObjetivoEnFecha`).
+- **Ciclos:** `CiclosAtleta` (entrenador) valida con `validarCiclo` (fechas, pertenencia al macrociclo, solapes) y guarda en `training_cycles`. `CicloActual` (atleta, en *Entrenar*) lee sus ciclos y `cicloVigente()` decide el mesociclo en curso con la fecha local que entrega `PantallaAtleta`.
+- **Lista negra:** `ListaNegraAtleta` escribe en `athlete_exercise_blacklist`; `EditorRutina` la lee para advertir; el trigger `block_blacklisted_suggestion` la usa contra la IA.
 - **IA (pendiente):** botón admin → Edge Function por lotes de 3 atletas → Gemini con esquema JSON → validación con límites (±10 % en kcal y cargas) → inserción como `pendiente` → el admin aprueba/edita/rechaza.
 
 ## 7. Diseño visual
@@ -187,7 +190,7 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 - Barra inferior del atleta: `fixed`, pestañas `min-h-14`, con `env(safe-area-inset-bottom)`; el `body` aplica los márgenes seguros del notch.
 - Avisos: `role="alert"` (errores, `text-alerta`) / `role="status"` (éxito, `text-enlace`).
 
-**Componentes clave:** `Selector` (botones Sí/No y ánimo, controlado, `aria-pressed`) · `Encabezado` (título, enlace "volver", botón Salir) · `Estados` (`Cargando`, `SinPerfil`) · `ResumenMediciones` (4 tarjetas, de presentación) · `GraficoEvolucion` (ComposedChart: peso en línea, calorías en barras, dos ejes; colores como constantes porque SVG necesita texto) y `GraficoEvolucionLazy` (carga perezosa con `Suspense`) · `VolumenMuscular` (barras CSS por músculo) · `RecordsAtleta` (compartido por atleta y entrenador; carga sus propios datos desde las vistas) · `GraficosRecord` (evolución del 1RM y repeticiones por peso; carga perezosa) · `PlanNutricionalCard` (presentación de calorías y macros, compartida por atleta y entrenador).
+**Componentes clave:** `Selector` (botones Sí/No y ánimo, controlado, `aria-pressed`) · `Encabezado` (título, enlace "volver", botón Salir) · `Estados` (`Cargando`, `SinPerfil`) · `ResumenMediciones` (4 tarjetas, de presentación) · `GraficoEvolucion` (ComposedChart: peso en línea, calorías en barras, dos ejes; colores como constantes porque SVG necesita texto) y `GraficoEvolucionLazy` (carga perezosa con `Suspense`) · `VolumenMuscular` (barras CSS por músculo) · `RecordsAtleta` (compartido por atleta y entrenador; carga sus propios datos desde las vistas) · `GraficosRecord` (evolución del 1RM y repeticiones por peso; carga perezosa) · `PlanNutricionalCard` (presentación de calorías y macros, compartida por atleta y entrenador) · `CicloVigenteCard` (ciclo en curso con semana y progreso, compartido).
 
 ## 8. Decisiones técnicas importantes
 
@@ -208,6 +211,9 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 15. **Netlify** en lugar de Vercel por permitir uso comercial en el plan gratuito.
 16. **Los récords los resume la base de datos** (vistas), no la app: Supabase devuelve como máximo 1.000 filas por consulta y el historial de series crece sin parar. El detalle por ejercicio se carga solo al desplegarlo. 1RM con fórmula de Epley; marcas por peso exacto. La evolución del 1RM se agrupa por día **local** en el cliente (agrupar en SQL por día UTC movería un día los entrenamientos nocturnos), por eso se limita a 500 series por ejercicio.
 17. **Plan nutricional versionado:** nunca se edita un plan, se crea uno nuevo y el anterior pasa al historial (`vigente_hasta`). Así se conserva cómo evolucionó el objetivo y el gráfico puede dibujar la línea correcta en cada fecha. Un cambio el mismo día vale desde ese día; un plan finalizado deja de dibujarse desde el día siguiente.
+18. **Ciclos calculados en el cliente** con la fecha local (`lib/ciclos.js`) en vez de la vista `v_current_training_cycle`, que usa `current_date` en UTC y desplazaría la semana/fase a ciertas horas en Colombia.
+19. **Enlaces externos validados en dos capas:** la interfaz (`FormEjercicio`) y un CHECK en la base de datos (migración 09) exigen http/https para `video_url`, porque el atleta lo toca desde su pantalla.
+20. **Ficha del atleta en pestañas** (Resumen, Entrenamiento, Cuerpo y nutrición) con estado local, al crecer a más de diez secciones.
 
 ## 9. Configuración y despliegue
 
@@ -231,6 +237,8 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 - `v_athlete_prs` no limita las repeticiones al estimar el 1RM (Epley pierde fiabilidad con muchas repeticiones).
 - La evolución del 1RM usa como máximo las 500 series más recientes de cada ejercicio.
 - La línea de objetivo de calorías se dibuja solo en fechas con medición (no es una línea continua en el tiempo).
+- La pestaña activa de la ficha del atleta es estado local: se pierde al recargar la página.
+- `routines.cycle_id` existe pero no se usa todavía.
 - Sin pruebas automáticas ni ESLint.
 - El eje X del gráfico trata las fechas como categorías, no como escala de tiempo.
 - En `Mediciones.jsx`, el aviso "ya hay una medición en esta fecha" solo mira las últimas 30.

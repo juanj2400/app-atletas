@@ -15,6 +15,9 @@ Estos archivos son la **fuente de verdad del esquema** de Supabase. Se ejecutan 
 | 7 | `migracion_07_records_por_peso.sql` | `migracion_07_records_por_peso` (nombre sugerido) | Vista `v_best_reps_by_weight`: mejor cantidad de repeticiones con cada peso (récords) | Aplicado con el paso 8 |
 | 8 | `migracion_08_plan_nutricional.sql` | `migracion_08_plan_nutricional` (nombre sugerido) | Función `set_nutrition_plan`: el entrenador define o cambia el plan nutricional (cierra el vigente y crea el nuevo) | Aplicado con el paso 9 |
 | 9 | `migracion_09_ejercicios_video_seguro.sql` | `migracion_09_ejercicios_video_seguro` (nombre sugerido) | Regla CHECK: el `video_url` de un ejercicio solo puede ser http/https | Aplicado con el paso 10 |
+| 11 | `migracion_11_progresion.sql` | `migracion_11_progresion` (nombre sugerido) | Progresión automática: columnas `progresion_tipo`, `escalera`, `incremento_kg` y `peso_inicial_kg` en `routine_exercises` (con CHECK), función `set_progresion` y `duplicate_routine` actualizada | Aplicado (el archivo es el mismo texto que se ejecutó) |
+
+La migración 10 (IA, paso 11A) no está en este repositorio.
 
 No existe una "migración 01": el esquema inicial hace de base. La numeración sigue la de las migraciones.
 
@@ -27,6 +30,7 @@ No existe una "migración 01": el esquema inicial hace de base. La numeración s
 - La 09 requiere el esquema inicial (usa `exercises`).
 - La 08 requiere la 02 (usa `nutrition_plans`).
 - La 07 requiere el esquema inicial y la 02 (usa `routine_logs`; complementa la vista `v_athlete_prs`).
+- La 11 requiere la 04 (usa `routine_exercises` y `duplicate_routine`).
 
 ## Reglas
 
@@ -38,4 +42,4 @@ No existe una "migración 01": el esquema inicial hace de base. La numeración s
 
 ## Avisos esperables del SQL Editor
 
-Supabase muestra "Potential issue detected" cuando un script contiene `drop` o `delete`. Es normal en estos casos: la 02, la 03 y la 05 eliminan políticas o índices antiguos para reemplazarlos, y la 06 contiene un `delete` dentro de una función que solo se ejecuta cuando guardas los músculos de un ejercicio desde la app. Ninguna borra tablas ni datos de los usuarios. La 07, la 08 y la 09 no eliminan nada (una vista, una función y una regla de validación nuevas), así que no deberían mostrar el aviso.
+Supabase muestra "Potential issue detected" cuando un script contiene `drop` o `delete`. Es normal en estos casos: la 02, la 03 y la 05 eliminan políticas o índices antiguos para reemplazarlos, y la 06 contiene un `delete` dentro de una función que solo se ejecuta cuando guardas los músculos de un ejercicio desde la app. Ninguna borra tablas ni datos de los usuarios. La 07, la 08, la 09 y la 11 no eliminan nada (vistas, funciones, columnas y reglas de validación nuevas), así que no deberían mostrar el aviso.

@@ -4,6 +4,7 @@
 // pantalla ni la base de datos, por eso es fácil comprobar que funcionan.
 // =====================================================================
 import { fechaLocalISO } from './fechas'
+import { textoEscalera } from './progresion'
 
 // "5-6", "5" o "—"
 export function textoReps(fila) {
@@ -19,9 +20,14 @@ export function textoDescanso(seg) {
 }
 
 // "4 × 5-6 reps · RPE 8 · descanso 2 min"
+// En fuerza simple (escalera) no hay un "series × reps" fijo: lo que se muestra es la escalera
+// ("Escalera 2 × 1 · 3 × 1 · 2 × 2"); la meta concreta del día va aparte.
 export function textoPrescripcion(fila) {
+  const base = fila.progresion_tipo === 'escalera' && fila.escalera
+    ? `Escalera ${textoEscalera(fila.escalera)}`
+    : `${fila.series} × ${textoReps(fila)} reps`
   return [
-    `${fila.series} × ${textoReps(fila)} reps`,
+    base,
     fila.rpe_objetivo !== null && `RPE ${fila.rpe_objetivo}`,
     fila.descanso_seg !== null && `descanso ${textoDescanso(fila.descanso_seg)}`,
   ].filter(Boolean).join(' · ')

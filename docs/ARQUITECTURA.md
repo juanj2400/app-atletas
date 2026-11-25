@@ -1,6 +1,6 @@
 # ARQUITECTURA
 
-> Última actualización: 2026-11-21 · Mantener al día es obligatorio (ver `AGENTS.md`).
+> Última actualización: 2026-11-25 · Mantener al día es obligatorio (ver `AGENTS.md`).
 
 ## 1. Visión general
 
@@ -49,7 +49,7 @@ Node >= 20.19 (requisito de Vite 8). Gestor: npm; `package-lock.json` versionado
 │  ├─ sql/                        scripts SQL (esquema y migraciones), se aplican a mano en el SQL Editor
 │  │   ├─ README.md               orden de aplicación y nombre de cada uno en el SQL Editor
 │  │   ├─ schema_supabase.sql
-│  │   └─ migracion_02 … migracion_09 (…y las que sigan)
+│  │   └─ migracion_02 … migracion_09 y migracion_11 (la 10, de la IA, no está en el repo ni aplicada)
 │  └─ functions/generate-weekly-proposals/index.ts   Edge Function de IA (TypeScript/Deno)
 ├─ public/                        _redirects (Netlify SPA), favicon, íconos PWA
 ├─ index.html · vite.config.js · package.json · .env.example
@@ -70,6 +70,7 @@ Node >= 20.19 (requisito de Vite 8). Gestor: npm; `package-lock.json` versionado
    │   ├─ volumen.js              calcularVolumen (series semanales por músculo)
    │   ├─ nutricion.js            macros↔kcal, objetivo de calorías por fecha, adherencia
    │   ├─ ciclos.js               semana del mesociclo, ciclo vigente, validación de fechas
+   │   ├─ progresion.js           meta del día (rango de reps y fuerza simple), esquemas NxM y sus textos
    │   └─ records.js              1RM (Epley), progreso por día, textos y fechas de los récords
    ├─ auth/
    │   ├─ AuthProvider.jsx        sesión + perfil (rol); useAuth()
@@ -105,7 +106,7 @@ Node >= 20.19 (requisito de Vite 8). Gestor: npm; `package-lock.json` versionado
 
 ## 5. Base de datos (Supabase / PostgreSQL)
 
-Scripts aplicados, en orden: `schema_supabase.sql` → `migracion_02_nutricion_dashboard.sql` → `03_metricas_admin` → `04_rutinas` → `05_checkin_una_vez` → `06_volumen_muscular` → `07_records_por_peso` → `08_plan_nutricional` → `09_ejercicios_video_seguro`.
+Scripts aplicados, en orden: `schema_supabase.sql` → `migracion_02_nutricion_dashboard.sql` → `03_metricas_admin` → `04_rutinas` → `05_checkin_una_vez` → `06_volumen_muscular` → `07_records_por_peso` → `08_plan_nutricional` → `09_ejercicios_video_seguro`. → `11_progresion` (progresión automática; ya aplicada en Supabase). La 10 (IA, en pausa) no está en el repo.
 
 ### 5.1 Tablas
 
@@ -119,7 +120,7 @@ Scripts aplicados, en orden: `schema_supabase.sql` → `migracion_02_nutricion_d
 | `daily_check_ins` | Check-in diario | **único** (`user_id`,`fecha`); horas 0–24; ánimo ∈ {mal, regular, bien} |
 | `routines` | Rutina de un atleta | `estado` ∈ {borrador, activa, archivada}; `origen` ∈ {manual, ia}; **índice único parcial: una `activa` por atleta** |
 | `routine_days` | Días de la rutina | `orden` |
-| `routine_exercises` | Ejercicios prescritos de cada día | series 1–20, `reps_min`/`reps_max`, `rpe_objetivo`, `descanso_seg`, `peso_sugerido_kg` |
+| `routine_exercises` | Ejercicios prescritos de cada día | series 1–20, `reps_min`/`reps_max`, `rpe_objetivo`, `descanso_seg`, `peso_sugerido_kg`; progresión (migración 11): `progresion_tipo` ∈ {ninguna, doble, escalera}, `escalera` (jsonb: lista de parejas `[series, reps]`), `incremento_kg` (> 0 y ≤ 20; la interfaz ofrece 2,5 o 5), `peso_inicial_kg` (propio de cada atleta, no se copia) |
 | `routine_logs` | Cada serie ejecutada | `routine_exercise_id` (opcional), `sesion_id`, `numero_serie`, RPE 1–10 |
 | `nutrition_plans` | Plan nutricional oficial (manual: `set_nutrition_plan`; IA: `resolve_nutrition_suggestion`) | **único parcial**: un plan vigente por atleta (`vigente_hasta is null`) |
 | `ai_load_suggestions` | Buzón de cargas de la IA | estados pendiente/aceptado/rechazado |
@@ -145,7 +146,7 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 | `ai_nutrition_suggestions`, `athlete_exercise_blacklist` | sin acceso | todo |
 
 ### 5.3 Funciones, triggers y vistas
-- **Funciones:** `is_admin()` · `activate_routine(uuid)` · `duplicate_routine(uuid, uuid)` · `set_exercise_muscles(uuid, jsonb)` · `set_nutrition_plan(...)` · `resolve_nutrition_suggestion(...)` (RPC solo admin, `security definer`, `search_path=''`).
+- **Funciones:** `is_admin()` · `activate_routine(uuid)` · `duplicate_routine(uuid, uuid)` (desde la migración 11 también copia la configuración de progresión, pero no el peso inicial) · `set_progresion(...)` (RPC solo admin: valida y guarda la progresión de un ejercicio) · `set_exercise_muscles(uuid, jsonb)` · `set_nutrition_plan(...)` · `resolve_nutrition_suggestion(...)` (RPC solo admin, `security definer`, `search_path=''`).
 - **Triggers:** `handle_new_user` (crea el perfil) · `force_suggestion_pending` (toda propuesta nace `pendiente`) · `guard_suggestion_resolution` (resuelta = inmutable; sella fecha y autor) · `block_blacklisted_suggestion` (la IA no puede proponer ejercicios en lista negra).
 - **Vistas** (`security_invoker`): `v_athlete_overview`, `v_metrics_trend`, `v_athlete_prs`, `v_current_training_cycle`, `v_pending_ai_suggestions` y `v_best_reps_by_weight` (migración 07: mejor cantidad de repeticiones por peso). La app usa `v_athlete_prs` y `v_best_reps_by_weight` (récords); el resto está listo para los pasos 9–11. `v_athlete_prs` calcula el 1RM (Epley) sin límite de repeticiones.
 
@@ -159,6 +160,7 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 - **Récords:** `RecordsAtleta` pide a `v_athlete_prs` una fila por ejercicio; al desplegar uno, pide a `v_best_reps_by_weight` sus marcas por peso y hasta 500 series recientes de ese ejercicio (para "última vez" y la evolución del 1RM, agrupada por día local). Las vistas respetan RLS (`security_invoker`): el atleta ve lo suyo y el entrenador, todo.
 - **Plan nutricional:** el entrenador guarda un plan con `set_nutrition_plan` (RPC: cierra el vigente y crea el nuevo, todo o nada; valida rangos). El atleta lo lee en *Mis datos › Nutrición*. Los gráficos de calorías reciben el historial de planes y dibujan el objetivo vigente en cada fecha (`kcalObjetivoEnFecha`).
 - **Ciclos:** `CiclosAtleta` (entrenador) valida con `validarCiclo` (fechas, pertenencia al macrociclo, solapes) y guarda en `training_cycles`. `CicloActual` (atleta, en *Entrenar*) lee sus ciclos y `cicloVigente()` decide el mesociclo en curso con la fecha local que entrega `PantallaAtleta`.
+- **Progresión:** `EditorRutina` guarda primero los datos básicos del ejercicio y luego llama a la RPC `set_progresion` (tipo, escalera, incremento y peso inicial; la función revisa las reps ya guardadas). `EntrenarDia` ya trae las series del entrenamiento anterior (`calcularUltimaVez`) y se las pasa a `calcularMeta()` (función pura de `lib/progresion.js`), que devuelve la meta del día; `textoMeta()` la convierte en el texto de la tarjeta "Meta de hoy". No se guarda la meta: se recalcula siempre desde las series reales.
 - **Lista negra:** `ListaNegraAtleta` escribe en `athlete_exercise_blacklist`; `EditorRutina` la lee para advertir; el trigger `block_blacklisted_suggestion` la usa contra la IA.
 - **IA (pendiente):** botón admin → Edge Function por lotes de 3 atletas → Gemini con esquema JSON → validación con límites (±10 % en kcal y cargas) → inserción como `pendiente` → el admin aprueba/edita/rechaza.
 
@@ -214,6 +216,7 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 18. **Ciclos calculados en el cliente** con la fecha local (`lib/ciclos.js`) en vez de la vista `v_current_training_cycle`, que usa `current_date` en UTC y desplazaría la semana/fase a ciertas horas en Colombia.
 19. **Enlaces externos validados en dos capas:** la interfaz (`FormEjercicio`) y un CHECK en la base de datos (migración 09) exigen http/https para `video_url`, porque el atleta lo toca desde su pantalla.
 20. **Ficha del atleta en pestañas** (Resumen, Entrenamiento, Cuerpo y nutrición) con estado local, al crecer a más de diez secciones.
+21. **Progresión por reglas fijas, calculada en el cliente y sin guardar la meta:** la meta de hoy sale de las series reales de la última sesión (`lib/progresion.js`), así no hay estado que se desincronice ni columnas nuevas en `routine_logs`. El peso de trabajo es el más alto de la última sesión: el sistema detecta solo cuánto subió el atleta. La configuración (tipo, escalera, incremento, peso inicial) vive en `routine_exercises` y se guarda solo por la RPC `set_progresion`, que valida en la base de datos. La IA queda fuera de este flujo (en pausa).
 
 ## 9. Configuración y despliegue
 
@@ -239,6 +242,7 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 - La línea de objetivo de calorías se dibuja solo en fechas con medición (no es una línea continua en el tiempo).
 - La pestaña activa de la ficha del atleta es estado local: se pierde al recargar la página.
 - `routines.cycle_id` existe pero no se usa todavía.
+- La meta de progresión solo se prueba con funciones puras y datos de ejemplo (sin pruebas automáticas en el repo); `calcularUltimaVez` usa como máximo 150 series previas por día, suficiente para rutinas normales.
 - Sin pruebas automáticas ni ESLint.
 - El eje X del gráfico trata las fechas como categorías, no como escala de tiempo.
 - En `Mediciones.jsx`, el aviso "ya hay una medición en esta fecha" solo mira las últimas 30.

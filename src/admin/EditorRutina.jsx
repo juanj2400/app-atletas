@@ -14,9 +14,17 @@ import SelectorEjercicio from './SelectorEjercicio'
 import VolumenMuscular from './VolumenMuscular'
 import { aNumero } from '../lib/numeros'
 import { textoEstadoRutina } from '../lib/opciones'
+import {
+  SISTEMAS_PROGRESION, SALTOS_PESO, SERIES_ESQUEMA, REPS_ESQUEMA,
+  alternarEsquema, tieneEsquema, normalizarEscalera, formatearKg,
+} from '../lib/progresion'
 import { CAMPO, BOTON, BOTON_SEC, TARJETA } from '../lib/estilos'
 
 const porOrden = (a, b) => a.orden - b.orden
+
+// Botón de selección (esquema o salto de peso). aria-pressed avisa a los lectores de pantalla si está marcado.
+const claseToggle = (activo) =>
+  `min-h-11 rounded-xl border text-sm font-semibold ${activo ? 'border-primario bg-primario text-white' : 'border-borde'}`
 
 // Si una política RLS impide un cambio, Supabase NO da error: afecta 0 filas.
 // Por eso pedimos .select('id') en cada operación y comprobamos que volvió algo.
@@ -33,6 +41,11 @@ function FilaEjercicio({ fila, listaNegra, aplicar }) {
     rpe: String(fila.rpe_objetivo ?? ''),
     descanso: String(fila.descanso_seg ?? ''),
     notas: fila.notas ?? '',
+    // Progresión automática (migración 11). escalera = lista de parejas [[series, reps], ...].
+    progresion: fila.progresion_tipo ?? 'ninguna',
+    escalera: Array.isArray(fila.escalera) ? fila.escalera : [],
+    salto: Number(fila.incremento_kg) || 2.5,
+    pesoInicial: String(fila.peso_inicial_kg ?? ''),
   })
   const [error, setError] = useState('')
   const cambiar = (campo, valor) => { setF((a) => ({ ...a, [campo]: valor })); setError('') }
@@ -41,14 +54,15 @@ function FilaEjercicio({ fila, listaNegra, aplicar }) {
     ? 'Ejercicio restringido'
     : listaNegra.has(fila.exercise_id) ? 'En la lista negra de este atleta' : null
 
-  function guardar() {
+  async function guardar() {
     const series = aNumero(f.series)
     const repsMin = aNumero(f.repsMin)
     const repsMax = aNumero(f.repsMax)
     const rpe = aNumero(f.rpe)
     const descanso = aNumero(f.descanso)
+    const pesoInicial = aNumero(f.pesoInicial)
 
-    if ([series, repsMin, repsMax, rpe, descanso].some(Number.isNaN)) return setError('Revisa los números.')
+    if ([series, repsMin, repsMax, rpe, descanso, pesoInicial].some(Number.isNaN)) return setError('Revisa los números.')
     if (series === null || !Number.isInteger(series) || series < 1 || series > 20) {
       return setError('Las series deben ser un número entero entre 1 y 20.')
     }
@@ -64,16 +78,41 @@ function FilaEjercicio({ fila, listaNegra, aplicar }) {
     if (descanso !== null && (!Number.isInteger(descanso) || descanso < 0 || descanso > 900)) {
       return setError('El descanso debe ser un entero entre 0 y 900 segundos.')
     }
+    if (f.progresion === 'doble' && (repsMin === null || repsMax === null || repsMax <= repsMin)) {
+      return setError('Para progresar por rango escribe reps mínimas y máximas, con el máximo mayor que el mínimo.')
+    }
+    if (f.progresion === 'escalera' && normalizarEscalera(f.escalera).length < 2) {
+      return setError('Marca al menos 2 pasos para la fuerza simple.')
+    }
+    if (pesoInicial !== null && (pesoInicial < 0 || pesoInicial > 1000)) {
+      return setError('El peso inicial debe estar entre 0 y 1.000 kg.')
+    }
 
-    aplicar(
-      supabase.from('routine_exercises')
-        .update({
-          series, reps_min: repsMin, reps_max: repsMax, rpe_objetivo: rpe,
-          descanso_seg: descanso, notas: f.notas.trim() || null,
-        })
-        .eq('id', fila.id).select('id'),
-      'Ejercicio guardado.'
-    )
+    // 1) Datos básicos del ejercicio. Va primero porque set_progresion revisa las reps ya guardadas.
+    const base = await supabase.from('routine_exercises')
+      .update({
+        series, reps_min: repsMin, reps_max: repsMax, rpe_objetivo: rpe,
+        descanso_seg: descanso, notas: f.notas.trim() || null,
+      })
+      .eq('id', fila.id).select('id')
+    if (fallo(base)) return setError('No se pudo guardar el ejercicio. Inténtalo de nuevo.')
+
+    // 2) Progresión: la función de la base de datos la valida y la guarda (solo admin).
+    const { error: errorProg } = await supabase.rpc('set_progresion', {
+      p_routine_exercise_id: fila.id,
+      p_tipo: f.progresion,
+      p_escalera: f.progresion === 'escalera' ? f.escalera : null,
+      p_incremento_kg: f.salto,
+      p_peso_inicial_kg: f.progresion === 'ninguna' ? null : pesoInicial,
+    })
+    if (errorProg) {
+      // Los mensajes de la función ya vienen redactados en español (código P0001 o 42501).
+      const redactado = errorProg.code === 'P0001' || errorProg.code === '42501'
+      return setError(redactado ? errorProg.message : 'No se pudo guardar la progresión. Inténtalo de nuevo.')
+    }
+
+    // Todo salió bien: se reutiliza "aplicar" solo para mostrar el aviso y recargar la rutina.
+    aplicar(Promise.resolve({ data: [{ id: fila.id }], error: null }), 'Ejercicio guardado.')
   }
 
   function quitar() {
@@ -111,6 +150,77 @@ function FilaEjercicio({ fila, listaNegra, aplicar }) {
         </div>
       </div>
       <p className="mt-1 text-xs text-suave">Si las repeticiones son fijas, repite el mismo número en mín. y máx.</p>
+
+      {/* Progresión automática: la meta de cada sesión se calcula con lo que el atleta anota. */}
+      <div className="mt-3 flex flex-col gap-2 rounded-xl border border-borde p-3">
+        <label className={mini} htmlFor={`pg-${fila.id}`}>Progresión de este ejercicio</label>
+        <select id={`pg-${fila.id}`} value={f.progresion} onChange={(e) => cambiar('progresion', e.target.value)} className={CAMPO}>
+          {SISTEMAS_PROGRESION.map((s) => <option key={s.valor} value={s.valor}>{s.texto}</option>)}
+        </select>
+
+        {f.progresion === 'doble' && (
+          <p className="text-xs text-suave">
+            Usa el rango de reps mín.–máx. de arriba (el máximo debe ser mayor que el mínimo). Cada sesión el atleta intenta una repetición más que su mejor
+            serie anterior; si no mejora, la meta se mantiene. Al llegar al máximo se sugiere subir el peso y se
+            vuelve a empezar en el mínimo.
+          </p>
+        )}
+
+        {f.progresion === 'escalera' && (
+          <>
+            <p className="text-xs text-suave">
+              Marca los pasos (series × repeticiones) que se usarán, mínimo 2. Se recorren de menor a mayor: primero suben las
+              series y luego las repeticiones; al terminar el último se sugiere subir el peso. Aquí la meta la
+              marca la escalera (el campo Series de arriba solo cuenta para el volumen semanal).
+            </p>
+            <div className="grid grid-cols-[auto_repeat(5,minmax(0,1fr))] items-center gap-1">
+              <span className="text-xs text-suave">Reps ↓ / Series →</span>
+              {SERIES_ESQUEMA.map((s) => <span key={s} className="text-center text-xs text-suave">{s}</span>)}
+              {REPS_ESQUEMA.map((r) => (
+                <div key={r} className="contents">
+                  <span className="pr-1 text-xs text-suave">{r} {r === 1 ? 'rep' : 'reps'}</span>
+                  {SERIES_ESQUEMA.map((s) => {
+                    const activo = tieneEsquema(f.escalera, s, r)
+                    return (
+                      <button
+                        key={s}
+                        type="button"
+                        aria-pressed={activo}
+                        aria-label={`${s} series de ${r} ${r === 1 ? 'repetición' : 'repeticiones'}`}
+                        onClick={() => cambiar('escalera', alternarEsquema(f.escalera, s, r))}
+                        className={claseToggle(activo)}
+                      >
+                        {s}×{r}
+                      </button>
+                    )
+                  })}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {f.progresion !== 'ninguna' && (
+          <div>
+            <label className={mini} htmlFor={`pi-${fila.id}`}>Peso inicial de este atleta (kg, opcional)</label>
+            <input id={`pi-${fila.id}`} inputMode="decimal" value={f.pesoInicial} onChange={(e) => cambiar('pesoInicial', e.target.value)} className={CAMPO} />
+            <p className="mt-1 text-xs text-suave">Se usa solo la primera vez. No se copia al copiar la rutina a otro atleta.</p>
+          </div>
+        )}
+
+        {f.progresion !== 'ninguna' && (
+          <div>
+            <p className={mini}>Al terminar la secuencia, subir:</p>
+            <div className="mt-1 grid grid-cols-2 gap-2">
+              {SALTOS_PESO.map((kg) => (
+                <button key={kg} type="button" aria-pressed={f.salto === kg} onClick={() => cambiar('salto', kg)} className={claseToggle(f.salto === kg)}>
+                  {formatearKg(kg)} kg
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
 
       <label className={`${mini} mt-2 block`} htmlFor={`n-${fila.id}`}>Notas</label>
       <input id={`n-${fila.id}`} value={f.notas} onChange={(e) => cambiar('notas', e.target.value)} className={CAMPO} />
@@ -249,6 +359,7 @@ export default function EditorRutina() {
             id, orden, nombre, notas,
             routine_exercises (
               id, orden, exercise_id, series, reps_min, reps_max, rpe_objetivo, descanso_seg, notas,
+              progresion_tipo, escalera, incremento_kg, peso_inicial_kg,
               exercises ( nombre, grupo_muscular, restringido )
             )
           )

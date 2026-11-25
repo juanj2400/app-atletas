@@ -15,23 +15,30 @@ import { useAuth } from '../auth/AuthProvider'
 import { aNumero } from '../lib/numeros'
 import { formatearFechaCorta } from '../lib/fechas'
 import { calcularUltimaVez, inicioDeHoyISO, textoPrescripcion, textoSerie } from '../lib/rutinas'
+import { calcularMeta, textoMeta } from '../lib/progresion'
 import { CAMPO, BOTON, BOTON_SEC, TARJETA } from '../lib/estilos'
 
 // ---------------------------------------------------------------------
 // Un ejercicio con su lista de series y el formulario de la siguiente
 // ---------------------------------------------------------------------
 function EjercicioEntrenamiento({ fila, seriesHoy, ultimaVez, userId, sesionId, onCambio }) {
-  // Peso sugerido para la próxima serie: la última de hoy, si no la del
+  // Meta de hoy si el ejercicio tiene progresión automática (null si no). Sale de las
+  // series del entrenamiento anterior, que no cambian mientras entrenas hoy.
+  const meta = calcularMeta(fila, ultimaVez?.series)
+  const textoDeMeta = meta ? textoMeta(meta) : null
+  const seriesObjetivo = meta?.series ?? fila.series
+
+  // Peso sugerido para la próxima serie: la última de hoy, si no la meta, si no la del
   // entrenamiento anterior, si no el peso sugerido por el entrenador.
-  const pesoInicial = seriesHoy.at(-1)?.peso_kg ?? ultimaVez?.series[0]?.peso_kg ?? fila.peso_sugerido_kg ?? ''
+  const pesoInicial = seriesHoy.at(-1)?.peso_kg ?? meta?.peso_kg ?? ultimaVez?.series[0]?.peso_kg ?? fila.peso_sugerido_kg ?? ''
   const [peso, setPeso] = useState(String(pesoInicial))
-  const [reps, setReps] = useState(String(fila.reps_max ?? fila.reps_min ?? ''))
+  const [reps, setReps] = useState(String(meta?.reps ?? fila.reps_max ?? fila.reps_min ?? ''))
   const [rpe, setRpe] = useState('')
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
 
   const siguiente = seriesHoy.reduce((max, s) => Math.max(max, s.numero_serie ?? 0), 0) + 1
-  const completado = seriesHoy.length >= fila.series
+  const completado = seriesHoy.length >= seriesObjetivo
 
   async function guardarSerie(evento) {
     evento.preventDefault()
@@ -84,10 +91,17 @@ function EjercicioEntrenamiento({ fila, seriesHoy, ultimaVez, userId, sesionId, 
         <div className="flex items-start justify-between gap-2">
           <h3 className="text-lg font-bold">{ej.nombre}</h3>
           <span className={`whitespace-nowrap text-sm font-semibold ${completado ? 'text-enlace' : 'text-suave'}`}>
-            {seriesHoy.length} de {fila.series}{completado ? ' ✓' : ''}
+            {seriesHoy.length} de {seriesObjetivo}{completado ? ' ✓' : ''}
           </span>
         </div>
         <p className="text-sm text-suave">{textoPrescripcion(fila)}</p>
+        {textoDeMeta && (
+          <div className="mt-2 rounded-xl border border-borde bg-hundido p-3">
+            <p className="text-xs text-suave">Meta de hoy</p>
+            <p className="font-semibold text-enlace">{textoDeMeta.titulo}</p>
+            <p className="text-sm text-suave">{textoDeMeta.nota}</p>
+          </div>
+        )}
         {fila.notas && <p className="mt-1 text-sm">{fila.notas}</p>}
         {ultimaVez && (
           <p className="mt-1 text-sm text-suave">
@@ -170,6 +184,7 @@ export default function EntrenarDia() {
           id, nombre, notas,
           routine_exercises (
             id, orden, exercise_id, series, reps_min, reps_max, rpe_objetivo, descanso_seg, peso_sugerido_kg, notas,
+            progresion_tipo, escalera, incremento_kg, peso_inicial_kg,
             exercises ( nombre, grupo_muscular, descripcion, video_url )
           )
         `)

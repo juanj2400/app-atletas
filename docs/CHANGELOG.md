@@ -5,6 +5,18 @@ Tipos: `feat`, `fix`, `style`, `refactor`, `docs`, `chore`, `db`.
 
 ---
 
+## 2026-11-25 · Paso 11B — Progresión automática de repeticiones y carga (sin IA)
+
+- **feat:** el entrenador elige por ejercicio una **progresión**: *rango de repeticiones* (`doble`: una más cada semana; si no mejora se mantiene; al llegar al tope sugiere subir 2,5 o 5 kg y vuelve a empezar) o *fuerza simple* (`escalera`: pasos N×M marcados con casillas; primero suben las series, luego las repeticiones y al final el peso). Opcionalmente, un peso inicial por atleta.
+- **feat:** el atleta ve en *Entrenar* una tarjeta **"Meta de hoy"** con series, repeticiones, peso y el motivo. El formulario viene precargado con la meta. El sistema detecta solo el peso que el atleta usó (el más alto de la última sesión).
+- **refactor:** nueva `src/lib/progresion.js` (funciones puras); `textoPrescripcion` muestra la escalera. El editor guarda la progresión con la RPC `set_progresion`.
+- **db:** `migracion_11_progresion.sql` (ya aplicada en Supabase; se guarda en el repo tal cual se ejecutó) — columnas `progresion_tipo`, `escalera`, `incremento_kg`, `peso_inicial_kg`, función `set_progresion` y `duplicate_routine` actualizada. Verificada en un Postgres real. No elimina nada.
+- **docs:** `AGENTS.md` (invariante 5), `REQUERIMIENTOS.md`, `ARQUITECTURA.md` y `supabase/sql/README.md` actualizados. **La IA sigue en pausa.**
+
+**Commit sugerido:** `feat: agregar progresión automática de repeticiones y carga por ejercicio`
+
+---
+
 ## 2026-11-22 · Paso 10 — Ciclos, lista negra y biblioteca de ejercicios editable
 
 - **feat:** el entrenador crea y edita **macrociclos y mesociclos** de cada atleta (nombre, fase, fechas, objetivo, notas) con validación de fechas (dentro del macrociclo, sin solapes). Muestra el ciclo en curso con su semana y progreso.

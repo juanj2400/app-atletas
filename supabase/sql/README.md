@@ -16,6 +16,9 @@ Estos archivos son la **fuente de verdad del esquema** de Supabase. Se ejecutan 
 | 8 | `migracion_08_plan_nutricional.sql` | `migracion_08_plan_nutricional` (nombre sugerido) | Función `set_nutrition_plan`: el entrenador define o cambia el plan nutricional (cierra el vigente y crea el nuevo) | Aplicado con el paso 9 |
 | 9 | `migracion_09_ejercicios_video_seguro.sql` | `migracion_09_ejercicios_video_seguro` (nombre sugerido) | Regla CHECK: el `video_url` de un ejercicio solo puede ser http/https | Aplicado con el paso 10 |
 | 11 | `migracion_11_progresion.sql` | `migracion_11_progresion` (nombre sugerido) | Progresión automática: columnas `progresion_tipo`, `escalera`, `incremento_kg` y `peso_inicial_kg` en `routine_exercises` (con CHECK), función `set_progresion` y `duplicate_routine` actualizada | Aplicado (el archivo es el mismo texto que se ejecutó) |
+| 12 | `migracion_12_series_y_rpe.sql` | `migracion_12` (nombre sugerido) | Columna `pide_rpe`, trigger `limitar_series_por_ejercicio` y `duplicate_routine` actualizada | Aplicado (**falta guardar el archivo en el repositorio**) |
+| 13 | `migracion_13_cierre_ejercicio.sql` | `migracion_13_cierre_ejercicio` (nombre sugerido) | Tabla `exercise_closures`: ejercicio finalizado con nota obligatoria, con RLS | Aplicado |
+| 14 | `migracion_14_dias_realizados.sql` | `migracion_14_dias_realizados` (nombre sugerido) | Tabla `routine_day_completions` (día realizado por semana, con RLS) y trigger `bloquear_dia_realizado` | Pendiente de aplicar |
 
 La migración 10 (IA, paso 11A) no está en este repositorio.
 
@@ -31,6 +34,7 @@ No existe una "migración 01": el esquema inicial hace de base. La numeración s
 - La 08 requiere la 02 (usa `nutrition_plans`).
 - La 07 requiere el esquema inicial y la 02 (usa `routine_logs`; complementa la vista `v_athlete_prs`).
 - La 11 requiere la 04 (usa `routine_exercises` y `duplicate_routine`).
+- La 13 y la 14 requieren el esquema inicial y la 04 (usan `routines`, `routine_days`, `routine_exercises`).
 
 ## Reglas
 

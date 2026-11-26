@@ -11,31 +11,46 @@ import { Link, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../auth/AuthProvider'
 import { TARJETA } from '../lib/estilos'
+import { formatearFecha, inicioSemanaISO } from '../lib/fechas'
+import { useHoy } from '../lib/useHoy'
 import CicloActual from './CicloActual'
 
 export default function Entrenar() {
   const { perfil } = useAuth()
   const { state } = useLocation()
   const [rutina, setRutina] = useState(null)
+  // Días de la rutina que ya terminó ESTA semana (lunes a domingo, fecha local)
+  const [realizados, setRealizados] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
 
+  // useHoy hace que la pantalla se redibuje al cambiar el día; así, al llegar el lunes
+  // los días vuelven a quedar disponibles aunque la app haya quedado abierta.
+  useHoy()
+  const semana = inicioSemanaISO()
+
   useEffect(() => {
     let cancelado = false
-    supabase
-      .from('routines')
-      .select('id, nombre, objetivo, notas, routine_days ( id, orden, nombre, notas, routine_exercises ( id ) )')
-      .eq('user_id', perfil.id)
-      .eq('estado', 'activa')
-      .maybeSingle()
-      .then(({ data, error }) => {
-        if (cancelado) return
-        if (error) setError('No se pudo cargar tu rutina.')
-        else setRutina(data)
-        setCargando(false)
-      })
+    Promise.all([
+      supabase
+        .from('routines')
+        .select('id, nombre, objetivo, notas, routine_days ( id, orden, nombre, notas, routine_exercises ( id ) )')
+        .eq('user_id', perfil.id)
+        .eq('estado', 'activa')
+        .maybeSingle(),
+      supabase
+        .from('routine_day_completions')
+        .select('routine_day_id, fecha')
+        .eq('user_id', perfil.id)
+        .eq('semana_inicio', semana),
+    ]).then(([res, comp]) => {
+      if (cancelado) return
+      if (res.error || comp.error) setError('No se pudo cargar tu rutina.')
+      else { setRutina(res.data); setRealizados(comp.data); setError('') }
+      setCargando(false)
+    })
     return () => { cancelado = true }
-  }, [perfil.id])
+  }, [perfil.id, semana])
 
   const aviso = state?.rutinaCompletada ? (
     <p role="status" className="rounded-xl bg-primario p-3 font-semibold text-white">
@@ -74,9 +89,25 @@ export default function Entrenar() {
         {rutina.notas && <p className="mt-1 text-sm">{rutina.notas}</p>}
       </div>
 
-      <p className="text-sm text-suave">Elige el día que vas a entrenar hoy:</p>
+      <p className="text-sm text-suave">
+        Elige el día que vas a entrenar hoy · Esta semana: {dias.filter((d) => realizados.some((r) => r.routine_day_id === d.id)).length} de {dias.length} días realizados
+      </p>
       <ul className="flex flex-col gap-3">
-        {dias.map((d) => (
+        {dias.map((d) => {
+          const hecho = realizados.find((r) => r.routine_day_id === d.id)
+          // Día ya realizado esta semana: se muestra marcado y no se puede abrir
+          if (hecho) {
+            return (
+              <li key={d.id} className={`${TARJETA} flex items-center justify-between border-primario`}>
+                <div>
+                  <p className="font-semibold">{d.nombre}</p>
+                  <p className="text-sm text-suave">Realizado el {formatearFecha(hecho.fecha)}. Vuelve a estar disponible el lunes.</p>
+                </div>
+                <span className="whitespace-nowrap text-sm font-bold text-enlace">Realizado ✓</span>
+              </li>
+            )
+          }
+          return (
           <li key={d.id}>
             <Link to={`/atleta/entrenar/${d.id}`} className={`${TARJETA} flex items-center justify-between`}>
               <div>
@@ -89,7 +120,8 @@ export default function Entrenar() {
               <span className="text-xl text-enlace" aria-hidden="true">›</span>
             </Link>
           </li>
-        ))}
+          )
+        })}
       </ul>
     </div>
   )

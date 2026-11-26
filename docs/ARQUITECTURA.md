@@ -49,7 +49,7 @@ Node >= 20.19 (requisito de Vite 8). Gestor: npm; `package-lock.json` versionado
 │  ├─ sql/                        scripts SQL (esquema y migraciones), se aplican a mano en el SQL Editor
 │  │   ├─ README.md               orden de aplicación y nombre de cada uno en el SQL Editor
 │  │   ├─ schema_supabase.sql
-│  │   └─ migracion_02 … migracion_09, migracion_11, migracion_12 y migracion_13 (la 10, de la IA, no está en el repo ni aplicada)
+│  │   └─ migracion_02 … migracion_09, migracion_11, migracion_12, migracion_13 y migracion_14 (la 10, de la IA, no está en el repo ni aplicada)
 │  └─ functions/generate-weekly-proposals/index.ts   Edge Function de IA (TypeScript/Deno)
 ├─ public/                        _redirects (Netlify SPA), favicon, íconos PWA
 ├─ index.html · vite.config.js · package.json · .env.example
@@ -59,7 +59,7 @@ Node >= 20.19 (requisito de Vite 8). Gestor: npm; `package-lock.json` versionado
    ├─ index.css                   Tailwind + tema (colores)
    ├─ lib/                        lógica pura y constantes
    │   ├─ supabase.js             cliente único de Supabase
-   │   ├─ fechas.js               fechaLocalISO, formatearFecha, formatearFechaCorta
+   │   ├─ fechas.js               fechaLocalISO, formatearFecha, formatearFechaCorta, inicioSemanaISO (lunes local), inicioSemanaSiguienteISO
    │   ├─ useHoy.js               hook: fecha de hoy que cambia sola a medianoche
    │   ├─ numeros.js              aNumero (texto → número/null/NaN)
    │   ├─ opciones.js             ánimos, estados calóricos, estados de rutina + textos
@@ -109,7 +109,7 @@ Node >= 20.19 (requisito de Vite 8). Gestor: npm; `package-lock.json` versionado
 
 ## 5. Base de datos (Supabase / PostgreSQL)
 
-Scripts aplicados, en orden: `schema_supabase.sql` → `migracion_02_nutricion_dashboard.sql` → `03_metricas_admin` → `04_rutinas` → `05_checkin_una_vez` → `06_volumen_muscular` → `07_records_por_peso` → `08_plan_nutricional` → `09_ejercicios_video_seguro`. → `11_progresion` (progresión automática; ya aplicada en Supabase). La 10 (IA, en pausa) no está en el repo. → `12_series_y_rpe` (tope de series y `pide_rpe`; ya aplicada) → `13_cierre_ejercicio` (tabla `exercise_closures`; **SQL primero, luego el código**).
+Scripts aplicados, en orden: `schema_supabase.sql` → `migracion_02_nutricion_dashboard.sql` → `03_metricas_admin` → `04_rutinas` → `05_checkin_una_vez` → `06_volumen_muscular` → `07_records_por_peso` → `08_plan_nutricional` → `09_ejercicios_video_seguro`. → `11_progresion` (progresión automática; ya aplicada en Supabase). La 10 (IA, en pausa) no está en el repo. → `12_series_y_rpe` (tope de series y `pide_rpe`; ya aplicada) → `13_cierre_ejercicio` (tabla `exercise_closures`; ya aplicada) → `14_dias_realizados` (tabla `routine_day_completions` y trigger `bloquear_dia_realizado`; **SQL primero, luego el código**).
 
 ### 5.1 Tablas
 
@@ -124,6 +124,7 @@ Scripts aplicados, en orden: `schema_supabase.sql` → `migracion_02_nutricion_d
 | `routines` | Rutina de un atleta | `estado` ∈ {borrador, activa, archivada}; `origen` ∈ {manual, ia}; **índice único parcial: una `activa` por atleta** |
 | `routine_days` | Días de la rutina | `orden` |
 | `routine_exercises` | Ejercicios prescritos de cada día | series 1–20, `reps_min`/`reps_max`, `rpe_objetivo`, `descanso_seg`, `peso_sugerido_kg`; progresión (migración 11): `progresion_tipo` ∈ {ninguna, doble, escalera}, `escalera` (jsonb: lista de parejas `[series, reps]`), `incremento_kg` (> 0 y ≤ 20; la interfaz ofrece 2,5 o 5), `peso_inicial_kg` (propio de cada atleta, no se copia); `pide_rpe` boolean, por defecto true (migración 12: si es false, el atleta no ve ni llena el RPE) |
+| `routine_day_completions` | Día de rutina terminado por el atleta en una semana (migración 14) | `routine_day_id` (cascade), `fecha` y `semana_inicio` (lunes local, validado por CHECK), conteos de ejercicios; único `(user_id, routine_day_id, semana_inicio)` |
 | `exercise_closures` | Ejercicio finalizado por el atleta sin completar las series (migración 13) | `routine_exercise_id` (set null), `fecha` (día local), `nota` 3–500, `series_hechas` < `series_objetivo`; único `(user_id, routine_exercise_id, fecha)` |
 | `routine_logs` | Cada serie ejecutada | `routine_exercise_id` (opcional), `sesion_id`, `numero_serie`, RPE 1–10 |
 | `nutrition_plans` | Plan nutricional oficial (manual: `set_nutrition_plan`; IA: `resolve_nutrition_suggestion`) | **único parcial**: un plan vigente por atleta (`vigente_hasta is null`) |
@@ -145,6 +146,7 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 | `routines` | lee solo la suya **activa** | todo |
 | `routine_days`, `routine_exercises` | lee si puede ver la rutina padre | todo |
 | `routine_logs` | todo sobre las suyas | todo |
+| `routine_day_completions` | ve las suyas; crea (solo días de su rutina activa); no modifica ni borra | todo |
 | `exercise_closures` | ve las suyas; crea (solo ejercicios de su rutina activa) y borra las suyas; no modifica | todo |
 | `nutrition_plans`, `training_cycles` | lee los suyos | escribe |
 | `ai_load_suggestions` | lee solo las suyas **aceptadas** | todo |
@@ -167,6 +169,7 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 - **Récords:** `RecordsAtleta` pide a `v_athlete_prs` una fila por ejercicio; al desplegar uno, pide a `v_best_reps_by_weight` sus marcas por peso y hasta 500 series recientes de ese ejercicio (para "última vez" y la evolución del 1RM, agrupada por día local). Las vistas respetan RLS (`security_invoker`): el atleta ve lo suyo y el entrenador, todo.
 - **Plan nutricional:** el entrenador guarda un plan con `set_nutrition_plan` (RPC: cierra el vigente y crea el nuevo, todo o nada; valida rangos). El atleta lo lee en *Mis datos › Nutrición*. Los gráficos de calorías reciben el historial de planes y dibujan el objetivo vigente en cada fecha (`kcalObjetivoEnFecha`).
 - **Ciclos:** `CiclosAtleta` (entrenador) valida con `validarCiclo` (fechas, pertenencia al macrociclo, solapes) y guarda en `training_cycles`. `CicloActual` (atleta, en *Entrenar*) lee sus ciclos y `cicloVigente()` decide el mesociclo en curso con la fecha local que entrega `PantallaAtleta`.
+- **Día realizado:** *Terminar rutina* inserta en `routine_day_completions` (fecha y lunes locales). `Entrenar` carga los de la semana actual (se recalcula con `useHoy`) y marca esos días; `EntrenarDia` consulta el día y, si ya está realizado, muestra el aviso en vez del formulario. El trigger `bloquear_dia_realizado` rechaza (P0001, mensaje en español) las series de ese día durante la misma semana; calcula la semana con `America/Bogota`.
 - **Cerrar ejercicio y rutina del día:** `EntrenarDia` carga los cierres de hoy (`exercise_closures`, por `fecha` local) junto con las series. Cada ejercicio es `completo`, `cerrado` (con nota) o `pendiente` (`lib/cierres.js`); sin pendientes aparece el indicador de rutina completada (fondo `primario`, el token más fuerte del tema, porque no hay token verde) y *Terminar rutina* navega a `Entrenar` con `state.rutinaCompletada`. `HistorialEntrenamiento` une los cierres a los días con `unirCierres`.
 - **Progresión:** `EditorRutina` guarda primero los datos básicos del ejercicio y luego llama a la RPC `set_progresion` (tipo, escalera, incremento y peso inicial; la función revisa las reps ya guardadas). `EntrenarDia` ya trae las series del entrenamiento anterior (`calcularUltimaVez`) y se las pasa a `calcularMeta()` (función pura de `lib/progresion.js`), que devuelve la meta del día; `textoMeta()` la convierte en el texto de la tarjeta "Meta de hoy". No se guarda la meta: se recalcula siempre desde las series reales.
 - **Lista negra:** `ListaNegraAtleta` escribe en `athlete_exercise_blacklist`; `EditorRutina` la lee para advertir; el trigger `block_blacklisted_suggestion` la usa contra la IA.
@@ -261,6 +264,7 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 - El tope de series se controla por `sesion_id`: quien manipule la app a mano puede mandar otro `sesion_id` y saltárselo (protege de errores, no de un atacante; solo afecta datos propios). En fuerza simple la base usa como tope el paso con más series de la escalera, más permisivo que el tope exacto de cada día, que solo calcula la pantalla.
 - Si el atleta borra una serie intermedia, el número de la siguiente se calcula como el mayor + 1 y puede superar las series prescritas (por ejemplo "Serie 4" de 3); no afecta al tope, que cuenta filas.
 - Cierre de ejercicio: `series_hechas` y `series_objetivo` son una foto; si luego borra o agrega series el historial muestra la foto, no el recuento actual. El indicador de rutina completada se calcula en pantalla (no se guarda): no hay registro de "rutina terminada" por día.
+- Día realizado: el trigger usa la zona `America/Bogota` y la pantalla la del celular (coinciden en Colombia; fuera de ella podrían diferir cerca de la medianoche del lunes). Nada verifica en la base de datos que el día realmente se completó: *Terminar rutina* lo registra el cliente. La semana es de lunes a domingo, no la "semana del ciclo"; `routines.cycle_id` sigue sin usarse.
 - Sin pruebas automáticas ni ESLint.
 - El eje X del gráfico trata las fechas como categorías, no como escala de tiempo.
 - En `Mediciones.jsx`, el aviso "ya hay una medición en esta fecha" solo mira las últimas 30.

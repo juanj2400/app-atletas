@@ -9,11 +9,11 @@
 //      Así, si se cierra la app a mitad de entrenamiento, no se pierde nada.
 // =====================================================================
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../auth/AuthProvider'
 import { aNumero } from '../lib/numeros'
-import { fechaLocalISO, formatearFechaCorta } from '../lib/fechas'
+import { fechaLocalISO, formatearFecha, formatearFechaCorta, inicioSemanaISO, inicioSemanaSiguienteISO } from '../lib/fechas'
 import { calcularUltimaVez, inicioDeHoyISO, textoPrescripcion, textoSerie } from '../lib/rutinas'
 import { calcularMeta, textoMeta } from '../lib/progresion'
 import { estadoEjercicio, resumenRutinaDia, seriesObjetivoDe, validarNotaCierre, NOTA_MAX } from '../lib/cierres'
@@ -272,7 +272,12 @@ function EjercicioEntrenamiento({ fila, seriesHoy, ultimaVez, cierre, userId, se
 export default function EntrenarDia() {
   const { diaId } = useParams()
   const { perfil } = useAuth()
+  const navigate = useNavigate()
   const [dia, setDia] = useState(null)
+  // Si ya terminó este día esta semana: { fecha }. Entonces no puede volver a registrarlo.
+  const [realizado, setRealizado] = useState(null)
+  const [terminando, setTerminando] = useState(false)
+  const [errorTerminar, setErrorTerminar] = useState('')
   const [logsHoy, setLogsHoy] = useState([])
   const [cierresHoy, setCierresHoy] = useState([])
   const [ultimaVez, setUltimaVez] = useState({})
@@ -289,7 +294,7 @@ export default function EntrenarDia() {
       const res = await supabase
         .from('routine_days')
         .select(`
-          id, nombre, notas,
+          id, routine_id, nombre, notas,
           routine_exercises (
             id, orden, exercise_id, series, reps_min, reps_max, rpe_objetivo, descanso_seg, peso_sugerido_kg, notas,
             progresion_tipo, escalera, incremento_kg, peso_inicial_kg, pide_rpe,
@@ -309,7 +314,7 @@ export default function EntrenarDia() {
       const inicio = inicioDeHoyISO()
       const columnas = 'id, routine_exercise_id, exercise_id, sesion_id, numero_serie, repeticiones, peso_kg, rpe, realizado_en'
 
-      const [hoy, previos, cierres] = await Promise.all([
+      const [hoy, previos, cierres, completado] = await Promise.all([
         supabase.from('routine_logs').select(columnas)
           .eq('user_id', perfil.id).in('routine_exercise_id', idsFilas)
           .gte('realizado_en', inicio).order('numero_serie'),
@@ -319,13 +324,17 @@ export default function EntrenarDia() {
         // Ejercicios que el atleta finalizó hoy sin completar las series (con su nota)
         supabase.from('exercise_closures').select('id, routine_exercise_id, nota, series_hechas, series_objetivo')
           .eq('user_id', perfil.id).eq('fecha', fechaLocalISO()).in('routine_exercise_id', idsFilas),
+        // ¿Ya terminó este día en la semana actual (lunes a domingo, fecha local)?
+        supabase.from('routine_day_completions').select('fecha')
+          .eq('user_id', perfil.id).eq('routine_day_id', diaId).eq('semana_inicio', inicioSemanaISO()).maybeSingle(),
       ])
       if (cancelado) return
-      if (hoy.error || previos.error || cierres.error) { setError('No se pudieron cargar tus series.'); setCargando(false); return }
+      if (hoy.error || previos.error || cierres.error || completado.error) { setError('No se pudieron cargar tus series.'); setCargando(false); return }
 
       setDia(d)
       setLogsHoy(hoy.data)
       setCierresHoy(cierres.data)
+      setRealizado(completado.data)
       setUltimaVez(calcularUltimaVez(previos.data))
       setError('')
       setCargando(false)
@@ -345,6 +354,25 @@ export default function EntrenarDia() {
     )
   }
 
+  // Día ya realizado esta semana: se muestra el aviso y no se deja registrar nada más.
+  if (realizado) {
+    return (
+      <div className="flex flex-col gap-4">
+        <Link to="/atleta/entrenar" className="text-sm text-enlace">‹ Mi rutina</Link>
+        <div role="status" className={`${TARJETA} border-primario`}>
+          <h2 className="text-xl font-bold">{dia.nombre}</h2>
+          <p className="mt-1 font-semibold text-enlace">Día realizado ✓</p>
+          <p className="mt-1 text-sm text-suave">
+            Lo completaste el {formatearFecha(realizado.fecha)}. Podrás volver a entrenarlo desde el {formatearFecha(inicioSemanaSiguienteISO())}.
+          </p>
+        </div>
+        <Link to="/atleta/entrenar" className={`${BOTON_SEC} flex items-center justify-center`}>
+          Volver a mi rutina
+        </Link>
+      </div>
+    )
+  }
+
   const sesionId = logsHoy.find((l) => l.sesion_id)?.sesion_id ?? sesionNueva
 
   // Estado de cada ejercicio (completo / finalizado con nota / pendiente) y de la rutina del día
@@ -354,6 +382,25 @@ export default function EntrenarDia() {
     return estadoEjercicio(hechas, objetivo, cierresHoy.find((c) => c.routine_exercise_id === fila.id))
   })
   const resumen = resumenRutinaDia(estados)
+
+  // Cierra el día: queda registrado como realizado en esta semana y se bloquea repetirlo.
+  async function terminarRutina() {
+    setTerminando(true)
+    setErrorTerminar('')
+    const { error: errorBD } = await supabase.from('routine_day_completions').insert({
+      user_id: perfil.id,
+      routine_day_id: dia.id,
+      fecha: fechaLocalISO(),
+      semana_inicio: inicioSemanaISO(),
+      ejercicios_completos: resumen.completos,
+      ejercicios_finalizados: resumen.cerrados,
+    })
+    if (errorBD && errorBD.code !== '23505') { // 23505 = ya estaba registrado: se trata como éxito
+      setTerminando(false)
+      return setErrorTerminar('No se pudo cerrar la rutina. Revisa tu conexión e inténtalo de nuevo.')
+    }
+    navigate('/atleta/entrenar', { state: { rutinaCompletada: dia.nombre } })
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -389,10 +436,13 @@ export default function EntrenarDia() {
       </ul>
 
       {resumen.terminada ? (
-        // Al cerrar la rutina completada, Entrenar muestra la confirmación positiva
-        <Link to="/atleta/entrenar" state={{ rutinaCompletada: dia.nombre }} className={`${BOTON} flex items-center justify-center`}>
-          Terminar rutina
-        </Link>
+        // Al cerrar la rutina completada, el día queda marcado como realizado esta semana
+        <>
+          {errorTerminar && <p role="alert" className="text-sm text-alerta">{errorTerminar}</p>}
+          <button type="button" onClick={terminarRutina} disabled={terminando} className={BOTON}>
+            {terminando ? 'Guardando...' : 'Terminar rutina'}
+          </button>
+        </>
       ) : (
         <>
           {resumen.total > 0 && (

@@ -39,3 +39,18 @@ export function formatearFechaCorta(iso) {
   const [anio, mes, dia] = iso.split('-').map(Number)
   return new Date(anio, mes - 1, dia).toLocaleDateString('es', { day: 'numeric', month: 'short' })
 }
+
+// Lunes de la semana de la fecha dada (hora LOCAL), como "YYYY-MM-DD". La semana de
+// entrenamiento va de lunes a domingo. Se construye con partes locales (nunca con
+// new Date("YYYY-MM-DD")) para no tener el desfase UTC de Colombia.
+export function inicioSemanaISO(fecha = new Date()) {
+  const d = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate())
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7)) // getDay(): domingo = 0 -> lunes = 0 tras el ajuste
+  return fechaLocalISO(d)
+}
+
+// Lunes de la semana SIGUIENTE (cuando se vuelve a habilitar un día ya realizado).
+export function inicioSemanaSiguienteISO(fecha = new Date()) {
+  const [anio, mes, dia] = inicioSemanaISO(fecha).split('-').map(Number)
+  return fechaLocalISO(new Date(anio, mes - 1, dia + 7))
+}

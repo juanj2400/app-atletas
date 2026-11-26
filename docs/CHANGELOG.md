@@ -5,6 +5,18 @@ Tipos: `feat`, `fix`, `style`, `refactor`, `docs`, `chore`, `db`.
 
 ---
 
+## 2026-11-26 · Paso 14 — Días realizados por semana en Entrenar
+
+- **feat:** al pulsar *Terminar rutina* el día queda **registrado como realizado** en la semana (lunes a domingo, fecha local). En *Entrenar* aparece marcado "Realizado ✓" con su fecha y un contador de días de la semana.
+- **feat:** un día realizado **no se puede abrir ni repetir** hasta el lunes: la pantalla muestra "Día realizado" y la base de datos rechaza nuevas series de ese día esa semana.
+- **refactor:** `fechas.js` suma `inicioSemanaISO` e `inicioSemanaSiguienteISO` (probadas en tres zonas horarias, incluido cambio de mes y de año). `Entrenar` usa `useHoy` para liberar los días al llegar el lunes.
+- **db:** `migracion_14_dias_realizados.sql` — tabla `routine_day_completions` (RLS: el atleta solo crea; el admin gestiona) y trigger `bloquear_dia_realizado`. Probada con un Postgres real (políticas, duplicados, bordes de domingo y lunes). No elimina nada. **Aplicar primero el SQL y después subir el código.**
+- **docs:** `AGENTS.md` (invariante 12), `REQUERIMIENTOS.md`, `ARQUITECTURA.md` y `supabase/sql/README.md` actualizados.
+
+**Commit sugerido:** `feat: marcar días realizados por semana y bloquear su repetición`
+
+---
+
 ## 2026-11-25 · Paso 13 — Finalizar ejercicios con nota y confirmar la rutina del día
 
 - **feat:** el atleta puede **finalizar un ejercicio sin completar las series** escribiendo una nota obligatoria con el motivo (3–500 caracteres). Queda marcado "finalizado" y puede reabrirlo.

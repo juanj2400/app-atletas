@@ -5,6 +5,18 @@ Tipos: `feat`, `fix`, `style`, `refactor`, `docs`, `chore`, `db`.
 
 ---
 
+## 2026-11-26 · Paso 23 — Fecha de nacimiento y cumpleaños de los atletas
+
+- **feat:** el entrenador anota la **fecha de nacimiento** en la ficha del atleta ("Nacimiento: 3 nov 1996 · 30 años" con *Agregar/Editar* y *Quitar fecha*). Solo la escribe el entrenador; el atleta no la puede cambiar.
+- **feat:** en la **lista de atletas** hay un bloque compacto **"Cumpleaños"**: de hoy a los próximos 30 días (cubre lo que resta del mes), con fecha, edad que cumple y "¡Hoy!", "Mañana" o "en N días". Muestra los 3 más cercanos y un botón *Ver todos*; debajo, en una línea, quiénes ya cumplieron este mes y cuántos atletas no tienen fecha.
+- **refactor:** nueva `src/lib/cumpleanos.js` (funciones puras: validar, edad, próximo cumpleaños, resumen; el 29 de febrero se celebra el 28 en años no bisiestos). Probada con datos de ejemplo en tres zonas horarias (UTC, Bogotá, Auckland), incluido cambio de año y 29 de febrero. `fechas.js` suma `formatearFechaConAnio`.
+- **db:** `migracion_19_fecha_nacimiento.sql` — columna `profiles.fecha_nacimiento` (date, opcional, CHECK ≥ 1900), trigger `validar_fecha_nacimiento` (rechaza fechas futuras) y RPC `set_fecha_nacimiento` (solo admin, `security definer`, `search_path=''`). Sin políticas nuevas: el atleta sigue pudiendo editar solo `nombre_completo`. Probada con un Postgres real (esquema y migraciones 2–18 previas): admin guarda y borra, futura/1899/inexistente/id de admin rechazadas, atleta y anon no pueden escribir. No elimina nada. **Aplicar primero el SQL y después subir el código.**
+- **docs:** `AGENTS.md` (invariante 15), `REQUERIMIENTOS.md`, `ARQUITECTURA.md` (decisión 28) y `supabase/sql/README.md` (también marca la 18 como aplicada). Sin dependencias nuevas.
+
+**Commit sugerido:** `feat: agregar fecha de nacimiento del atleta y bloque de cumpleaños en la lista`
+
+---
+
 ## 2026-11-26 · Paso 22 — Peso corporal opcional en el check-in diario
 
 - **feat:** el check-in tiene un campo **"Peso corporal (kg) · opcional"**: acepta coma decimal (`aNumero`), exige 20–400 kg si se llena y se puede dejar vacío sin impedir enviar el check-in. Un aviso aclara que el entrenador lo verá y que no reemplaza sus mediciones oficiales.

@@ -1,6 +1,6 @@
 # ARQUITECTURA
 
-> Última actualización: 2026-11-26 (paso 22) · Mantener al día es obligatorio (ver `AGENTS.md`).
+> Última actualización: 2026-11-26 (paso 23) · Mantener al día es obligatorio (ver `AGENTS.md`).
 
 ## 1. Visión general
 
@@ -49,7 +49,7 @@ Node >= 20.19 (requisito de Vite 8). Gestor: npm; `package-lock.json` versionado
 │  ├─ sql/                        scripts SQL (esquema y migraciones), se aplican a mano en el SQL Editor
 │  │   ├─ README.md               orden de aplicación y nombre de cada uno en el SQL Editor
 │  │   ├─ schema_supabase.sql
-│  │   └─ migracion_02 … migracion_09, migracion_11, migracion_12, migracion_13, migracion_14, migracion_15 y migracion_16 (la 10, de la IA, no está en el repo ni aplicada)
+│  │   └─ migracion_02 … migracion_09, migracion_11, migracion_12, migracion_13, migracion_14, migracion_15 … migracion_19 (la 10, de la IA, no está en el repo ni aplicada)
 │  └─ functions/generate-weekly-proposals/index.ts   Edge Function de IA (TypeScript/Deno)
 ├─ public/                        _redirects (Netlify SPA), favicon, íconos PWA
 ├─ index.html · vite.config.js · package.json · .env.example
@@ -67,6 +67,7 @@ Node >= 20.19 (requisito de Vite 8). Gestor: npm; `package-lock.json` versionado
    │   ├─ oscilacionPeso.js       oscilación del peso: cambio entre mediciones, mínimo, máximo, rango y promedio (función pura)
    │   ├─ tendenciaPeso.js        tendencia del peso: regresión lineal sobre días transcurridos, proyección y texto (función pura)
    │   ├─ coloresGrafico.js       colores de los gráficos (SVG necesita texto, no clases)
+   │   ├─ cumpleanos.js           cumpleaños: validar fecha de nacimiento, edad, próximo cumpleaños (29 feb) y resumen para la lista (función pura)
    │   ├─ mediciones.js           resumirMediciones, textoMedicion
    │   ├─ cierres.js              estado de cada ejercicio (completo/finalizado/pendiente), rutina del día completa, validar nota, unir cierres al historial
 │   ├─ bloques.js              rutina híbrida: agrupar ejercicios por bloque (halterofilia primero), texto "2 de halterofilia + 5 de musculación" y cargas por disciplina
@@ -83,7 +84,7 @@ Node >= 20.19 (requisito de Vite 8). Gestor: npm; `package-lock.json` versionado
    ├─ pages/                      Login.jsx, RecuperarContrasena.jsx, RestablecerContrasena.jsx, Inicio.jsx (redirige por rol)
    ├─ components/                 Encabezado, Estados, Selector, ResumenMediciones, GraficoEvolucion, GraficoEvolucionLazy, GraficoTendenciaPeso, GraficoTendenciaPesoLazy, GraficoOscilacionPeso, GraficoOscilacionPesoLazy, LineaTemporal, RecordsAtleta, GraficosRecord, GraficosRecordLazy, PlanNutricionalCard, CicloVigenteCard, AvisoActualizacion
    ├─ atleta/                     PantallaAtleta (marco), CheckIn, Entrenar, EntrenarDia, MisDatos (marco con secciones), MisMediciones, Records, Nutricion, CicloActual
-   └─ admin/                      ListaAtletas, DetalleAtleta, Mediciones, RutinasAtleta, CargasAtleta, EditorRutina,
+   └─ admin/                      ListaAtletas, CumpleanosAtletas, DetalleAtleta, FechaNacimientoAtleta, Mediciones, RutinasAtleta, CargasAtleta, EditorRutina,
                                   SelectorEjercicio, HistorialEntrenamiento, VolumenMuscular, PlanNutricional, CiclosAtleta, ListaNegraAtleta, FormEjercicio, Ejercicios
 ```
 
@@ -113,13 +114,13 @@ Node >= 20.19 (requisito de Vite 8). Gestor: npm; `package-lock.json` versionado
 
 ## 5. Base de datos (Supabase / PostgreSQL)
 
-Scripts aplicados, en orden: `schema_supabase.sql` → `migracion_02_nutricion_dashboard.sql` → `03_metricas_admin` → `04_rutinas` → `05_checkin_una_vez` → `06_volumen_muscular` → `07_records_por_peso` → `08_plan_nutricional` → `09_ejercicios_video_seguro`. → `11_progresion` (progresión automática; ya aplicada en Supabase). La 10 (IA, en pausa) no está en el repo. → `12_series_y_rpe` (tope de series y `pide_rpe`; ya aplicada) → `13_cierre_ejercicio` (tabla `exercise_closures`; ya aplicada) → `14_dias_realizados` (tabla `routine_day_completions` y trigger `bloquear_dia_realizado`; ya aplicada) → `15_tipo_ejercicio_1rm` (columna `tipo_ejercicio` y vista `v_athlete_prs` actualizada; ya aplicada) → `16_rutina_hibrida` (columnas `modo_hibrido` y `bloque`, dos triggers y `duplicate_routine` actualizada; ya aplicada) → `17_cumplimiento_calorias` (columna `cumplimiento_calorias` y trigger `sincronizar_cumplimiento_calorias`; ya aplicada) → `18_peso_en_checkin` (columna `daily_check_ins.peso_corporal_kg`; **SQL primero, luego el código**).
+Scripts aplicados, en orden: `schema_supabase.sql` → `migracion_02_nutricion_dashboard.sql` → `03_metricas_admin` → `04_rutinas` → `05_checkin_una_vez` → `06_volumen_muscular` → `07_records_por_peso` → `08_plan_nutricional` → `09_ejercicios_video_seguro`. → `11_progresion` (progresión automática; ya aplicada en Supabase). La 10 (IA, en pausa) no está en el repo. → `12_series_y_rpe` (tope de series y `pide_rpe`; ya aplicada) → `13_cierre_ejercicio` (tabla `exercise_closures`; ya aplicada) → `14_dias_realizados` (tabla `routine_day_completions` y trigger `bloquear_dia_realizado`; ya aplicada) → `15_tipo_ejercicio_1rm` (columna `tipo_ejercicio` y vista `v_athlete_prs` actualizada; ya aplicada) → `16_rutina_hibrida` (columnas `modo_hibrido` y `bloque`, dos triggers y `duplicate_routine` actualizada; ya aplicada) → `17_cumplimiento_calorias` (columna `cumplimiento_calorias` y trigger `sincronizar_cumplimiento_calorias`; ya aplicada) → `18_peso_en_checkin` (columna `daily_check_ins.peso_corporal_kg`; ya aplicada) → `19_fecha_nacimiento` (columna `profiles.fecha_nacimiento`, trigger `validar_fecha_nacimiento` y RPC `set_fecha_nacimiento`; **SQL primero, luego el código**).
 
 ### 5.1 Tablas
 
 | Tabla | Propósito | Claves y restricciones destacadas |
 |---|---|---|
-| `profiles` | 1 fila por usuario (se crea con trigger desde `auth.users`) | `rol` ∈ {admin, client}; el cliente solo puede editar `nombre_completo` |
+| `profiles` | 1 fila por usuario (se crea con trigger desde `auth.users`) | `rol` ∈ {admin, client}; el cliente solo puede editar `nombre_completo`; `fecha_nacimiento` date opcional (migración 19: CHECK ≥ 1900, trigger contra fechas futuras; solo se escribe con la RPC `set_fecha_nacimiento`) |
 | `exercises` | Biblioteca global | `nombre` único; `tipo_ejercicio` ∈ {compuesto, fuerza, halterofilia, aislado} (migración 15, por defecto `compuesto`; los aislados no tienen 1RM); `restringido` (lista negra global); `video_url` (solo http/https: CHECK de la migración 09), `descripcion` |
 | `muscle_groups` | Catálogo de 14 músculos | `codigo` PK, `orden` |
 | `exercise_muscles` | Músculos de cada ejercicio | PK (`exercise_id`,`muscle`); `factor` ∈ (0,1] (1 principal, 0,5 secundario) |
@@ -143,7 +144,7 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 
 | Tabla | Atleta | Admin |
 |---|---|---|
-| `profiles` | lee la suya; edita solo `nombre_completo` | lee todas |
+| `profiles` | lee la suya; edita solo `nombre_completo` | lee todas; escribe `fecha_nacimiento` solo vía RPC |
 | `exercises`, `muscle_groups`, `exercise_muscles` | lee | escribe |
 | `metrics` | **lee** las suyas | escribe |
 | `daily_check_ins` | lee las suyas; **inserta** la suya (fecha ± 1 día respecto a UTC); sin update/delete | todo |
@@ -157,8 +158,8 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 | `ai_nutrition_suggestions`, `athlete_exercise_blacklist` | sin acceso | todo |
 
 ### 5.3 Funciones, triggers y vistas
-- **Funciones:** `is_admin()` · `activate_routine(uuid)` · `duplicate_routine(uuid, uuid)` (desde la migración 11 también copia la configuración de progresión, pero no el peso inicial) · `set_progresion(...)` (RPC solo admin: valida y guarda la progresión de un ejercicio) · `set_exercise_muscles(uuid, jsonb)` · `set_nutrition_plan(...)` · `resolve_nutrition_suggestion(...)` (RPC solo admin, `security definer`, `search_path=''`).
-- **Triggers:** `handle_new_user` (crea el perfil) · `force_suggestion_pending` (toda propuesta nace `pendiente`) · `guard_suggestion_resolution` (resuelta = inmutable; sella fecha y autor) · `block_blacklisted_suggestion` (la IA no puede proponer ejercicios en lista negra) · `sincronizar_cumplimiento_calorias` (migración 17; `before insert or update` en `daily_check_ins`: el booleano antiguo refleja la columna nueva, y un "sí" de una app vieja completa `cumplimiento_calorias`) · `limitar_series_por_ejercicio` (migración 12; `before insert` en `routine_logs`: rechaza una serie si ya hay tantas como las prescritas para ese ejercicio en ese `sesion_id`; `security definer`, con candado para que dos inserciones simultáneas no se salten el tope).
+- **Funciones:** `is_admin()` · `activate_routine(uuid)` · `duplicate_routine(uuid, uuid)` (desde la migración 11 también copia la configuración de progresión, pero no el peso inicial) · `set_progresion(...)` (RPC solo admin: valida y guarda la progresión de un ejercicio) · `set_fecha_nacimiento(uuid, date)` (RPC solo admin, `security definer`, `search_path=''`; null borra la fecha) · `set_exercise_muscles(uuid, jsonb)` · `set_nutrition_plan(...)` · `resolve_nutrition_suggestion(...)` (RPC solo admin, `security definer`, `search_path=''`).
+- **Triggers:** `handle_new_user` (crea el perfil) · `force_suggestion_pending` (toda propuesta nace `pendiente`) · `guard_suggestion_resolution` (resuelta = inmutable; sella fecha y autor) · `block_blacklisted_suggestion` (la IA no puede proponer ejercicios en lista negra) · `sincronizar_cumplimiento_calorias` (migración 17; `before insert or update` en `daily_check_ins`: el booleano antiguo refleja la columna nueva, y un "sí" de una app vieja completa `cumplimiento_calorias`) · `validar_fecha_nacimiento` (migración 19; `before insert or update` de `fecha_nacimiento` en `profiles`: rechaza fechas futuras) · `limitar_series_por_ejercicio` (migración 12; `before insert` en `routine_logs`: rechaza una serie si ya hay tantas como las prescritas para ese ejercicio en ese `sesion_id`; `security definer`, con candado para que dos inserciones simultáneas no se salten el tope).
 - **Vistas** (`security_invoker`): `v_athlete_overview`, `v_metrics_trend`, `v_athlete_prs`, `v_current_training_cycle`, `v_pending_ai_suggestions` y `v_best_reps_by_weight` (migración 07: mejor cantidad de repeticiones por peso). La app usa `v_athlete_prs` y `v_best_reps_by_weight` (récords); el resto está listo para los pasos 9–11. `v_athlete_prs` calcula el 1RM (Epley) sin límite de repeticiones.
 
 ## 6. Flujos clave
@@ -178,6 +179,7 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 - **Día realizado:** *Terminar rutina* inserta en `routine_day_completions` (fecha y lunes locales). `Entrenar` carga los de la semana actual (se recalcula con `useHoy`) y marca esos días; `EntrenarDia` consulta el día y, si ya está realizado, muestra el aviso en vez del formulario. El trigger `bloquear_dia_realizado` rechaza (P0001, mensaje en español) las series de ese día durante la misma semana; calcula la semana con `America/Bogota`.
 - **Cerrar ejercicio y rutina del día:** `EntrenarDia` carga los cierres de hoy (`exercise_closures`, por `fecha` local) junto con las series. Cada ejercicio es `completo`, `cerrado` (con nota) o `pendiente` (`lib/cierres.js`); sin pendientes aparece el indicador de rutina completada (fondo `primario`, el token más fuerte del tema, porque no hay token verde) y *Terminar rutina* navega a `Entrenar` con `state.rutinaCompletada`. `HistorialEntrenamiento` une los cierres a los días con `unirCierres`.
 - **Progresión:** `EditorRutina` guarda primero los datos básicos del ejercicio y luego llama a la RPC `set_progresion` (tipo, escalera, incremento y peso inicial; la función revisa las reps ya guardadas). `EntrenarDia` ya trae las series del entrenamiento anterior (`calcularUltimaVez`) y se las pasa a `calcularMeta()` (función pura de `lib/progresion.js`), que devuelve la meta del día; `textoMeta()` la convierte en el texto de la tarjeta "Meta de hoy". No se guarda la meta: se recalcula siempre desde las series reales.
+- **Cumpleaños:** `ListaAtletas` pide `fecha_nacimiento` junto con nombre y correo (consulta que ya existía) y `CumpleanosAtletas` llama a `resumirCumpleanos(atletas, hoy)` (`lib/cumpleanos.js`) con la fecha local de `useHoy`. La fecha se anota en `FechaNacimientoAtleta` (ficha), que guarda con la RPC `set_fecha_nacimiento` y avisa a `DetalleAtleta` para refrescar el dato sin recargar.
 - **Lista negra:** `ListaNegraAtleta` escribe en `athlete_exercise_blacklist`; `EditorRutina` la lee para advertir; el trigger `block_blacklisted_suggestion` la usa contra la IA.
 - **IA (pendiente):** botón admin → Edge Function por lotes de 3 atletas → Gemini con esquema JSON → validación con límites (±10 % en kcal y cargas) → inserción como `pendiente` → el admin aprueba/edita/rechaza.
 
@@ -242,6 +244,8 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 26. **Cumplimiento de calorías con tres estados, de forma aditiva:** `daily_check_ins.cumplimiento_calorias` (cumplio / menos / mas, con CHECK) se añade sin tocar la columna booleana antigua. Los "sí" antiguos se copian a `cumplio`; los "no" quedan en null porque no se sabe la dirección (no se inventa). Un trigger mantiene el booleano coherente, así la Edge Function de la IA (en pausa) y las apps ya instaladas sin actualizar siguen funcionando. Las etiquetas viven en `lib/opciones.js` (`CUMPLIMIENTO_CALORIAS`, `textoCumplimientoCalorias`). Las mediciones del entrenador (`metrics`) no tienen "cumplimiento": allí la caloría es un número y el estado calórico ya tiene sus propias opciones.
 27. **Peso del check-in separado de las mediciones oficiales:** el atleta puede anotar su peso (opcional) al crear el check-in; se guarda en `daily_check_ins.peso_corporal_kg` y hereda las reglas de esa tabla (el atleta solo crea una vez al día, no modifica ni borra). No se escribe en `metrics`, que sigue siendo solo del entrenador: así los gráficos de tendencia y oscilación siguen usando únicamente lo que él mide y el atleta nunca altera una medición oficial. El entrenador ve el peso en *Check-ins recientes*. El rango 20–400 kg se valida en la pantalla (`aNumero`) y con un CHECK en la base de datos.
 
+28. **Fecha de nacimiento solo del entrenador, por RPC, con cumpleaños en el cliente:** la columna vive en `profiles` y se escribe únicamente con `set_fecha_nacimiento` (comprueba `is_admin()`); no hay política de `update` nueva ni se amplía el `grant` por columnas, así el atleta no puede cambiarla. "No futura" va en un trigger (un CHECK con `current_date` no es estable) y "≥ 1900" en un CHECK. Los cumpleaños se calculan en el navegador con la fecha local (`lib/cumpleanos.js`; `Date.UTC` solo como aritmética de calendario), así Colombia no ve el cumpleaños un día corrido. No se creó vista ni consulta nueva: se reutiliza la lista de atletas (≤ 30 filas).
+
 ## 9. Configuración y despliegue
 
 **Variables de entorno (frontend, Netlify y `.env` local):** `VITE_SUPABASE_URL`, `VITE_SUPABASE_KEY` (clave pública). Ver `.env.example`.
@@ -282,6 +286,7 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 - El peso del check-in no alimenta los gráficos ni el resumen de Medidas (solo se ve en Check-ins recientes del entrenador); no hay botón para convertirlo en medición oficial. Si el atleta se equivoca al escribirlo no puede corregirlo (el check-in no se modifica): el entrenador puede editarlo desde Table Editor.
 - Cumplimiento de calorías: los check-ins viejos con "no" se ven como "No cumplió (sin detalle)". El booleano `calorias_ayer_cumplidas` queda como legado (la Edge Function de la IA lo cuenta como sí/no; cuando se retome la IA conviene que use las tres categorías). Si el admin corrige un check-in desde Table Editor, debe cambiar `cumplimiento_calorias` (el booleano se recalcula solo).
 - Check-in obligatorio solo en pantalla: un atleta que llame a la API a mano (o con la app desactualizada) podría leer sus datos o registrar series sin check-in. Solo afecta a sus propios datos; si se quiere blindar, una migración con un trigger en `routine_logs` que exija el check-in del día. Si falla la consulta del check-in (sin conexión) se trata como pendiente y el atleta queda en el formulario hasta recuperar la conexión.
+- Cumpleaños: la ventana es fija (30 días, `DIAS_ADELANTE` en `lib/cumpleanos.js`); no hay aviso fuera de la app ni envío de felicitaciones. El atleta no ve su propia fecha en pantalla ni puede corregirla (la anota el entrenador). La validación de edad 5–100 solo está en el navegador; la base solo exige ≥ 1900 y no futura.
 - Sin pruebas automáticas ni ESLint.
 - El eje X del gráfico de evolución (peso + calorías) trata las fechas como categorías; el de tendencia del peso ya usa escala de días.
 - La evolución de peso/repeticiones compara primer y último entrenamiento dentro de las 500 series más recientes del ejercicio; no suaviza días malos ni descuenta calentamientos por debajo del peso más alto del día. La oscilación usa las 30 mediciones más recientes.

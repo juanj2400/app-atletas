@@ -6,8 +6,11 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import Encabezado from '../components/Encabezado'
+import CumpleanosAtletas from './CumpleanosAtletas'
+import { useHoy } from '../lib/useHoy'
 
 export default function ListaAtletas() {
+  const hoy = useHoy() // fecha local; se actualiza sola a medianoche (para los cumpleaños)
   const [atletas, setAtletas] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
@@ -15,7 +18,7 @@ export default function ListaAtletas() {
   useEffect(() => {
     supabase
       .from('profiles')
-      .select('id, nombre_completo, email')
+      .select('id, nombre_completo, email, fecha_nacimiento')
       .eq('rol', 'client')
       .order('nombre_completo')
       .then(({ data, error }) => {
@@ -32,6 +35,7 @@ export default function ListaAtletas() {
         <Link to="/admin/ejercicios" className="mb-4 flex min-h-11 items-center justify-center rounded-xl border border-borde bg-superficie px-4 text-sm font-semibold">
           Biblioteca de ejercicios y músculos
         </Link>
+        {!cargando && !error && atletas.length > 0 && <CumpleanosAtletas atletas={atletas} hoy={hoy} />}
         {cargando && <p className="text-suave">Cargando atletas...</p>}
         {error && <p role="alert" className="text-alerta">{error}</p>}
         {!cargando && !error && atletas.length === 0 && (

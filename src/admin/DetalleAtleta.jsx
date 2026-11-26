@@ -19,6 +19,7 @@ import ListaNegraAtleta from './ListaNegraAtleta'
 import VolumenMuscular from './VolumenMuscular'
 import HistorialEntrenamiento from './HistorialEntrenamiento'
 import CargasAtleta from './CargasAtleta'
+import FechaNacimientoAtleta from './FechaNacimientoAtleta'
 import RecordsAtleta from '../components/RecordsAtleta'
 import { fechaLocalISO, formatearFecha } from '../lib/fechas'
 import { textoAnimo, textoSiNo, textoCumplimientoCalorias } from '../lib/opciones'
@@ -49,7 +50,7 @@ export default function DetalleAtleta() {
       setError('')
       // Promise.all lanza las dos consultas A LA VEZ y espera a que terminen ambas.
       const [resAtleta, resCheckIns] = await Promise.all([
-        supabase.from('profiles').select('id, nombre_completo, email').eq('id', id).maybeSingle(),
+        supabase.from('profiles').select('id, nombre_completo, email, fecha_nacimiento').eq('id', id).maybeSingle(),
         supabase
           .from('daily_check_ins')
           .select('fecha, calorias_ayer_cumplidas, cumplimiento_calorias, horas_sueno, peso_corporal_kg, estado_animo, se_siente_recuperado')
@@ -94,6 +95,11 @@ export default function DetalleAtleta() {
             <div>
               <h2 className="text-2xl font-bold">{atleta.nombre_completo || 'Sin nombre'}</h2>
               <p className="text-suave">{atleta.email}</p>
+              <FechaNacimientoAtleta
+                atletaId={atleta.id}
+                valor={atleta.fecha_nacimiento}
+                onGuardado={(fecha) => setAtleta((anterior) => ({ ...anterior, fecha_nacimiento: fecha }))}
+              />
             </div>
 
             {/* Selector de pestaña (botones tipo "segmentos") */}

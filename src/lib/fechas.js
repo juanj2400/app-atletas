@@ -40,6 +40,12 @@ export function formatearFechaCorta(iso) {
   return new Date(anio, mes - 1, dia).toLocaleDateString('es', { day: 'numeric', month: 'short' })
 }
 
+// Versión con año: "1996-02-29" -> "29 feb 1996" (por ejemplo, fecha de nacimiento).
+export function formatearFechaConAnio(iso) {
+  const [anio, mes, dia] = iso.split('-').map(Number)
+  return new Date(anio, mes - 1, dia).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
 // Lunes de la semana de la fecha dada (hora LOCAL), como "YYYY-MM-DD". La semana de
 // entrenamiento va de lunes a domingo. Se construye con partes locales (nunca con
 // new Date("YYYY-MM-DD")) para no tener el desfase UTC de Colombia.

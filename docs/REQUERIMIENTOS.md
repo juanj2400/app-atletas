@@ -1,6 +1,6 @@
 # REQUERIMIENTOS — Qué hace la app y qué falta
 
-> Última actualización: 2026-11-26 · Paso 22 (peso corporal opcional en el check-in, migración 18), paso 21 (cumplimiento de calorías con tres estados en el check-in, migración 17), paso 20 (check-in diario obligatorio antes de acceder al resto de la zona del atleta, sin cambios de base de datos), paso 19 (oscilación del peso y gráficas de peso/repeticiones por ejercicio en los récords, sin cambios de base de datos), paso 18 (gráfica de tendencia y proyección del peso en Mis datos › Medidas, sin cambios de base de datos), paso 13 (cierre de ejercicio con nota e indicador de rutina completada, migración 13 aplicada) paso 14 (días realizados por semana, migración 14 aplicada) paso 15 (1RM solo para ejercicios no aislados, migración 15 aplicada) paso 16 (rutina híbrida halterofilia + musculación, migración 16 aplicada) y paso 17 (gestión de cargas separada por disciplina, sin cambios de base de datos) entregados. Estado: pasos 1 a 10 y 11B (progresión automática, sin IA) construidos y publicados; paso 12 (parte 1: aviso de versión nueva, recuperar contraseña y nombre **MyProgress**) publicado (falta configurar el correo en Supabase); reglas de registro (tope de series y RPE opcional por ejercicio, migración 12) aplicadas. **La IA está en pausa: se deja para el final.**
+> Última actualización: 2026-11-26 · Paso 23 (fecha de nacimiento del atleta y bloque de cumpleaños en la lista, migración 19), paso 22 (peso corporal opcional en el check-in, migración 18), paso 21 (cumplimiento de calorías con tres estados en el check-in, migración 17), paso 20 (check-in diario obligatorio antes de acceder al resto de la zona del atleta, sin cambios de base de datos), paso 19 (oscilación del peso y gráficas de peso/repeticiones por ejercicio en los récords, sin cambios de base de datos), paso 18 (gráfica de tendencia y proyección del peso en Mis datos › Medidas, sin cambios de base de datos), paso 13 (cierre de ejercicio con nota e indicador de rutina completada, migración 13 aplicada) paso 14 (días realizados por semana, migración 14 aplicada) paso 15 (1RM solo para ejercicios no aislados, migración 15 aplicada) paso 16 (rutina híbrida halterofilia + musculación, migración 16 aplicada) y paso 17 (gestión de cargas separada por disciplina, sin cambios de base de datos) entregados. Estado: pasos 1 a 10 y 11B (progresión automática, sin IA) construidos y publicados; paso 12 (parte 1: aviso de versión nueva, recuperar contraseña y nombre **MyProgress**) publicado (falta configurar el correo en Supabase); reglas de registro (tope de series y RPE opcional por ejercicio, migración 12) aplicadas. **La IA está en pausa: se deja para el final.**
 > Mantener este archivo al día es obligatorio (ver regla en `AGENTS.md`).
 
 ## 1. Resumen del producto
@@ -13,7 +13,7 @@ Costo objetivo: **cero** (capas gratuitas de Supabase, Netlify y Google AI Studi
 
 | | Atleta (`client`) | Entrenador (`admin`) |
 |---|---|---|
-| Perfil | Ve el suyo (solo edita su nombre) | Ve todos |
+| Perfil | Ve el suyo (solo edita su nombre) | Ve todos; anota la **fecha de nacimiento** de cada atleta |
 | Check-in diario | **Crea** el de hoy (una vez); lo ve; no modifica ni borra | Ve todos; puede corregir (hoy solo desde Table Editor) |
 | Mediciones (peso, cintura, calorías) | **Solo lectura** de las suyas | Crea, edita, elimina |
 | Rutinas | Ve **solo la rutina activa** | Crea, edita, activa, archiva, copia, elimina |
@@ -49,8 +49,8 @@ Barra inferior con pestañas: **Entrenar** y **Mis datos**. Mientras el check-in
 - **Mis datos › Nutrición (solo lectura):** el plan definido por su entrenador (calorías, macros, estado calórico, desde cuándo, notas) y su promedio de calorías de los últimos 7 días frente al objetivo ("X % por encima/por debajo").
 
 ### 3.3 Zona del entrenador (`/admin`)
-- **Lista de atletas** (nombre y correo) con acceso a cada ficha y a la Biblioteca de ejercicios.
-- **Ficha del atleta** (`/admin/atletas/:id`), organizada en **tres pestañas** (*Resumen*, *Entrenamiento*, *Cuerpo y nutrición*):
+- **Lista de atletas** (nombre y correo) con acceso a cada ficha y a la Biblioteca de ejercicios. Arriba, un bloque **"Cumpleaños"**: de hoy a los próximos 30 días (incluye lo que resta del mes), con fecha, edad que cumple y "¡Hoy!" / "Mañana" / "en N días"; muestra los 3 más cercanos y *Ver todos*; una línea indica quiénes ya cumplieron este mes y cuántos atletas no tienen fecha de nacimiento.
+- **Ficha del atleta** (`/admin/atletas/:id`): bajo el nombre y el correo muestra la **fecha de nacimiento** con su edad (*Agregar / Editar / Quitar fecha*), y se organiza en **tres pestañas** (*Resumen*, *Entrenamiento*, *Cuerpo y nutrición*):
   - Resumen: check-ins de los últimos 7 días y sueño promedio.
   - **Rutinas** del atleta: lista y creación de una nueva.
   - **Cargas y progresión** (rutina activa): por ejercicio muestra la progresión, el incremento de peso, el peso inicial, lo que hizo la última vez y la **próxima meta**, y permite **ajustar** progresión, incremento (0–20 kg) y peso inicial. En una **rutina híbrida**, halterofilia y musculación se gestionan **por separado** (selector con el número de ejercicios de cada una, listas agrupadas por día); sin modo híbrido hay una sola lista. La escalera de fuerza simple se sigue armando en el editor de la rutina.
@@ -72,6 +72,7 @@ Barra inferior con pestañas: **Entrenar** y **Mis datos**. Mientras el check-in
 - **Biblioteca de ejercicios** (`/admin/ejercicios`): **crear y editar ejercicios** (nombre único, grupo muscular, **tipo de ejercicio** [compuesto / fuerza / halterofilia / aislado: define si se estima su 1RM], "cómo se hace", enlace de video http/https y marca de *restringido* = lista negra global) y **editar los músculos** de cada uno (principal = cuenta 1 serie, secundario = cuenta 0,5). Al crear un ejercicio se abre su editor de músculos. Filtro para ver los que no tienen músculos asignados.
 
 ### 3.4 Reglas de negocio vigentes
+- Fecha de nacimiento: opcional; la escribe solo el entrenador (RPC `set_fecha_nacimiento`). No puede ser futura ni anterior a 1900 (base de datos); la pantalla además avisa si el atleta tendría menos de 5 o más de 100 años. Cumpleaños: ventana de 30 días desde hoy, con la fecha local del celular; el 29 de febrero se celebra el 28 en los años no bisiestos.
 - Peso del check-in: opcional, 20–400 kg, un decimal. Es un dato declarado por el atleta, guardado en el check-in (no en `metrics`); no entra a los gráficos de Medidas ni a la tendencia, que usan solo las mediciones del entrenador.
 - Mediciones: una por atleta y día. Validación de interfaz: peso 20–400 kg, cintura 30–250 cm, calorías 0–10.000; al menos un dato; fecha no futura. Estado calórico opcional: déficit, superávit o normocalórica.
 - Series: peso 0–1.000 kg (0 = peso corporal), repeticiones enteras 1–100, RPE 1–10 (obligatorio en la interfaz solo si el ejercicio lo pide con `pide_rpe`, que por defecto es sí; opcional en la base de datos y se guarda vacío si no se pide).

@@ -5,6 +5,17 @@ Tipos: `feat`, `fix`, `style`, `refactor`, `docs`, `chore`, `db`.
 
 ---
 
+## 2026-11-26 · Paso 21 — Cumplimiento de calorías con tres estados
+
+- **feat:** en el check-in, la pregunta pasa de Sí/No a **"¿Cómo fueron tus calorías de ayer?"** con tres opciones apiladas: *Cumplí las calorías*, *Consumí menos de las estipuladas* y *Consumí más de las estipuladas*. El entrenador las ve en **Check-ins recientes** de la ficha ("Calorías de ayer"); los check-ins viejos con "no" aparecen como "No cumplió (sin detalle)" porque no se sabe la dirección.
+- **refactor:** `lib/opciones.js` suma `CUMPLIMIENTO_CALORIAS` y `textoCumplimientoCalorias`; `Selector` acepta `vertical`.
+- **db:** `migracion_17_cumplimiento_calorias.sql` — columna `cumplimiento_calorias` con CHECK (cumplio/menos/mas), copia de los "sí" antiguos a `cumplio` y trigger `sincronizar_cumplimiento_calorias` que mantiene el booleano antiguo coherente (la Edge Function de la IA y las apps sin actualizar siguen funcionando). Probada con un Postgres real (copia de datos, RLS del atleta, valor inválido rechazado, app vieja y corrección del admin). No elimina nada; contiene un UPDATE con WHERE. **Aplicar primero el SQL y después subir el código.**
+- **docs:** `REQUERIMIENTOS.md`, `ARQUITECTURA.md` (decisión 26) y `supabase/sql/README.md` actualizados. Sin dependencias nuevas. Las mediciones (`metrics`) no cambian: no tienen un "cumplimiento" sí/no.
+
+**Commit sugerido:** `feat: ampliar el cumplimiento de calorías del check-in a tres estados`
+
+---
+
 ## 2026-11-26 · Paso 20 — Check-in diario obligatorio antes de entrar al resto de la zona del atleta
 
 - **feat:** mientras el check-in de hoy esté pendiente, el atleta **solo ve el formulario**: la barra inferior se oculta y cualquier otra dirección (Entrenar, Mis datos, Récords, Nutrición, enlaces guardados) lo redirige al check-in, con un aviso arriba. Al guardarlo se habilita todo y va a Entrenar como antes.

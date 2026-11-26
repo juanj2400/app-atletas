@@ -16,7 +16,7 @@ import { useState } from 'react'
 import { Navigate, useOutletContext } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../auth/AuthProvider'
-import { ANIMOS } from '../lib/opciones'
+import { ANIMOS, CUMPLIMIENTO_CALORIAS } from '../lib/opciones'
 import Selector from '../components/Selector'
 
 const SI_NO = [
@@ -24,6 +24,8 @@ const SI_NO = [
   { valor: false, etiqueta: 'No' },
 ]
 const OPCIONES_ANIMO = ANIMOS.map((a) => ({ valor: a.valor, etiqueta: `${a.emoji} ${a.etiqueta}` }))
+// caloriasAyer: 'cumplio' | 'menos' | 'mas' | null (sin responder)
+const OPCIONES_CALORIAS = CUMPLIMIENTO_CALORIAS.map((o) => ({ valor: o.valor, etiqueta: o.etiqueta }))
 const FORM_VACIO = { caloriasAyer: null, horas: '', animo: null, recuperado: null }
 
 export default function CheckIn() {
@@ -61,7 +63,8 @@ export default function CheckIn() {
     const { error: errorBD } = await supabase.from('daily_check_ins').insert({
       user_id: perfil.id,
       fecha: hoy, // fecha local del celular
-      calorias_ayer_cumplidas: form.caloriasAyer,
+      // Solo se envía la columna nueva: un trigger de la base de datos mantiene al día el sí/no antiguo.
+      cumplimiento_calorias: form.caloriasAyer,
       horas_sueno: horas,
       estado_animo: form.animo,
       se_siente_recuperado: form.recuperado,
@@ -91,8 +94,8 @@ export default function CheckIn() {
 
       <fieldset className="rounded-2xl border border-borde bg-superficie p-4">
         <legend className="sr-only">Calorías de ayer</legend>
-        <p className="font-semibold">¿Cumpliste las calorías de ayer?</p>
-        <Selector opciones={SI_NO} valor={form.caloriasAyer} onChange={(v) => actualizar('caloriasAyer', v)} />
+        <p className="font-semibold">¿Cómo fueron tus calorías de ayer?</p>
+        <Selector opciones={OPCIONES_CALORIAS} valor={form.caloriasAyer} onChange={(v) => actualizar('caloriasAyer', v)} vertical />
       </fieldset>
 
       <div className="rounded-2xl border border-borde bg-superficie p-4">

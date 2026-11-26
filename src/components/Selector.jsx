@@ -12,10 +12,11 @@
 //     valor={form.recuperado}
 //     onChange={(v) => actualizar('recuperado', v)}
 //   />
+// Con opciones de texto largo (3 frases) usa `vertical`: los botones se apilan y ocupan todo el ancho.
 // =====================================================================
-export default function Selector({ opciones, valor, onChange }) {
+export default function Selector({ opciones, valor, onChange, vertical = false }) {
   return (
-    <div className="mt-3 flex gap-2">
+    <div className={`mt-3 flex gap-2 ${vertical ? 'flex-col' : ''}`}>
       {opciones.map((opcion) => {
         const activo = opcion.valor === valor
         return (
@@ -27,7 +28,7 @@ export default function Selector({ opciones, valor, onChange }) {
             // aria-pressed: avisa a lectores de pantalla si está seleccionado.
             aria-pressed={activo}
             onClick={() => onChange(opcion.valor)}
-            className={`min-h-11 flex-1 rounded-xl border px-3 font-semibold ${
+            className={`min-h-11 flex-1 rounded-xl border px-3 py-2 font-semibold ${
               activo
                 ? 'border-primario bg-primario text-white'
                 : 'border-[#5B6372] bg-superficie text-texto'

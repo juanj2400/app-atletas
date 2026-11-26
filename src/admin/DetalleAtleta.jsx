@@ -21,7 +21,7 @@ import HistorialEntrenamiento from './HistorialEntrenamiento'
 import CargasAtleta from './CargasAtleta'
 import RecordsAtleta from '../components/RecordsAtleta'
 import { fechaLocalISO, formatearFecha } from '../lib/fechas'
-import { textoAnimo, textoSiNo } from '../lib/opciones'
+import { textoAnimo, textoSiNo, textoCumplimientoCalorias } from '../lib/opciones'
 
 const PESTANAS = [
   { id: 'resumen', texto: 'Resumen' },
@@ -51,7 +51,7 @@ export default function DetalleAtleta() {
         supabase.from('profiles').select('id, nombre_completo, email').eq('id', id).maybeSingle(),
         supabase
           .from('daily_check_ins')
-          .select('fecha, calorias_ayer_cumplidas, horas_sueno, estado_animo, se_siente_recuperado')
+          .select('fecha, calorias_ayer_cumplidas, cumplimiento_calorias, horas_sueno, estado_animo, se_siente_recuperado')
           .eq('user_id', id)
           .order('fecha', { ascending: false }) // los más recientes primero
           .limit(14),                            // solo las últimas 2 semanas
@@ -143,8 +143,8 @@ export default function DetalleAtleta() {
                             <dd>{textoAnimo(c.estado_animo)}</dd>
                             <dt className="text-suave">Recuperado</dt>
                             <dd>{textoSiNo(c.se_siente_recuperado)}</dd>
-                            <dt className="text-suave">Cumplió kcal ayer</dt>
-                            <dd>{textoSiNo(c.calorias_ayer_cumplidas)}</dd>
+                            <dt className="text-suave">Calorías de ayer</dt>
+                            <dd>{textoCumplimientoCalorias(c.cumplimiento_calorias, c.calorias_ayer_cumplidas)}</dd>
                           </dl>
                         </li>
                       ))}

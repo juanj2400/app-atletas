@@ -12,6 +12,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../auth/AuthProvider'
 import { TARJETA } from '../lib/estilos'
 import { formatearFecha, inicioSemanaISO } from '../lib/fechas'
+import { textoBloques } from '../lib/bloques'
 import { useHoy } from '../lib/useHoy'
 import CicloActual from './CicloActual'
 
@@ -34,7 +35,7 @@ export default function Entrenar() {
     Promise.all([
       supabase
         .from('routines')
-        .select('id, nombre, objetivo, notas, routine_days ( id, orden, nombre, notas, routine_exercises ( id ) )')
+        .select('id, nombre, objetivo, notas, modo_hibrido, routine_days ( id, orden, nombre, notas, routine_exercises ( id, bloque ) )')
         .eq('user_id', perfil.id)
         .eq('estado', 'activa')
         .maybeSingle(),
@@ -114,6 +115,7 @@ export default function Entrenar() {
                 <p className="font-semibold">{d.nombre}</p>
                 <p className="text-sm text-suave">
                   {d.routine_exercises.length} {d.routine_exercises.length === 1 ? 'ejercicio' : 'ejercicios'}
+                  {rutina.modo_hibrido && ` · ${textoBloques(d.routine_exercises)}`}
                 </p>
                 {d.notas && <p className="text-sm text-suave">{d.notas}</p>}
               </div>

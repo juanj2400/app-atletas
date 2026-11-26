@@ -16,13 +16,14 @@ import { aNumero } from '../lib/numeros'
 import { fechaLocalISO, formatearFecha, formatearFechaCorta, inicioSemanaISO, inicioSemanaSiguienteISO } from '../lib/fechas'
 import { calcularUltimaVez, inicioDeHoyISO, textoPrescripcion, textoSerie } from '../lib/rutinas'
 import { calcularMeta, textoMeta } from '../lib/progresion'
+import { agruparPorBloque, textoBloques } from '../lib/bloques'
 import { estadoEjercicio, resumenRutinaDia, seriesObjetivoDe, validarNotaCierre, NOTA_MAX } from '../lib/cierres'
 import { CAMPO, BOTON, BOTON_SEC, TARJETA } from '../lib/estilos'
 
 // ---------------------------------------------------------------------
 // Un ejercicio con su lista de series y el formulario de la siguiente
 // ---------------------------------------------------------------------
-function EjercicioEntrenamiento({ fila, seriesHoy, ultimaVez, cierre, userId, sesionId, onCambio }) {
+function EjercicioEntrenamiento({ fila, bloque, seriesHoy, ultimaVez, cierre, userId, sesionId, onCambio }) {
   // Meta de hoy si el ejercicio tiene progresión automática (null si no). Sale de las
   // series del entrenamiento anterior, que no cambian mientras entrenas hoy.
   const meta = calcularMeta(fila, ultimaVez?.series)
@@ -141,6 +142,14 @@ function EjercicioEntrenamiento({ fila, seriesHoy, ultimaVez, cierre, userId, se
   return (
     <li className={`${TARJETA} flex flex-col gap-3`}>
       <div>
+        {/* Rutina híbrida: etiqueta del bloque en cada ejercicio para no confundirlos al registrar */}
+        {bloque && (
+          <p className={`mb-1 inline-block rounded-full px-2 py-0.5 text-xs font-bold uppercase tracking-wide ${
+            bloque === 'halterofilia' ? 'bg-primario text-white' : 'border border-enlace text-enlace'
+          }`}>
+            {bloque === 'halterofilia' ? 'Halterofilia' : 'Musculación'}
+          </p>
+        )}
         <div className="flex items-start justify-between gap-2">
           <h3 className="text-lg font-bold">{ej.nombre}</h3>
           <span className={`whitespace-nowrap text-sm font-semibold ${completado ? 'text-enlace' : cerrado ? 'text-alerta' : 'text-suave'}`}>
@@ -295,8 +304,9 @@ export default function EntrenarDia() {
         .from('routine_days')
         .select(`
           id, routine_id, nombre, notas,
+          routines ( modo_hibrido ),
           routine_exercises (
-            id, orden, exercise_id, series, reps_min, reps_max, rpe_objetivo, descanso_seg, peso_sugerido_kg, notas,
+            id, orden, bloque, exercise_id, series, reps_min, reps_max, rpe_objetivo, descanso_seg, peso_sugerido_kg, notas,
             progresion_tipo, escalera, incremento_kg, peso_inicial_kg, pide_rpe,
             exercises ( nombre, grupo_muscular, descripcion, video_url )
           )
@@ -382,6 +392,9 @@ export default function EntrenarDia() {
     return estadoEjercicio(hechas, objetivo, cierresHoy.find((c) => c.routine_exercise_id === fila.id))
   })
   const resumen = resumenRutinaDia(estados)
+  // Rutina híbrida: los ejercicios se muestran en dos bloques (halterofilia y musculación)
+  const hibrido = Boolean(dia.routines?.modo_hibrido)
+  const grupos = agruparPorBloque(dia.routine_exercises, hibrido)
 
   // Cierra el día: queda registrado como realizado en esta semana y se bloquea repetirlo.
   async function terminarRutina() {
@@ -420,20 +433,39 @@ export default function EntrenarDia() {
         </div>
       )}
 
-      <ul className="flex flex-col gap-4">
-        {dia.routine_exercises.map((fila) => (
-          <EjercicioEntrenamiento
-            key={fila.id}
-            fila={fila}
-            seriesHoy={logsHoy.filter((l) => l.routine_exercise_id === fila.id)}
-            ultimaVez={ultimaVez[fila.exercise_id]}
-            cierre={cierresHoy.find((c) => c.routine_exercise_id === fila.id)}
-            userId={perfil.id}
-            sesionId={sesionId}
-            onCambio={() => setVersion((v) => v + 1)}
-          />
-        ))}
-      </ul>
+      {hibrido && (
+        <p className={`${TARJETA} text-sm`}>
+          <span className="font-semibold">Sesión híbrida:</span> {textoBloques(dia.routine_exercises)}. Primero halterofilia y después musculación.
+        </p>
+      )}
+
+      {grupos.map((grupo) => (
+        <section key={grupo.valor ?? 'unico'} className="flex flex-col gap-3" aria-label={grupo.titulo ?? undefined}>
+          {grupo.titulo && (
+            <h3 className={`border-l-4 pl-3 text-lg font-bold ${grupo.valor === 'halterofilia' ? 'border-primario' : 'border-enlace'}`}>
+              Bloque de {grupo.titulo.toLowerCase()}
+              <span className="ml-2 text-sm font-normal text-suave">
+                {grupo.filas.length} {grupo.filas.length === 1 ? 'ejercicio' : 'ejercicios'}
+              </span>
+            </h3>
+          )}
+          <ul className="flex flex-col gap-4">
+            {grupo.filas.map((fila) => (
+              <EjercicioEntrenamiento
+                key={fila.id}
+                fila={fila}
+                bloque={hibrido ? grupo.valor : null}
+                seriesHoy={logsHoy.filter((l) => l.routine_exercise_id === fila.id)}
+                ultimaVez={ultimaVez[fila.exercise_id]}
+                cierre={cierresHoy.find((c) => c.routine_exercise_id === fila.id)}
+                userId={perfil.id}
+                sesionId={sesionId}
+                onCambio={() => setVersion((v) => v + 1)}
+              />
+            ))}
+          </ul>
+        </section>
+      ))}
 
       {resumen.terminada ? (
         // Al cerrar la rutina completada, el día queda marcado como realizado esta semana

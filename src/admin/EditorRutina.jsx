@@ -13,6 +13,7 @@ import Encabezado from '../components/Encabezado'
 import SelectorEjercicio from './SelectorEjercicio'
 import VolumenMuscular from './VolumenMuscular'
 import { aNumero } from '../lib/numeros'
+import { BLOQUES, bloqueDe, textoBloques } from '../lib/bloques'
 import { textoEstadoRutina } from '../lib/opciones'
 import {
   SISTEMAS_PROGRESION, SALTOS_PESO, SERIES_ESQUEMA, REPS_ESQUEMA,
@@ -33,12 +34,13 @@ const fallo = (res) => res.error || !res.data || res.data.length === 0
 // ---------------------------------------------------------------------
 // Una fila de ejercicio dentro de un día
 // ---------------------------------------------------------------------
-function FilaEjercicio({ fila, listaNegra, aplicar }) {
+function FilaEjercicio({ fila, listaNegra, aplicar, hibrido }) {
   const [f, setF] = useState({
     series: String(fila.series),
     repsMin: String(fila.reps_min ?? ''),
     repsMax: String(fila.reps_max ?? ''),
     rpe: String(fila.rpe_objetivo ?? ''),
+    bloque: bloqueDe(fila), // 'halterofilia' o 'musculacion' (solo cuenta en rutinas híbridas)
     pideRpe: fila.pide_rpe !== false, // ¿el atleta debe anotar el RPE en este ejercicio?
     descanso: String(fila.descanso_seg ?? ''),
     notas: fila.notas ?? '',
@@ -94,6 +96,7 @@ function FilaEjercicio({ fila, listaNegra, aplicar }) {
     const base = await supabase.from('routine_exercises')
       .update({
         series, reps_min: repsMin, reps_max: repsMax, rpe_objetivo: rpe, pide_rpe: f.pideRpe,
+        bloque: hibrido ? f.bloque : 'musculacion',
         descanso_seg: descanso, notas: f.notas.trim() || null,
       })
       .eq('id', fila.id).select('id')
@@ -128,6 +131,21 @@ function FilaEjercicio({ fila, listaNegra, aplicar }) {
       <p className="font-semibold">{fila.exercises.nombre}</p>
       <p className="text-sm text-suave">{fila.exercises.grupo_muscular || 'Sin grupo'}</p>
       {aviso && <p className="text-sm text-alerta">Atención: {aviso}</p>}
+
+      {/* Rutina híbrida: en qué bloque de la sesión va este ejercicio */}
+      {hibrido && (
+        <div className="mt-2">
+          <p className="text-xs text-suave">Bloque de la sesión</p>
+          <div className="mt-1 grid grid-cols-2 gap-2">
+            {BLOQUES.map((b) => (
+              <button key={b.valor} type="button" aria-pressed={f.bloque === b.valor} onClick={() => cambiar('bloque', b.valor)} className={claseToggle(f.bloque === b.valor)}>
+                {b.titulo}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1 text-xs text-suave">Pulsa Guardar para aplicar el cambio de bloque.</p>
+        </div>
+      )}
 
       <div className="mt-3 grid grid-cols-3 gap-2">
         <div>
@@ -252,10 +270,11 @@ function FilaEjercicio({ fila, listaNegra, aplicar }) {
 // ---------------------------------------------------------------------
 // Un día de la rutina con sus ejercicios
 // ---------------------------------------------------------------------
-function DiaRutina({ dia, listaNegra, aplicar }) {
+function DiaRutina({ dia, listaNegra, aplicar, hibrido }) {
   const [nombre, setNombre] = useState(dia.nombre)
   const [notas, setNotas] = useState(dia.notas ?? '')
-  const [eligiendo, setEligiendo] = useState(false)
+  // Bloque en el que se está eligiendo un ejercicio nuevo ('musculacion' o 'halterofilia'); null = cerrado
+  const [eligiendo, setEligiendo] = useState(null)
 
   const siguienteOrden = dia.routine_exercises.reduce((max, e) => Math.max(max, e.orden), 0) + 1
 
@@ -272,14 +291,14 @@ function DiaRutina({ dia, listaNegra, aplicar }) {
     aplicar(supabase.from('routine_days').delete().eq('id', dia.id).select('id'), 'Día eliminado.')
   }
 
-  async function agregarEjercicio(ejercicio) {
+  async function agregarEjercicio(ejercicio, bloque) {
     const ok = await aplicar(
       supabase.from('routine_exercises')
-        .insert({ day_id: dia.id, exercise_id: ejercicio.id, orden: siguienteOrden, series: 3 })
+        .insert({ day_id: dia.id, exercise_id: ejercicio.id, orden: siguienteOrden, series: 3, bloque })
         .select('id'),
       `${ejercicio.nombre} agregado. Ajusta series y repeticiones.`
     )
-    if (ok) setEligiendo(false)
+    if (ok) setEligiendo(null)
   }
 
   return (
@@ -292,18 +311,74 @@ function DiaRutina({ dia, listaNegra, aplicar }) {
         <button type="button" onClick={quitarDia} className={`${BOTON_SEC} text-alerta`}>Eliminar día</button>
       </div>
 
-      {dia.routine_exercises.length === 0 && <p className="text-sm text-suave">Este día aún no tiene ejercicios.</p>}
-      <ul className="flex flex-col gap-3">
-        {dia.routine_exercises.map((fila) => (
-          <FilaEjercicio key={fila.id} fila={fila} listaNegra={listaNegra} aplicar={aplicar} />
-        ))}
-      </ul>
-
-      {eligiendo ? (
-        <SelectorEjercicio listaNegra={listaNegra} onElegir={agregarEjercicio} onCerrar={() => setEligiendo(false)} />
-      ) : (
-        <button type="button" onClick={() => setEligiendo(true)} className={BOTON}>Agregar ejercicio</button>
+      {hibrido && dia.routine_exercises.length > 0 && (
+        <p className="text-sm text-suave">En la sesión: {textoBloques(dia.routine_exercises)}.</p>
       )}
+
+      {/* Rutina normal: una sola lista. Híbrida: un bloque de halterofilia y otro de musculación. */}
+      {(hibrido ? BLOQUES : [{ valor: 'musculacion', titulo: null }]).map((b) => {
+        const filas = hibrido ? dia.routine_exercises.filter((f) => bloqueDe(f) === b.valor) : dia.routine_exercises
+        return (
+          <div key={b.valor} className="flex flex-col gap-3">
+            {hibrido && (
+              <h4 className={`border-l-4 pl-3 font-bold ${b.valor === 'halterofilia' ? 'border-primario' : 'border-enlace'}`}>
+                Bloque de {b.titulo.toLowerCase()} ({filas.length})
+              </h4>
+            )}
+            {filas.length === 0 && (
+              <p className="text-sm text-suave">
+                {hibrido ? `Sin ejercicios de ${b.titulo.toLowerCase()} en este día.` : 'Este día aún no tiene ejercicios.'}
+              </p>
+            )}
+            <ul className="flex flex-col gap-3">
+              {filas.map((fila) => (
+                <FilaEjercicio key={fila.id} fila={fila} listaNegra={listaNegra} aplicar={aplicar} hibrido={hibrido} />
+              ))}
+            </ul>
+            {eligiendo === b.valor ? (
+              <SelectorEjercicio listaNegra={listaNegra} onElegir={(e) => agregarEjercicio(e, b.valor)} onCerrar={() => setEligiendo(null)} />
+            ) : (
+              <button type="button" onClick={() => setEligiendo(b.valor)} className={BOTON}>
+                {hibrido ? `Agregar ejercicio de ${b.titulo.toLowerCase()}` : 'Agregar ejercicio'}
+              </button>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------
+// Modo híbrido: activa los bloques de halterofilia y musculación en cada día
+// ---------------------------------------------------------------------
+function ModoHibrido({ rutina, aplicar }) {
+  const hibrido = Boolean(rutina.modo_hibrido)
+  const enHalterofilia = rutina.routine_days
+    .flatMap((d) => d.routine_exercises)
+    .filter((e) => bloqueDe(e) === 'halterofilia').length
+
+  function cambiar(valor) {
+    if (valor === hibrido) return
+    if (!valor && enHalterofilia > 0 &&
+        !window.confirm(`Los ${enHalterofilia} ejercicios de halterofilia pasarán al bloque de musculación. ¿Continuar?`)) return
+    aplicar(
+      supabase.from('routines').update({ modo_hibrido: valor }).eq('id', rutina.id).select('id'),
+      valor ? 'Modo híbrido activado: ahora puedes armar el bloque de halterofilia en cada día.' : 'Modo híbrido desactivado.'
+    )
+  }
+
+  return (
+    <div className={`${TARJETA} flex flex-col gap-2`}>
+      <p className="font-semibold">Rutina híbrida (halterofilia + musculación)</p>
+      <p className="text-sm text-suave">
+        Si la activas, cada día tiene un bloque de halterofilia y otro de musculación (por ejemplo, 2 ejercicios de
+        halterofilia + 5 de musculación). El atleta los ve juntos en su sesión, con cada ejercicio identificado.
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        <button type="button" aria-pressed={hibrido} onClick={() => cambiar(true)} className={claseToggle(hibrido)}>Activada</button>
+        <button type="button" aria-pressed={!hibrido} onClick={() => cambiar(false)} className={claseToggle(!hibrido)}>Desactivada</button>
+      </div>
     </div>
   )
 }
@@ -369,11 +444,11 @@ export default function EditorRutina() {
       const { data, error } = await supabase
         .from('routines')
         .select(`
-          id, user_id, nombre, objetivo, notas, estado, origen,
+          id, user_id, nombre, objetivo, notas, estado, origen, modo_hibrido,
           routine_days (
             id, orden, nombre, notas,
             routine_exercises (
-              id, orden, exercise_id, series, reps_min, reps_max, rpe_objetivo, pide_rpe, descanso_seg, notas,
+              id, orden, bloque, exercise_id, series, reps_min, reps_max, rpe_objetivo, pide_rpe, descanso_seg, notas,
               progresion_tipo, escalera, incremento_kg, peso_inicial_kg,
               exercises ( nombre, grupo_muscular, restringido )
             )
@@ -506,10 +581,12 @@ export default function EditorRutina() {
 
         <FormDatos rutina={rutina} aplicar={aplicar} />
 
+        <ModoHibrido rutina={rutina} aplicar={aplicar} />
+
         <h3 className="text-lg font-bold">Días y ejercicios</h3>
         {rutina.routine_days.length === 0 && <p className="text-suave">Empieza agregando el primer día.</p>}
         {rutina.routine_days.map((dia) => (
-          <DiaRutina key={dia.id} dia={dia} listaNegra={listaNegra} aplicar={aplicar} />
+          <DiaRutina key={dia.id} dia={dia} listaNegra={listaNegra} aplicar={aplicar} hibrido={Boolean(rutina.modo_hibrido)} />
         ))}
 
         <form onSubmit={agregarDia} className={`${TARJETA} flex flex-col gap-3`}>

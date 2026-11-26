@@ -5,6 +5,19 @@ Tipos: `feat`, `fix`, `style`, `refactor`, `docs`, `chore`, `db`.
 
 ---
 
+## 2026-11-26 · Paso 16 — Rutina híbrida: halterofilia + musculación en la misma sesión
+
+- **feat:** el entrenador puede **activar el modo híbrido** de una rutina. Con él, cada día tiene un **bloque de halterofilia** y un **bloque de musculación** (p. ej., 2 + 5); en el editor cada bloque tiene su botón para agregar ejercicios y cada ejercicio puede cambiar de bloque.
+- **feat:** el atleta ve ambos bloques **integrados en su sesión del día**: resumen de la sesión, "Bloque de halterofilia" primero y "Bloque de musculación" después, y una **etiqueta de color en cada ejercicio**. El registro de series, el tope, el cierre con nota y "Terminar rutina" funcionan igual. En la lista de días de *Entrenar* se indica cuántos ejercicios hay de cada bloque.
+- **feat:** al desactivar el modo híbrido los ejercicios de halterofilia pasan a musculación (con confirmación). Las rutinas existentes no cambian.
+- **refactor:** nueva `src/lib/bloques.js` (funciones puras, probadas con datos de ejemplo).
+- **db:** `migracion_16_rutina_hibrida.sql` — `routines.modo_hibrido`, `routine_exercises.bloque`, triggers `bloquear_bloque_sin_hibrido` y `reiniciar_bloques_sin_hibrido`, y `duplicate_routine` actualizada (copia modo y bloque). Probada con un Postgres real (triggers, RLS y copia). Contiene un UPDATE con WHERE dentro de un trigger; no borra nada. **Aplicar primero el SQL y después subir el código.**
+- **docs:** `AGENTS.md` (invariante 14), `REQUERIMIENTOS.md`, `ARQUITECTURA.md` y `supabase/sql/README.md` actualizados.
+
+**Commit sugerido:** `feat: agregar rutina híbrida con bloques de halterofilia y musculación`
+
+---
+
 ## 2026-11-26 · Paso 15 — 1RM estimado solo para ejercicios no aislados
 
 - **feat:** el entrenador clasifica cada ejercicio en la Biblioteca: **compuesto, fuerza, halterofilia o aislado** (campo obligatorio al crear; se ve en la lista).

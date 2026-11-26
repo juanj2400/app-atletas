@@ -25,7 +25,7 @@ export default function RutinasAtleta({ atletaId }) {
     supabase
       .from('routines')
       // routine_days(id) trae los días de cada rutina; solo los contamos.
-      .select('id, nombre, estado, routine_days(id)')
+      .select('id, nombre, estado, modo_hibrido, routine_days(id)')
       .eq('user_id', atletaId)
       .order('created_at', { ascending: false })
       .then(({ data, error }) => {
@@ -83,6 +83,7 @@ export default function RutinasAtleta({ atletaId }) {
                 <p className="text-sm text-suave">
                   <span className={COLOR_ESTADO[r.estado]}>{textoEstadoRutina(r.estado)}</span>
                   {' · '}{r.routine_days.length} {r.routine_days.length === 1 ? 'día' : 'días'}
+                  {r.modo_hibrido && ' · Híbrida (halterofilia + musculación)'}
                 </p>
               </div>
               <span className="text-xl text-enlace" aria-hidden="true">›</span>

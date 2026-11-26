@@ -12,6 +12,7 @@ import { formatearFecha } from '../lib/fechas'
 import { resumirMediciones, textoMedicion } from '../lib/mediciones'
 import ResumenMediciones from '../components/ResumenMediciones'
 import GraficoEvolucion from '../components/GraficoEvolucionLazy'
+import GraficoTendenciaPeso from '../components/GraficoTendenciaPesoLazy'
 
 export default function MisMediciones() {
   const { perfil } = useAuth()
@@ -56,16 +57,17 @@ export default function MisMediciones() {
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-sm text-suave">
-        Tu entrenador registra estas mediciones. Aquí puedes ver tu progreso.
-      </p>
-
       {mediciones.length === 0 ? (
         <p className="rounded-2xl border border-borde bg-superficie p-4 text-suave">
           Aún no tienes mediciones registradas. Cuando tu entrenador las cargue, las verás aquí.
         </p>
       ) : (
         <>
+          {/* Lo primero que ve el atleta: hacia dónde va su peso (tendencia + proyección). */}
+          <GraficoTendenciaPeso mediciones={mediciones} />
+          <p className="text-sm text-suave">
+            Tu entrenador registra estas mediciones. Aquí puedes ver tu progreso.
+          </p>
           <ResumenMediciones
             resumen={resumirMediciones(mediciones)}
             objetivoKcal={planes.find((p) => p.vigente_hasta === null)?.calorias_objetivo ?? null}

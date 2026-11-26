@@ -1,6 +1,6 @@
 # ARQUITECTURA
 
-> Última actualización: 2026-11-25 · Mantener al día es obligatorio (ver `AGENTS.md`).
+> Última actualización: 2026-11-26 · Mantener al día es obligatorio (ver `AGENTS.md`).
 
 ## 1. Visión general
 
@@ -64,6 +64,7 @@ Node >= 20.19 (requisito de Vite 8). Gestor: npm; `package-lock.json` versionado
    │   ├─ numeros.js              aNumero (texto → número/null/NaN)
    │   ├─ opciones.js             ánimos, estados calóricos, estados de rutina + textos
    │   ├─ estilos.js              CAMPO, BOTON, BOTON_SEC, TARJETA
+   │   ├─ tendenciaPeso.js        tendencia del peso: regresión lineal sobre días transcurridos, proyección y texto (función pura)
    │   ├─ coloresGrafico.js       colores de los gráficos (SVG necesita texto, no clases)
    │   ├─ mediciones.js           resumirMediciones, textoMedicion
    │   ├─ cierres.js              estado de cada ejercicio (completo/finalizado/pendiente), rutina del día completa, validar nota, unir cierres al historial
@@ -79,7 +80,7 @@ Node >= 20.19 (requisito de Vite 8). Gestor: npm; `package-lock.json` versionado
    │   ├─ AuthProvider.jsx        sesión + perfil (rol); useAuth()
    │   └─ RutaProtegida.jsx       "portero" por rol
    ├─ pages/                      Login.jsx, RecuperarContrasena.jsx, RestablecerContrasena.jsx, Inicio.jsx (redirige por rol)
-   ├─ components/                 Encabezado, Estados, Selector, ResumenMediciones, GraficoEvolucion, GraficoEvolucionLazy, RecordsAtleta, GraficosRecord, GraficosRecordLazy, PlanNutricionalCard, CicloVigenteCard, AvisoActualizacion
+   ├─ components/                 Encabezado, Estados, Selector, ResumenMediciones, GraficoEvolucion, GraficoEvolucionLazy, GraficoTendenciaPeso, GraficoTendenciaPesoLazy, RecordsAtleta, GraficosRecord, GraficosRecordLazy, PlanNutricionalCard, CicloVigenteCard, AvisoActualizacion
    ├─ atleta/                     PantallaAtleta (marco), CheckIn, Entrenar, EntrenarDia, MisDatos (marco con secciones), MisMediciones, Records, Nutricion, CicloActual
    └─ admin/                      ListaAtletas, DetalleAtleta, Mediciones, RutinasAtleta, CargasAtleta, EditorRutina,
                                   SelectorEjercicio, HistorialEntrenamiento, VolumenMuscular, PlanNutricional, CiclosAtleta, ListaNegraAtleta, FormEjercicio, Ejercicios
@@ -207,7 +208,7 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 - Barra inferior del atleta: `fixed`, pestañas `min-h-14`, con `env(safe-area-inset-bottom)`; el `body` aplica los márgenes seguros del notch.
 - Avisos: `role="alert"` (errores, `text-alerta`) / `role="status"` (éxito, `text-enlace`).
 
-**Componentes clave:** `Selector` (botones Sí/No y ánimo, controlado, `aria-pressed`) · `Encabezado` (título, enlace "volver", botón Salir) · `Estados` (`Cargando`, `SinPerfil`) · `ResumenMediciones` (4 tarjetas, de presentación) · `GraficoEvolucion` (ComposedChart: peso en línea, calorías en barras, dos ejes; colores como constantes porque SVG necesita texto) y `GraficoEvolucionLazy` (carga perezosa con `Suspense`) · `VolumenMuscular` (barras CSS por músculo) · `RecordsAtleta` (compartido por atleta y entrenador; carga sus propios datos desde las vistas) · `GraficosRecord` (evolución del 1RM y repeticiones por peso; carga perezosa) · `PlanNutricionalCard` (presentación de calorías y macros, compartida por atleta y entrenador) · `CicloVigenteCard` (ciclo en curso con semana y progreso, compartido).
+**Componentes clave:** `Selector` (botones Sí/No y ánimo, controlado, `aria-pressed`) · `Encabezado` (título, enlace "volver", botón Salir) · `Estados` (`Cargando`, `SinPerfil`) · `ResumenMediciones` (4 tarjetas, de presentación) · `GraficoEvolucion` (ComposedChart: peso en línea, calorías en barras, dos ejes; colores como constantes porque SVG necesita texto) y `GraficoEvolucionLazy` (carga perezosa con `Suspense`) · `GraficoTendenciaPeso` y su `Lazy` (peso real, tendencia y proyección sobre eje X numérico de días; colores de `coloresGrafico.js`) · `VolumenMuscular` (barras CSS por músculo) · `RecordsAtleta` (compartido por atleta y entrenador; carga sus propios datos desde las vistas) · `GraficosRecord` (evolución del 1RM y repeticiones por peso; carga perezosa) · `PlanNutricionalCard` (presentación de calorías y macros, compartida por atleta y entrenador) · `CicloVigenteCard` (ciclo en curso con semana y progreso, compartido).
 
 ## 8. Decisiones técnicas importantes
 
@@ -234,6 +235,8 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 21. **Progresión por reglas fijas, calculada en el cliente y sin guardar la meta:** la meta de hoy sale de las series reales de la última sesión (`lib/progresion.js`), así no hay estado que se desincronice ni columnas nuevas en `routine_logs`. El peso de trabajo es el más alto de la última sesión: el sistema detecta solo cuánto subió el atleta. La configuración (tipo, escalera, incremento, peso inicial) vive en `routine_exercises` y se guarda solo por la RPC `set_progresion`, que valida en la base de datos. La IA queda fuera de este flujo (en pausa).
 22. **Recuperar contraseña con el flujo estándar de Supabase** (correo con enlace + `updateUser`), sin servidor propio. Lo que decide quién puede cambiar la contraseña es el enlace del correo (la sesión temporal); la app no revela si un correo existe. `AuthProvider` solo guarda estado al recibir `PASSWORD_RECOVERY` (respeta la regla de no consultar dentro del listener).
 23. **Tope de series y RPE opcional en dos capas:** la pantalla oculta el formulario al completar las series y no dibuja el RPE si el ejercicio no lo pide; la base de datos es la barrera real (trigger `limitar_series_por_ejercicio` y columna `pide_rpe`). `pide_rpe` vive en `routine_exercises` (decisión por ejercicio y por atleta, como el resto de la prescripción) y por defecto es true para no cambiar lo ya existente.
+
+24. **Tendencia del peso calculada en el cliente, en días reales:** `lib/tendenciaPeso.js` ajusta una recta (mínimos cuadrados) a los pesos de las últimas 30 mediciones que ya carga `MisMediciones` y la prolonga 14 días (proyección). Usa el número de días entre fechas (no la posición en la lista), así los huecos entre mediciones cuentan. Exige mínimo 3 pesos y 7 días de diferencia; si no, muestra un aviso en vez de una recta engañosa. `Date.UTC` solo se usa como aritmética de calendario, nunca para saber "hoy". No hay SQL nuevo.
 
 ## 9. Configuración y despliegue
 
@@ -273,5 +276,6 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 - Rutina híbrida: el bloque no depende del tipo del ejercicio (`tipo_ejercicio`): el entrenador decide en qué bloque va cada uno. El historial del entrenador no indica el bloque de cada serie.
 - `CargasAtleta` calcula la próxima meta con las series de la última sesión registrada (incluida la de hoy) y solo ve las 800 series más recientes: un ejercicio muy antiguo podría aparecer "sin registros". No hay ajuste en bloque por disciplina (cada ejercicio se ajusta aparte).
 - Sin pruebas automáticas ni ESLint.
-- El eje X del gráfico trata las fechas como categorías, no como escala de tiempo.
+- El eje X del gráfico de evolución (peso + calorías) trata las fechas como categorías; el de tendencia del peso ya usa escala de días.
+- La tendencia del peso usa como máximo las 30 mediciones más recientes (límite de `MisMediciones`) y una recta simple: con pocos datos o mucha variación diaria (agua, sal) es solo una referencia.
 - En `Mediciones.jsx`, el aviso "ya hay una medición en esta fecha" solo mira las últimas 30.

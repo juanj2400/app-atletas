@@ -5,6 +5,16 @@ Tipos: `feat`, `fix`, `style`, `refactor`, `docs`, `chore`, `db`.
 
 ---
 
+## 2026-11-26 · Paso 18 — Tendencia y proyección del peso al abrir Mis datos › Medidas
+
+- **feat:** lo primero que ve el atleta en *Medidas* es la gráfica **"Tendencia de tu peso"**: pesos reales (puntos), línea de tendencia continua y proyección punteada a 14 días, con una frase en lenguaje simple ("Tu peso baja unos 0,7 kg por semana") y leyenda propia legible en celular. Con menos de 3 pesos o menos de 7 días de diferencia muestra un aviso en lugar de la recta.
+- **refactor:** nueva `src/lib/tendenciaPeso.js` (función pura: regresión lineal sobre días transcurridos; probada con datos de ejemplo, incluido cambio de mes y año). Nuevos `GraficoTendenciaPeso.jsx` y `GraficoTendenciaPesoLazy.jsx` (Recharts con carga perezosa y colores de `coloresGrafico.js`). El eje X es de días reales, no categorías.
+- **docs:** `REQUERIMIENTOS.md` y `ARQUITECTURA.md` actualizados (decisión 24 y deuda). Sin cambios de base de datos y sin dependencias nuevas.
+
+**Commit sugerido:** `feat: mostrar tendencia y proyección del peso al inicio de Mis datos`
+
+---
+
 ## 2026-11-26 · Paso 17 — Gestión de cargas separada por disciplina (halterofilia / musculación)
 
 - **feat:** en la pestaña *Entrenamiento* de la ficha del atleta hay una sección nueva, **Cargas y progresión**. Por cada ejercicio de la rutina activa muestra la progresión, el incremento de peso, el peso inicial, lo que hizo la última vez y su próxima meta, y permite **ajustar progresión, incremento y peso inicial**.

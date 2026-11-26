@@ -4,7 +4,7 @@ Este archivo es de lectura obligatoria **antes de tocar código**. Si una instru
 
 ## 0. Qué es este proyecto
 
-Aplicación web privada (PWA) para que un entrenador de fuerza (rol `admin`) gestione a 15–30 atletas (rol `client`): rutinas, registro de series, mediciones corporales y calóricas, check-in diario, y —más adelante— propuestas de una IA que el entrenador siempre aprueba.
+Aplicación web privada (PWA) llamada **MyProgress** para que un entrenador de fuerza (rol `admin`) gestione a 15–30 atletas (rol `client`): rutinas, registro de series, mediciones corporales y calóricas, check-in diario, y —más adelante— propuestas de una IA que el entrenador siempre aprueba.
 
 **Antes de empezar cualquier tarea lee, en este orden:**
 1. `docs/ARQUITECTURA.md` (stack, estructura, diseño visual, decisiones).
@@ -82,12 +82,12 @@ React 19 + Vite 8 · Tailwind CSS 4 (configuración en `src/index.css`) · PWA c
 
 ## 7. Qué NO romper (invariantes del sistema)
 
-1. **Sesión y rol** (`src/auth/AuthProvider.jsx`): el listener `onAuthStateChange` solo guarda la sesión; el perfil se consulta en un `useEffect` aparte. No hacer consultas a Supabase dentro del listener.
+1. **Sesión y rol** (`src/auth/AuthProvider.jsx`): el listener `onAuthStateChange` solo guarda la sesión; el perfil se consulta en un `useEffect` aparte. No hacer consultas a Supabase dentro del listener (con `PASSWORD_RECOVERY` solo se cambia el estado `recuperando`; `App.jsx` lleva a `/restablecer` y no se sale de ahí hasta cambiar la contraseña).
 2. **Permisos por rol:** `metrics` solo la escribe el admin (el atleta solo lee). `daily_check_ins`: el atleta solo **crea** (una vez por día), nunca modifica ni borra. `routines`: el atleta solo ve la **activa**. `nutrition_plans`: el atleta solo lo lee; solo el admin lo cambia. El atleta puede escribir y borrar solo sus propias series (`routine_logs`).
 3. **Unicidades:** `metrics (user_id, fecha)`, `daily_check_ins (user_id, fecha)`, una sola rutina `activa` por atleta (índice parcial), un solo plan nutricional vigente por atleta (índice parcial), `exercise_muscles (exercise_id, muscle)`.
 4. **Cambio de día a medianoche local** del dispositivo (`useHoy`, `fechaLocalISO`). El check-in desaparece al completarse y reaparece solo el día siguiente.
 5. **Activar y copiar rutinas** se hace por RPC (`activate_routine`, `duplicate_routine`), no con varios `update` sueltos. Igual los músculos de un ejercicio (`set_exercise_muscles`), la progresión de un ejercicio (`set_progresion`), el plan nutricional manual (`set_nutrition_plan`) y la resolución de propuestas nutricionales (`resolve_nutrition_suggestion`).
-6. **PWA:** el service worker solo guarda archivos de la app, **no** respuestas de Supabase. Mantén `public/_redirects` (sin él, recargar `/admin` da 404 en Netlify).
+6. **PWA:** el service worker solo guarda archivos de la app, **no** respuestas de Supabase. Mantén `public/_redirects` (sin él, recargar `/admin` da 404 en Netlify). Mantén `registerType: 'prompt'` con `AvisoActualizacion`: el atleta decide cuándo actualizar.
 7. **No ejecutes** `npm audit fix --force` ni bajes `vite-plugin-pwa` a 1.x (no es compatible con Vite 8). Los 4 avisos de `npm audit` son de herramientas de construcción y no afectan a la app publicada.
 8. Los scripts SQL y la Edge Function ya entregados se consideran aplicados salvo que `docs/` diga lo contrario.
 9. **Ciclos:** el ciclo en curso se calcula en el cliente con la fecha local (`lib/ciclos.js`); no uses la vista `v_current_training_cycle` (trabaja con la fecha UTC).

@@ -4,12 +4,14 @@
 //   BrowserRouter  -> habilita las rutas (URLs)
 //   AuthProvider   -> disponibiliza la sesión y el rol a toda la app
 //   App            -> el mapa de pantallas
+//   AvisoActualizacion -> cartel "hay una versión nueva" (encima de cualquier pantalla)
 // =====================================================================
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { AuthProvider } from './auth/AuthProvider'
 import App from './App'
+import AvisoActualizacion from './components/AvisoActualizacion'
 import './index.css'
 
 createRoot(document.getElementById('root')).render(
@@ -17,6 +19,7 @@ createRoot(document.getElementById('root')).render(
     <BrowserRouter>
       <AuthProvider>
         <App />
+        <AvisoActualizacion />
       </AuthProvider>
     </BrowserRouter>
   </StrictMode>

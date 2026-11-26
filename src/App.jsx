@@ -1,9 +1,12 @@
 // =====================================================================
 // App.jsx — el MAPA de la aplicación: qué pantalla se ve en cada URL.
 // =====================================================================
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { useAuth } from './auth/AuthProvider'
 import RutaProtegida from './auth/RutaProtegida'
 import Login from './pages/Login'
+import RecuperarContrasena from './pages/RecuperarContrasena'
+import RestablecerContrasena from './pages/RestablecerContrasena'
 import Inicio from './pages/Inicio'
 import PantallaAtleta from './atleta/PantallaAtleta'
 import CheckIn from './atleta/CheckIn'
@@ -19,9 +22,19 @@ import EditorRutina from './admin/EditorRutina'
 import Ejercicios from './admin/Ejercicios'
 
 export default function App() {
+  const { recuperando } = useAuth()
+  const { pathname } = useLocation()
+
+  // Venimos del enlace de "recuperar contraseña": hasta elegir la contraseña nueva, esta es
+  // la única pantalla (si no, la sesión temporal dejaría entrar a la app sin cambiarla).
+  if (recuperando && pathname !== '/restablecer') return <Navigate to="/restablecer" replace />
+
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/recuperar" element={<RecuperarContrasena />} />
+      {/* Necesita sesión (la del enlace del correo), pero sirve para cualquier rol: sin portero. */}
+      <Route path="/restablecer" element={<RestablecerContrasena />} />
       <Route path="/" element={<Inicio />} />
 
       {/* Rutas ANIDADAS: el portero y el marco se declaran una sola vez en el

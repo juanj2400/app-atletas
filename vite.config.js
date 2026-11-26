@@ -29,13 +29,14 @@ export default defineConfig({
     // para instalarla en el celular) y un "service worker" (script que el
     // navegador guarda para abrir la app rápido y detectar versiones nuevas).
     VitePWA({
-      // 'autoUpdate': cuando subes una versión nueva, la app se actualiza
-      // sola la próxima vez que se abre. Ideal para 15-30 atletas.
-      registerType: 'autoUpdate',
+      // 'prompt': cuando subes una versión nueva, la app AVISA (componente
+      // AvisoActualizacion) y el atleta decide cuándo actualizar, para no recargarle
+      // la pantalla en medio de una serie.
+      registerType: 'prompt',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
-        name: '[Nombre de tu app]',
-        short_name: 'Entreno',
+        name: 'MyProgress',
+        short_name: 'MyProgress',
         description: 'Seguimiento privado de entrenamiento y nutrición',
         lang: 'es',
         display: 'standalone',        // se abre sin barra del navegador, como app nativa

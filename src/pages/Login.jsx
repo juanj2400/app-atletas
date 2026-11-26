@@ -6,7 +6,7 @@
 // Así React siempre "sabe" qué hay escrito.
 // =====================================================================
 import { useState } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 
 // Supabase devuelve errores en inglés; los traducimos para el atleta.
@@ -42,7 +42,7 @@ export default function Login() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-6 p-6">
       <div>
-        <h1 className="text-3xl font-bold">[Nombre de tu app]</h1>
+        <h1 className="text-3xl font-bold">MyProgress</h1>
         <p className="mt-2 text-suave">
           Inicia sesión para ver tu plan y registrar tu entrenamiento.
         </p>
@@ -73,6 +73,10 @@ export default function Login() {
           onChange={(e) => setPassword(e.target.value)}
           className="min-h-11 rounded-xl border border-[#5B6372] bg-fondo px-3"
         />
+
+        <Link to="/recuperar" className="inline-flex min-h-11 items-center self-start text-sm text-enlace">
+          ¿Olvidaste tu contraseña?
+        </Link>
 
         {error && <p role="alert" className="text-sm text-alerta">{error}</p>}
 

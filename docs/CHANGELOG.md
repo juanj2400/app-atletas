@@ -5,6 +5,18 @@ Tipos: `feat`, `fix`, `style`, `refactor`, `docs`, `chore`, `db`.
 
 ---
 
+## 2026-11-25 · Paso 12 (parte 1) — Aviso de versión nueva, recuperar contraseña y nombre MyProgress
+
+- **feat:** **aviso de versión nueva** en la PWA: cartel "Hay una versión nueva de MyProgress" con *Actualizar* y *Después*. La app busca versiones cada hora y al volver a abrirse. Cambia `registerType` de `autoUpdate` a `prompt`.
+- **feat:** **recuperar contraseña**: enlace "¿Olvidaste tu contraseña?" en el login → correo con enlace → pantalla para elegir la contraseña nueva (mínimo 8 caracteres). El mensaje no revela si el correo existe. `AuthProvider` marca `recuperando` y `App.jsx` fuerza `/restablecer` hasta cambiarla.
+- **chore:** la app pasa a llamarse **MyProgress** (manifest, título, pantalla de login, README). Los celulares con la app ya instalada pueden seguir mostrando el nombre anterior hasta reinstalarla.
+- **chore:** `.gitignore` ignora `*.zip`; se quita del repositorio `progresion-paso11b.zip`, que se había subido por error.
+- **docs:** `AGENTS.md`, `REQUERIMIENTOS.md` y `ARQUITECTURA.md` actualizados, con la configuración necesaria en Supabase (Redirect URLs, SMTP propio, longitud mínima). Sin cambios de base de datos y sin dependencias nuevas.
+
+**Commit sugerido:** `feat: agregar aviso de versión nueva, recuperar contraseña y renombrar la app a MyProgress`
+
+---
+
 ## 2026-11-25 · Paso 11B — Progresión automática de repeticiones y carga (sin IA)
 
 - **feat:** el entrenador elige por ejercicio una **progresión**: *rango de repeticiones* (`doble`: una más cada semana; si no mejora se mantiene; al llegar al tope sugiere subir 2,5 o 5 kg y vuelve a empezar) o *fuerza simple* (`escalera`: pasos N×M marcados con casillas; primero suben las series, luego las repeticiones y al final el peso). Opcionalmente, un peso inicial por atleta.

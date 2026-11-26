@@ -25,7 +25,7 @@ Es una **SPA** (una sola página; React dibuja todo en el navegador). No hay ser
 | Empaquetado | Vite | ^8.3.5 | Arranque instantáneo; genera archivos estáticos. Descartados: Create React App (sin mantenimiento) y Next.js (servidor/SSR innecesarios) |
 | Estilos | Tailwind CSS (+ `@tailwindcss/vite`) | ^4.3.3 | Estilos en el propio JSX; tema en CSS (`@theme`), sin `tailwind.config.js` |
 | Rutas | react-router-dom | ^7.18.5 | Navegación sin recargar; rutas anidadas |
-| PWA | vite-plugin-pwa | ^2.0.0 | Manifest + service worker; **no bajar a 1.x** (incompatible con Vite 8) |
+| PWA | vite-plugin-pwa | ^2.0.0 | Manifest + service worker; **no bajar a 1.x** (incompatible con Vite 8). El aviso de versión nueva usa `workbox-window` (dependencia par ya instalada: no se agregó nada) |
 | Datos/Auth | @supabase/supabase-js | ^2.118.0 | Cliente oficial |
 | Gráficos | recharts | ^3.11.0 | Componentes React declarativos; se carga perezosa |
 | Plugin React | @vitejs/plugin-react | ^6.1.2 | JSX y recarga en caliente |
@@ -75,8 +75,8 @@ Node >= 20.19 (requisito de Vite 8). Gestor: npm; `package-lock.json` versionado
    ├─ auth/
    │   ├─ AuthProvider.jsx        sesión + perfil (rol); useAuth()
    │   └─ RutaProtegida.jsx       "portero" por rol
-   ├─ pages/                      Login.jsx, Inicio.jsx (redirige por rol)
-   ├─ components/                 Encabezado, Estados, Selector, ResumenMediciones, GraficoEvolucion, GraficoEvolucionLazy, RecordsAtleta, GraficosRecord, GraficosRecordLazy, PlanNutricionalCard, CicloVigenteCard
+   ├─ pages/                      Login.jsx, RecuperarContrasena.jsx, RestablecerContrasena.jsx, Inicio.jsx (redirige por rol)
+   ├─ components/                 Encabezado, Estados, Selector, ResumenMediciones, GraficoEvolucion, GraficoEvolucionLazy, RecordsAtleta, GraficosRecord, GraficosRecordLazy, PlanNutricionalCard, CicloVigenteCard, AvisoActualizacion
    ├─ atleta/                     PantallaAtleta (marco), CheckIn, Entrenar, EntrenarDia, MisDatos (marco con secciones), MisMediciones, Records, Nutricion, CicloActual
    └─ admin/                      ListaAtletas, DetalleAtleta, Mediciones, RutinasAtleta, EditorRutina,
                                   SelectorEjercicio, HistorialEntrenamiento, VolumenMuscular, PlanNutricional, CiclosAtleta, ListaNegraAtleta, FormEjercicio, Ejercicios
@@ -89,6 +89,8 @@ Node >= 20.19 (requisito de Vite 8). Gestor: npm; `package-lock.json` versionado
 | Ruta | Rol | Pantalla |
 |---|---|---|
 | `/login` | público | `Login` |
+| `/recuperar` | público | `RecuperarContrasena` (pide el correo) |
+| `/restablecer` | con sesión (la del enlace del correo), cualquier rol | `RestablecerContrasena` (elegir contraseña nueva; sin `RutaProtegida`) |
 | `/` | cualquiera | `Inicio` → redirige a `/atleta` o `/admin` |
 | `/atleta` | client | `PantallaAtleta` (marco). Índice: `CheckIn` (si ya está hecho, redirige a `/atleta/entrenar`) |
 | `/atleta/entrenar` | client | `Entrenar` (días de la rutina activa) |
@@ -152,6 +154,8 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 
 ## 6. Flujos clave
 
+- **Recuperar contraseña:** `RecuperarContrasena` llama a `resetPasswordForEmail` con `redirectTo = <sitio>/restablecer` → el correo trae un enlace → al abrirlo, Supabase crea una sesión temporal y `AuthProvider` marca `recuperando` (por el evento `PASSWORD_RECOVERY` o, si ese evento se pierde, porque la URL traía `type=recovery`, leído al cargar el módulo) → `App.jsx` manda a `/restablecer` hasta que se cambia la contraseña (`updateUser`) → `Continuar` lleva a `/` y de ahí a su zona.
+- **Aviso de versión nueva:** `AvisoActualizacion` usa `useRegisterSW` (`virtual:pwa-register/react`): cuando el service worker nuevo queda en espera muestra el cartel; *Actualizar* ejecuta `updateServiceWorker(true)` (activa y recarga). Busca versiones cada hora y al volver a la app.
 - **Inicio de sesión:** `signInWithPassword` → `AuthProvider` recibe `SIGNED_IN` → consulta `profiles` por el id → `Inicio` redirige según rol.
 - **Check-in:** `PantallaAtleta` consulta si existe el de hoy → si no, muestra la pestaña y el formulario → `insert` (error `23505` = ya existía) → marca hecho → redirige a Entrenar.
 - **Registrar serie:** cada "Guardar serie" hace un `insert` en `routine_logs` con `routine_exercise_id` y `sesion_id` (se reutiliza el de hoy si ya hay series). "Hoy" = desde la medianoche local; "última vez" = serie del entrenamiento anterior del mismo ejercicio.
@@ -207,7 +211,7 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 9. **Mediciones solo del admin;** el atleta las lee. Reemplazo por fecha con `upsert` sobre `(user_id, fecha)`.
 10. **Volumen por músculo en el cliente** (función pura `calcularVolumen`): simple y rápido para 30 atletas. Factores 1 / 0,5 editables por ejercicio.
 11. **IA como asistente, nunca autónoma:** propuestas `pendiente` forzadas por trigger; aplicación solo por RPC de admin; sin identificadores personales hacia Gemini; límites de ±10 %; lotes de 3 atletas por llamada por el límite de la capa gratuita y el tiempo de ejecución.
-12. **PWA:** `registerType: 'autoUpdate'`; el service worker precachea solo archivos de la app, nunca respuestas de Supabase. Tras publicar, la primera apertura puede mostrar la versión anterior (recargar dos veces).
+12. **PWA:** `registerType: 'prompt'` (desde el paso 12): la versión nueva queda en espera y el atleta decide cuándo actualizar con `AvisoActualizacion`, para no recargar la pantalla a mitad de una serie. El service worker precachea solo archivos de la app, nunca respuestas de Supabase. El primer cambio desde `autoUpdate` llega de forma automática una vez; después ya aparece el aviso.
 13. **Carga perezosa del gráfico:** Recharts pesa mucho; se separa en su propio archivo para no penalizar el login.
 14. **Rutas anidadas** en la zona del atleta (`Outlet` + contexto) para compartir el estado del check-in con una sola consulta.
 15. **Netlify** en lugar de Vercel por permitir uso comercial en el plan gratuito.
@@ -217,6 +221,7 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 19. **Enlaces externos validados en dos capas:** la interfaz (`FormEjercicio`) y un CHECK en la base de datos (migración 09) exigen http/https para `video_url`, porque el atleta lo toca desde su pantalla.
 20. **Ficha del atleta en pestañas** (Resumen, Entrenamiento, Cuerpo y nutrición) con estado local, al crecer a más de diez secciones.
 21. **Progresión por reglas fijas, calculada en el cliente y sin guardar la meta:** la meta de hoy sale de las series reales de la última sesión (`lib/progresion.js`), así no hay estado que se desincronice ni columnas nuevas en `routine_logs`. El peso de trabajo es el más alto de la última sesión: el sistema detecta solo cuánto subió el atleta. La configuración (tipo, escalera, incremento, peso inicial) vive en `routine_exercises` y se guarda solo por la RPC `set_progresion`, que valida en la base de datos. La IA queda fuera de este flujo (en pausa).
+22. **Recuperar contraseña con el flujo estándar de Supabase** (correo con enlace + `updateUser`), sin servidor propio. Lo que decide quién puede cambiar la contraseña es el enlace del correo (la sesión temporal); la app no revela si un correo existe. `AuthProvider` solo guarda estado al recibir `PASSWORD_RECOVERY` (respeta la regla de no consultar dentro del listener).
 
 ## 9. Configuración y despliegue
 
@@ -228,6 +233,10 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 - Authentication: desactivar el registro libre de usuarios; crear usuarios con *Add user* (Auto Confirm).
 - URL Configuration: Site URL con la dirección de Netlify.
 - Primer admin: `update public.profiles set rol='admin' where email='…'`.
+- **Recuperar contraseña (obligatorio para que funcione con atletas):**
+  - *Authentication > URL Configuration > Redirect URLs:* agregar `https://<tu-sitio>.netlify.app/restablecer` (y `http://localhost:5173/restablecer` para pruebas locales). Sin esto, Supabase manda el enlace a la raíz del sitio.
+  - *Authentication > Emails > SMTP Settings:* configurar un SMTP propio (Brevo, Resend, etc.). El correo por defecto solo envía a miembros del equipo y con 2 mensajes por hora.
+  - *Authentication > Sign In / Providers > Email:* subir "Minimum password length" a 8 (la app ya lo exige en pantalla; esta es la barrera real).
 - Edge Function (pendiente): secrets `GEMINI_API_KEY` y, opcional, `GEMINI_MODEL`.
 
 **Flujo de cambios:** `git add .` → `git commit -m "tipo: descripción"` → `git push` → Netlify publica solo. Los cambios de base de datos se aplican **antes** en el SQL Editor.
@@ -243,6 +252,7 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 - La pestaña activa de la ficha del atleta es estado local: se pierde al recargar la página.
 - `routines.cycle_id` existe pero no se usa todavía.
 - La meta de progresión solo se prueba con funciones puras y datos de ejemplo (sin pruebas automáticas en el repo); `calcularUltimaVez` usa como máximo 150 series previas por día, suficiente para rutinas normales.
+- La recuperación de contraseña y el aviso de versión nueva solo se probaron con pantallas simuladas (sin Supabase ni service worker reales): falta probarlos de extremo a extremo tras publicar.
 - Sin pruebas automáticas ni ESLint.
 - El eje X del gráfico trata las fechas como categorías, no como escala de tiempo.
 - En `Mediciones.jsx`, el aviso "ya hay una medición en esta fecha" solo mira las últimas 30.

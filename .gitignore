@@ -12,3 +12,5 @@ dev-dist
 *.log
 .vscode/*
 !.vscode/extensions.json
+# Los .zip con entregas de cambios no van al repositorio.
+*.zip

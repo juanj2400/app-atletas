@@ -1,11 +1,11 @@
 # REQUERIMIENTOS — Qué hace la app y qué falta
 
-> Última actualización: 2026-11-25 · Estado: pasos 1 a 10 construidos y publicados; paso 11B (progresión automática, sin IA) entregado; su migración 11 ya está aplicada en Supabase. **La IA está en pausa: se deja para el final.**
+> Última actualización: 2026-11-25 · Estado: pasos 1 a 10 y 11B (progresión automática, sin IA) construidos y publicados; paso 12 (parte 1: aviso de versión nueva, recuperar contraseña y nombre **MyProgress**) entregado, pendiente de publicar y de configurar el correo en Supabase. **La IA está en pausa: se deja para el final.**
 > Mantener este archivo al día es obligatorio (ver regla en `AGENTS.md`).
 
 ## 1. Resumen del producto
 
-Aplicación web privada e instalable (PWA), mobile-first y en modo oscuro, para un **entrenador de fuerza** y **15–30 atletas**. El entrenador arma y asigna rutinas, registra mediciones corporales y calóricas y supervisa el entrenamiento. El atleta registra su check-in diario y sus series, y consulta su progreso. Más adelante, una IA (Gemini) propondrá ajustes que el entrenador **siempre aprueba**.
+Aplicación web privada e instalable (PWA) llamada **MyProgress**, mobile-first y en modo oscuro, para un **entrenador de fuerza** y **15–30 atletas**. El entrenador arma y asigna rutinas, registra mediciones corporales y calóricas y supervisa el entrenamiento. El atleta registra su check-in diario y sus series, y consulta su progreso. Más adelante, una IA (Gemini) propondrá ajustes que el entrenador **siempre aprueba**.
 
 Costo objetivo: **cero** (capas gratuitas de Supabase, Netlify y Google AI Studio).
 
@@ -27,8 +27,9 @@ El primer admin se asigna a mano en SQL (`update public.profiles set rol='admin'
 
 ### 3.1 Comunes
 - **Login** con correo y contraseña; redirección automática según rol (`/atleta` o `/admin`). Sesión persistente.
+- **Recuperar contraseña:** en el login, "¿Olvidaste tu contraseña?" pide el correo y Supabase envía un enlace; al abrirlo, la app lleva a una pantalla para elegir la contraseña nueva (mínimo 8 caracteres). El mensaje es el mismo exista o no el correo. **Requiere configurar el correo en Supabase** (ver ARQUITECTURA 9 y limitaciones). La misma pantalla (`/restablecer`) sirve para cambiar la contraseña estando dentro.
 - **Rutas protegidas** por rol; si el rol no corresponde, se redirige a su zona.
-- **PWA instalable** (manifest, íconos, service worker con actualización automática).
+- **PWA instalable** (manifest, íconos, service worker). Cuando hay una versión nueva aparece el aviso **"Hay una versión nueva de MyProgress"** con *Actualizar* y *Después*; la app busca versiones nuevas cada hora y cada vez que se vuelve a abrir.
 - Desplegada en Netlify con despliegue continuo desde GitHub.
 
 ### 3.2 Zona del atleta (`/atleta`)
@@ -102,7 +103,7 @@ Creado en el esquema inicial y la migración 02; listo para usar cuando se const
 | ~~**10**~~ | ~~Mesociclos y lista negra + crear/editar ejercicios~~ | **Hecho (2026-11-22).** Incluye la ficha del atleta en pestañas. |
 | **11B** | **Progresión automática de repeticiones y carga (sin IA)** | **Entregado (2026-11-25).** Migración 11 ya aplicada. Rango de repeticiones y fuerza simple, configurables por ejercicio. |
 | **11** | **La IA** | **EN PAUSA: se deja para el final.** Desplegar la Edge Function y sus secrets; botón "Generar propuestas de la semana"; bandeja de aprobación (Aceptar / Editar / Rechazar) para nutrición, cargas y rutinas; uso del volumen por músculo al proponer rutinas. (El paso 11A entregado, con su migración 10, está **sin aplicar**.) |
-| **12** | **Pulido** | Aviso de "hay versión nueva" en la PWA, recuperar contraseña, respaldos periódicos, pantalla para que el admin corrija un check-in. |
+| **12** | **Pulido** | **Hecho (2026-11-25):** aviso de "hay versión nueva", recuperar contraseña y nombre MyProgress. **Falta:** respaldos periódicos y pantalla para que el admin corrija un check-in. |
 
 ### Idea 1: progresión semanal de repeticiones — **resuelta con reglas fijas (paso 11B)**
 - La regla quedó definida por el dueño y ya no depende de la IA: ver "Progresión automática" en 3.4. Cuenta la **serie principal** (la mejor del peso de trabajo) en el rango de repeticiones, y el esquema N series × M reps en fuerza simple.
@@ -120,6 +121,7 @@ Creado en el esquema inicial y la migración 02; listo para usar cuando se const
 
 ## 7. Limitaciones conocidas
 
+- **Recuperar contraseña necesita un correo propio en Supabase:** el correo por defecto solo entrega a miembros del equipo del proyecto y con un límite de 2 mensajes por hora; para los atletas hay que configurar un SMTP propio (por ejemplo Brevo o Resend, con capa gratuita). Mientras tanto, el entrenador puede restablecer una contraseña desde Supabase (Authentication > Users).
 - **Sin internet no se guarda nada** (la app muestra el error y conserva lo escrito para reintentar).
 - Un check-in mal llenado solo lo corrige el entrenador (desde Table Editor).
 - Los ejercicios no se pueden eliminar desde la app (hay historial que depende de ellos); solo se editan.

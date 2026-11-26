@@ -16,11 +16,19 @@ import { supabase } from '../lib/supabase'
 
 const AuthContext = createContext(null)
 
+// ¿Se abrió la app desde el enlace del correo de "recuperar contraseña"? Supabase pone
+// "type=recovery" en la URL y la borra enseguida; se lee aquí, al cargar el módulo (antes de
+// que la borre), porque el evento PASSWORD_RECOVERY puede dispararse antes de que React
+// empiece a escuchar. Así, aunque el enlace aterrice en otra página, se manda a /restablecer.
+const ABIERTA_POR_ENLACE_DE_RECUPERACION =
+  typeof window !== 'undefined' && window.location.hash.includes('type=recovery')
+
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null)
   const [sesionLista, setSesionLista] = useState(false) // ¿ya sabemos si hay sesión?
   const [perfil, setPerfil] = useState(null)
   const [perfilListo, setPerfilListo] = useState(false)
+  const [recuperando, setRecuperando] = useState(ABIERTA_POR_ENLACE_DE_RECUPERACION)
 
   // 1) Escuchar los cambios de sesión (entrar, salir, token renovado).
   //    Supabase guarda la sesión (un JWT) en el almacenamiento del navegador
@@ -29,9 +37,11 @@ export function AuthProvider({ children }) {
   //    REGLA DE ORO: dentro de este callback NO se hacen consultas a Supabase
   //    (puede bloquearse). Solo guardamos la sesión; la consulta va en el paso 2.
   useEffect(() => {
-    const { data } = supabase.auth.onAuthStateChange((_evento, nuevaSesion) => {
+    const { data } = supabase.auth.onAuthStateChange((evento, nuevaSesion) => {
       setSession(nuevaSesion)
       setSesionLista(true)
+      // También solo guarda estado (sin consultas): App.jsx lleva a /restablecer.
+      if (evento === 'PASSWORD_RECOVERY') setRecuperando(true)
     })
     // Función de limpieza: React la ejecuta al desmontar para evitar fugas.
     return () => data.subscription.unsubscribe()
@@ -67,9 +77,19 @@ export function AuthProvider({ children }) {
     session,
     perfil,
     cargando: !sesionLista || !perfilListo,
+    recuperando, // true mientras falta elegir la contraseña nueva tras abrir el enlace del correo
     iniciarSesion: (email, password) =>
       supabase.auth.signInWithPassword({ email, password }),
     cerrarSesion: () => supabase.auth.signOut(),
+    // El enlace del correo regresa a /restablecer. Esa dirección debe estar permitida en
+    // Supabase (Authentication > URL Configuration > Redirect URLs).
+    recuperarContrasena: (email) =>
+      supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/restablecer` }),
+    cambiarContrasena: async (nueva) => {
+      const resultado = await supabase.auth.updateUser({ password: nueva })
+      if (!resultado.error) setRecuperando(false)
+      return resultado
+    },
   }
 
   return <AuthContext.Provider value={valor}>{children}</AuthContext.Provider>

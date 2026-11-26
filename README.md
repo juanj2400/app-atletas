@@ -1,4 +1,4 @@
-# App de atletas (React + Vite + Tailwind + PWA + Supabase)
+# MyProgress — app de atletas (React + Vite + Tailwind + PWA + Supabase)
 
 ## Arrancar en tu computador
 1. `npm install`            (descarga las librerías según package-lock.json)

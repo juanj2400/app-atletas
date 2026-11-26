@@ -16,11 +16,11 @@ Estos archivos son la **fuente de verdad del esquema** de Supabase. Se ejecutan 
 | 8 | `migracion_08_plan_nutricional.sql` | `migracion_08_plan_nutricional` (nombre sugerido) | Función `set_nutrition_plan`: el entrenador define o cambia el plan nutricional (cierra el vigente y crea el nuevo) | Aplicado con el paso 9 |
 | 9 | `migracion_09_ejercicios_video_seguro.sql` | `migracion_09_ejercicios_video_seguro` (nombre sugerido) | Regla CHECK: el `video_url` de un ejercicio solo puede ser http/https | Aplicado con el paso 10 |
 | 11 | `migracion_11_progresion.sql` | `migracion_11_progresion` (nombre sugerido) | Progresión automática: columnas `progresion_tipo`, `escalera`, `incremento_kg` y `peso_inicial_kg` en `routine_exercises` (con CHECK), función `set_progresion` y `duplicate_routine` actualizada | Aplicado (el archivo es el mismo texto que se ejecutó) |
-| 12 | `migracion_12_series_y_rpe.sql` | `migracion_12` (nombre sugerido) | Columna `pide_rpe`, trigger `limitar_series_por_ejercicio` y `duplicate_routine` actualizada | Aplicado (**falta guardar el archivo en el repositorio**) |
+| 12 | `migracion_12_series_y_rpe.sql` | `migracion_12` (nombre sugerido) | Columna `pide_rpe`, trigger `limitar_series_por_ejercicio` y `duplicate_routine` actualizada | Aplicado |
 | 13 | `migracion_13_cierre_ejercicio.sql` | `migracion_13_cierre_ejercicio` (nombre sugerido) | Tabla `exercise_closures`: ejercicio finalizado con nota obligatoria, con RLS | Aplicado |
 | 14 | `migracion_14_dias_realizados.sql` | `migracion_14_dias_realizados` (nombre sugerido) | Tabla `routine_day_completions` (día realizado por semana, con RLS) y trigger `bloquear_dia_realizado` | Aplicado |
 | 15 | `migracion_15_tipo_ejercicio_1rm.sql` | `migracion_15_tipo_ejercicio_1rm` (nombre sugerido) | Columna `exercises.tipo_ejercicio` (compuesto/fuerza/halterofilia/aislado) y vista `v_athlete_prs` sin 1RM para aislados | Aplicado |
-| 16 | `migracion_16_rutina_hibrida.sql` | `migracion_16_rutina_hibrida` (nombre sugerido) | `routines.modo_hibrido`, `routine_exercises.bloque`, dos triggers y `duplicate_routine` actualizada | Pendiente de aplicar |
+| 16 | `migracion_16_rutina_hibrida.sql` | `migracion_16_rutina_hibrida` (nombre sugerido) | `routines.modo_hibrido`, `routine_exercises.bloque`, dos triggers y `duplicate_routine` actualizada | Aplicado |
 
 La migración 10 (IA, paso 11A) no está en este repositorio.
 

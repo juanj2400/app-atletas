@@ -31,3 +31,21 @@ export function textoBloques(filas) {
     .map((x) => `${x.n} de ${x.b.titulo.toLowerCase()}`)
   return partes.join(' + ')
 }
+
+// Ejercicios de una rutina separados por disciplina y agrupados por día, para la gestión de
+// cargas del entrenador. Devuelve { halterofilia: [...], musculacion: [...] }; cada lista es
+// [{ diaId, dia, filas }] con los días en orden y solo los días que tienen ejercicios de esa
+// disciplina. Si la rutina NO es híbrida, todo cuenta como musculación.
+export function cargasPorDisciplina(rutina) {
+  const hibrido = Boolean(rutina.modo_hibrido)
+  const salida = { halterofilia: [], musculacion: [] }
+  const dias = [...rutina.routine_days].sort((a, b) => a.orden - b.orden)
+  for (const d of dias) {
+    const filas = [...d.routine_exercises].sort((a, b) => a.orden - b.orden)
+    for (const b of BLOQUES) {
+      const delBloque = filas.filter((f) => (hibrido ? bloqueDe(f) : 'musculacion') === b.valor)
+      if (delBloque.length > 0) salida[b.valor].push({ diaId: d.id, dia: d.nombre, filas: delBloque })
+    }
+  }
+  return salida
+}

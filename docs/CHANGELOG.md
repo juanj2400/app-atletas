@@ -5,6 +5,18 @@ Tipos: `feat`, `fix`, `style`, `refactor`, `docs`, `chore`, `db`.
 
 ---
 
+## 2026-11-26 · Paso 17 — Gestión de cargas separada por disciplina (halterofilia / musculación)
+
+- **feat:** en la pestaña *Entrenamiento* de la ficha del atleta hay una sección nueva, **Cargas y progresión**. Por cada ejercicio de la rutina activa muestra la progresión, el incremento de peso, el peso inicial, lo que hizo la última vez y su próxima meta, y permite **ajustar progresión, incremento y peso inicial**.
+- **feat:** en una rutina **híbrida**, halterofilia y musculación se gestionan **por separado**: un selector (con el número de ejercicios de cada una) muestra una disciplina a la vez, agrupada por día. Sin modo híbrido hay una sola lista.
+- **refactor:** `cargasPorDisciplina` en `src/lib/bloques.js` (función pura, probada con datos de ejemplo). Los ajustes usan la RPC `set_progresion` existente.
+- **chore:** se guarda `supabase/sql/migracion_12_series_y_rpe.sql` en el repositorio, tal cual se ejecutó en Supabase. Se verificó que `duplicate_routine` de la migración 16 es coherente con la de la 12.
+- **docs:** `AGENTS.md`, `REQUERIMIENTOS.md`, `ARQUITECTURA.md` y `supabase/sql/README.md` actualizados. Sin cambios de base de datos y sin dependencias nuevas.
+
+**Commit sugerido:** `feat: gestionar cargas y progresiones por disciplina en la ficha del atleta`
+
+---
+
 ## 2026-11-26 · Paso 16 — Rutina híbrida: halterofilia + musculación en la misma sesión
 
 - **feat:** el entrenador puede **activar el modo híbrido** de una rutina. Con él, cada día tiene un **bloque de halterofilia** y un **bloque de musculación** (p. ej., 2 + 5); en el editor cada bloque tiene su botón para agregar ejercicios y cada ejercicio puede cambiar de bloque.

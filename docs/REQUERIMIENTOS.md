@@ -1,6 +1,6 @@
 # REQUERIMIENTOS — Qué hace la app y qué falta
 
-> Última actualización: 2026-11-25 · Paso 13 (cierre de ejercicio con nota e indicador de rutina completada, migración 13 aplicada) paso 14 (días realizados por semana, migración 14 aplicada) paso 15 (1RM solo para ejercicios no aislados, migración 15 aplicada) y paso 16 (rutina híbrida halterofilia + musculación, migración 16 **pendiente de aplicar**) entregados. Estado: pasos 1 a 10 y 11B (progresión automática, sin IA) construidos y publicados; paso 12 (parte 1: aviso de versión nueva, recuperar contraseña y nombre **MyProgress**) publicado (falta configurar el correo en Supabase); reglas de registro (tope de series y RPE opcional por ejercicio, migración 12) aplicadas. **La IA está en pausa: se deja para el final.**
+> Última actualización: 2026-11-25 · Paso 13 (cierre de ejercicio con nota e indicador de rutina completada, migración 13 aplicada) paso 14 (días realizados por semana, migración 14 aplicada) paso 15 (1RM solo para ejercicios no aislados, migración 15 aplicada) paso 16 (rutina híbrida halterofilia + musculación, migración 16 aplicada) y paso 17 (gestión de cargas separada por disciplina, sin cambios de base de datos) entregados. Estado: pasos 1 a 10 y 11B (progresión automática, sin IA) construidos y publicados; paso 12 (parte 1: aviso de versión nueva, recuperar contraseña y nombre **MyProgress**) publicado (falta configurar el correo en Supabase); reglas de registro (tope de series y RPE opcional por ejercicio, migración 12) aplicadas. **La IA está en pausa: se deja para el final.**
 > Mantener este archivo al día es obligatorio (ver regla en `AGENTS.md`).
 
 ## 1. Resumen del producto
@@ -53,6 +53,7 @@ Barra inferior con pestañas: **Check-in** (solo mientras esté pendiente), **En
 - **Ficha del atleta** (`/admin/atletas/:id`), organizada en **tres pestañas** (*Resumen*, *Entrenamiento*, *Cuerpo y nutrición*):
   - Resumen: check-ins de los últimos 7 días y sueño promedio.
   - **Rutinas** del atleta: lista y creación de una nueva.
+  - **Cargas y progresión** (rutina activa): por ejercicio muestra la progresión, el incremento de peso, el peso inicial, lo que hizo la última vez y la **próxima meta**, y permite **ajustar** progresión, incremento (0–20 kg) y peso inicial. En una **rutina híbrida**, halterofilia y musculación se gestionan **por separado** (selector con el número de ejercicios de cada una, listas agrupadas por día); sin modo híbrido hay una sola lista. La escalera de fuerza simple se sigue armando en el editor de la rutina.
   - **Ciclos de entrenamiento:** macrociclos y mesociclos (nombre, fase, fechas, objetivo, notas) con validación de fechas; muestra el ciclo en curso con su semana y progreso.
   - **Volumen semanal por músculo** de su rutina activa.
   - **Lista negra de ejercicios** del atleta: agregar (con motivo opcional) y quitar.

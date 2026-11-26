@@ -18,6 +18,7 @@ import CiclosAtleta from './CiclosAtleta'
 import ListaNegraAtleta from './ListaNegraAtleta'
 import VolumenMuscular from './VolumenMuscular'
 import HistorialEntrenamiento from './HistorialEntrenamiento'
+import CargasAtleta from './CargasAtleta'
 import RecordsAtleta from '../components/RecordsAtleta'
 import { fechaLocalISO, formatearFecha } from '../lib/fechas'
 import { textoAnimo, textoSiNo } from '../lib/opciones'
@@ -156,6 +157,7 @@ export default function DetalleAtleta() {
             {pestana === 'entrenamiento' && (
               <>
                 <RutinasAtleta atletaId={atleta.id} />
+                <CargasAtleta atletaId={atleta.id} />
                 <CiclosAtleta atletaId={atleta.id} />
                 <VolumenMuscular atletaId={atleta.id} titulo="Volumen semanal (rutina activa)" />
                 <ListaNegraAtleta atletaId={atleta.id} />

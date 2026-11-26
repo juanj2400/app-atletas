@@ -92,6 +92,7 @@ React 19 + Vite 8 · Tailwind CSS 4 (configuración en `src/index.css`) · PWA c
 8. Los scripts SQL y la Edge Function ya entregados se consideran aplicados salvo que `docs/` diga lo contrario.
 9. **Ciclos:** el ciclo en curso se calcula en el cliente con la fecha local (`lib/ciclos.js`); no uses la vista `v_current_training_cycle` (trabaja con la fecha UTC).
 10. **Registro de series:** el atleta no puede guardar más series de las prescritas por ejercicio (la pantalla oculta el formulario y el trigger `limitar_series_por_ejercicio` lo impone en la base de datos). El RPE solo se pide si `routine_exercises.pide_rpe` es true; si es false el campo no se muestra y se guarda `rpe = null`. Quien cambie una de las dos capas debe revisar la otra.
+11. **Cierre de ejercicio con nota:** el atleta puede finalizar un ejercicio sin completar las series solo con una nota de motivo (3–500 caracteres), guardada en `exercise_closures` (una por ejercicio y día local; solo crea o borra las suyas, sobre su rutina activa; no las modifica). La rutina del día se considera completada cuando ningún ejercicio queda pendiente (lógica pura en `src/lib/cierres.js`). El entrenador ve los cierres en el historial del atleta. Quien cambie la pantalla debe revisar las políticas y los CHECK de la migración 13.
 
 ## 8. Cómo verificar antes de entregar
 

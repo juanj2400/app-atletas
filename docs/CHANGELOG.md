@@ -5,6 +5,19 @@ Tipos: `feat`, `fix`, `style`, `refactor`, `docs`, `chore`, `db`.
 
 ---
 
+## 2026-11-25 · Paso 13 — Finalizar ejercicios con nota y confirmar la rutina del día
+
+- **feat:** el atleta puede **finalizar un ejercicio sin completar las series** escribiendo una nota obligatoria con el motivo (3–500 caracteres). Queda marcado "finalizado" y puede reabrirlo.
+- **feat:** el entrenador ve en **Entrenamientos recientes** "Finalizó con X de N series" y el motivo, incluso si el ejercicio no tiene series.
+- **feat:** al completar o finalizar todos los ejercicios del día aparece el indicador **"¡Rutina del día completada!"** (fondo `primario`, sin colores nuevos) y *Terminar rutina* vuelve a *Entrenar* con la misma confirmación.
+- **refactor:** nueva `src/lib/cierres.js` (funciones puras, probadas con datos de ejemplo).
+- **db:** `migracion_13_cierre_ejercicio.sql` — tabla `exercise_closures` con RLS (el atleta solo crea y borra lo suyo en su rutina activa; el admin gestiona todo), CHECK de nota y de series, único por ejercicio y día. Probada con un Postgres real (políticas incluidas). No elimina nada. **Aplicar primero el SQL y después subir el código.**
+- **docs:** `AGENTS.md` (invariante 11), `REQUERIMIENTOS.md`, `ARQUITECTURA.md` y `supabase/sql/README.md` actualizados.
+
+**Commit sugerido:** `feat: finalizar ejercicios con nota e indicar rutina del día completada`
+
+---
+
 ## 2026-11-25 · Paso 12 (parte 2) — Tope de series y RPE opcional por ejercicio
 
 - **feat:** el atleta **no puede anotar más series de las que le tocan** en cada ejercicio: al completarlas desaparece el formulario y aparece "Completaste las N series ✓" (si borra una, el formulario vuelve). En fuerza simple el tope de hoy es el número de series del paso de la meta.

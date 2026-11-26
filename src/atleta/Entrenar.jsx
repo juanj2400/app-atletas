@@ -37,7 +37,11 @@ export default function Entrenar() {
     return () => { cancelado = true }
   }, [perfil.id])
 
-  const aviso = state?.checkInGuardado ? (
+  const aviso = state?.rutinaCompletada ? (
+    <p role="status" className="rounded-xl bg-primario p-3 font-semibold text-white">
+      ¡Rutina del día completada! ✓ Terminaste «{state.rutinaCompletada}».
+    </p>
+  ) : state?.checkInGuardado ? (
     <p role="status" className="rounded-xl border border-borde bg-superficie p-3 text-enlace">
       Check-in guardado. ¡Buen entrenamiento!
     </p>

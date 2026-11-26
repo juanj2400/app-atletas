@@ -13,15 +13,16 @@ import { Link, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../auth/AuthProvider'
 import { aNumero } from '../lib/numeros'
-import { formatearFechaCorta } from '../lib/fechas'
+import { fechaLocalISO, formatearFechaCorta } from '../lib/fechas'
 import { calcularUltimaVez, inicioDeHoyISO, textoPrescripcion, textoSerie } from '../lib/rutinas'
 import { calcularMeta, textoMeta } from '../lib/progresion'
+import { estadoEjercicio, resumenRutinaDia, seriesObjetivoDe, validarNotaCierre, NOTA_MAX } from '../lib/cierres'
 import { CAMPO, BOTON, BOTON_SEC, TARJETA } from '../lib/estilos'
 
 // ---------------------------------------------------------------------
 // Un ejercicio con su lista de series y el formulario de la siguiente
 // ---------------------------------------------------------------------
-function EjercicioEntrenamiento({ fila, seriesHoy, ultimaVez, userId, sesionId, onCambio }) {
+function EjercicioEntrenamiento({ fila, seriesHoy, ultimaVez, cierre, userId, sesionId, onCambio }) {
   // Meta de hoy si el ejercicio tiene progresión automática (null si no). Sale de las
   // series del entrenamiento anterior, que no cambian mientras entrenas hoy.
   const meta = calcularMeta(fila, ultimaVez?.series)
@@ -36,11 +37,16 @@ function EjercicioEntrenamiento({ fila, seriesHoy, ultimaVez, userId, sesionId, 
   const [rpe, setRpe] = useState('')
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
+  // Panel para finalizar el ejercicio sin completar las series (pide una nota con el motivo)
+  const [abierto, setAbierto] = useState(false)
+  const [nota, setNota] = useState('')
 
   const siguiente = seriesHoy.reduce((max, s) => Math.max(max, s.numero_serie ?? 0), 0) + 1
   // Tope: no se pueden anotar más series de las que tocan hoy. Al completarlas, el formulario
   // desaparece (si borra una serie, vuelve a aparecer). La base de datos también lo comprueba.
   const completado = seriesHoy.length >= seriesObjetivo
+  // Finalizado a mano con nota (solo cuenta si no completó todas: si completó, manda "completado").
+  const cerrado = !completado && Boolean(cierre)
   // El entrenador decide por ejercicio si se pide RPE (si la columna no llegó, se pide).
   const pideRpe = fila.pide_rpe !== false
 
@@ -94,14 +100,51 @@ function EjercicioEntrenamiento({ fila, seriesHoy, ultimaVez, userId, sesionId, 
     else onCambio()
   }
 
+  // Finalizar el ejercicio sin completar las series: la nota con el motivo es obligatoria.
+  async function finalizarSinCompletar(evento) {
+    evento.preventDefault()
+    const v = validarNotaCierre(nota)
+    if (!v.ok) return setError(v.mensaje)
+    setError('')
+    setGuardando(true)
+    const { error: errorBD } = await supabase.from('exercise_closures').insert({
+      user_id: userId,
+      exercise_id: fila.exercise_id,
+      routine_exercise_id: fila.id,
+      fecha: fechaLocalISO(), // día local del atleta
+      nota: v.nota,
+      series_hechas: seriesHoy.length, // foto del momento del cierre
+      series_objetivo: seriesObjetivo,
+    })
+    setGuardando(false)
+    if (errorBD?.code === '23505') {
+      setError('Este ejercicio ya estaba finalizado.') // ya existía un cierre de hoy
+      onCambio()
+    } else if (errorBD) {
+      setError('No se pudo finalizar el ejercicio. Revisa tu conexión e inténtalo de nuevo.')
+    } else {
+      setAbierto(false)
+      setNota('')
+      onCambio()
+    }
+  }
+
+  // Reabrir: quita el cierre para poder seguir anotando series.
+  async function reabrir() {
+    setError('')
+    const { data, error: errorBD } = await supabase.from('exercise_closures').delete().eq('id', cierre.id).select('id')
+    if (errorBD || !data || data.length === 0) setError('No se pudo reabrir el ejercicio.')
+    else onCambio()
+  }
+
   const ej = fila.exercises
   return (
     <li className={`${TARJETA} flex flex-col gap-3`}>
       <div>
         <div className="flex items-start justify-between gap-2">
           <h3 className="text-lg font-bold">{ej.nombre}</h3>
-          <span className={`whitespace-nowrap text-sm font-semibold ${completado ? 'text-enlace' : 'text-suave'}`}>
-            {seriesHoy.length} de {seriesObjetivo}{completado ? ' ✓' : ''}
+          <span className={`whitespace-nowrap text-sm font-semibold ${completado ? 'text-enlace' : cerrado ? 'text-alerta' : 'text-suave'}`}>
+            {seriesHoy.length} de {seriesObjetivo}{completado ? ' ✓' : cerrado ? ' · finalizado' : ''}
           </span>
         </div>
         <p className="text-sm text-suave">{textoPrescripcion(fila)}</p>
@@ -151,30 +194,73 @@ function EjercicioEntrenamiento({ fila, seriesHoy, ultimaVez, userId, sesionId, 
           </p>
           {error && <p role="alert" className="text-sm text-alerta">{error}</p>}
         </>
-      ) : (
-      <form onSubmit={guardarSerie} className="flex flex-col gap-2">
-        <p className="text-sm font-semibold">Serie {siguiente} de {seriesObjetivo}</p>
-        <div className={`grid gap-2 ${pideRpe ? 'grid-cols-3' : 'grid-cols-2'}`}>
-          <div>
-            <label htmlFor={`p-${fila.id}`} className="text-xs text-suave">Peso (kg)</label>
-            <input id={`p-${fila.id}`} inputMode="decimal" value={peso} onChange={(e) => { setPeso(e.target.value); setError('') }} className={CAMPO} />
-          </div>
-          <div>
-            <label htmlFor={`r-${fila.id}`} className="text-xs text-suave">Reps</label>
-            <input id={`r-${fila.id}`} inputMode="numeric" value={reps} onChange={(e) => { setReps(e.target.value); setError('') }} className={CAMPO} />
-          </div>
-          {pideRpe && (
-            <div>
-              <label htmlFor={`e-${fila.id}`} className="text-xs text-suave">RPE (1-10)</label>
-              <input id={`e-${fila.id}`} inputMode="decimal" value={rpe} onChange={(e) => { setRpe(e.target.value); setError('') }} className={CAMPO} />
-            </div>
-          )}
+      ) : cerrado ? (
+        <div className="flex flex-col gap-2 rounded-xl border border-alerta bg-hundido p-3">
+          <p role="status" className="text-sm font-semibold text-alerta">
+            Ejercicio finalizado con {seriesHoy.length} de {seriesObjetivo} series
+          </p>
+          <p className="text-sm"><span className="text-suave">Tu nota:</span> {cierre.nota}</p>
+          {error && <p role="alert" className="text-sm text-alerta">{error}</p>}
+          <button type="button" onClick={reabrir} className={BOTON_SEC}>
+            Reabrir ejercicio
+          </button>
         </div>
-        {error && <p role="alert" className="text-sm text-alerta">{error}</p>}
-        <button type="submit" disabled={guardando} className={BOTON}>
-          {guardando ? 'Guardando...' : `Guardar serie ${siguiente}`}
-        </button>
-      </form>
+      ) : (
+        <>
+          <form onSubmit={guardarSerie} className="flex flex-col gap-2">
+            <p className="text-sm font-semibold">Serie {siguiente} de {seriesObjetivo}</p>
+            <div className={`grid gap-2 ${pideRpe ? 'grid-cols-3' : 'grid-cols-2'}`}>
+              <div>
+                <label htmlFor={`p-${fila.id}`} className="text-xs text-suave">Peso (kg)</label>
+                <input id={`p-${fila.id}`} inputMode="decimal" value={peso} onChange={(e) => { setPeso(e.target.value); setError('') }} className={CAMPO} />
+              </div>
+              <div>
+                <label htmlFor={`r-${fila.id}`} className="text-xs text-suave">Reps</label>
+                <input id={`r-${fila.id}`} inputMode="numeric" value={reps} onChange={(e) => { setReps(e.target.value); setError('') }} className={CAMPO} />
+              </div>
+              {pideRpe && (
+                <div>
+                  <label htmlFor={`e-${fila.id}`} className="text-xs text-suave">RPE (1-10)</label>
+                  <input id={`e-${fila.id}`} inputMode="decimal" value={rpe} onChange={(e) => { setRpe(e.target.value); setError('') }} className={CAMPO} />
+                </div>
+              )}
+            </div>
+            {!abierto && error && <p role="alert" className="text-sm text-alerta">{error}</p>}
+            <button type="submit" disabled={guardando} className={BOTON}>
+              {guardando ? 'Guardando...' : `Guardar serie ${siguiente}`}
+            </button>
+          </form>
+
+          {!abierto ? (
+            <button type="button" onClick={() => { setError(''); setAbierto(true) }} className="min-h-11 text-sm font-semibold text-enlace">
+              Finalizar sin completar las series
+            </button>
+          ) : (
+            <form onSubmit={finalizarSinCompletar} className="flex flex-col gap-2 rounded-xl border border-borde bg-hundido p-3">
+              <label htmlFor={`n-${fila.id}`} className="text-sm font-semibold">
+                ¿Por qué dejas este ejercicio con {seriesHoy.length} de {seriesObjetivo} series?
+              </label>
+              <textarea
+                id={`n-${fila.id}`}
+                rows={3}
+                maxLength={NOTA_MAX}
+                value={nota}
+                onChange={(e) => { setNota(e.target.value); setError('') }}
+                placeholder="Ej.: me dolió el hombro, no había máquina..."
+                className={`${CAMPO} py-2`}
+              />
+              {error && <p role="alert" className="text-sm text-alerta">{error}</p>}
+              <div className="grid grid-cols-2 gap-2">
+                <button type="button" onClick={() => { setAbierto(false); setError('') }} className={BOTON_SEC}>
+                  Cancelar
+                </button>
+                <button type="submit" disabled={guardando} className={BOTON}>
+                  {guardando ? 'Guardando...' : 'Finalizar ejercicio'}
+                </button>
+              </div>
+            </form>
+          )}
+        </>
       )}
     </li>
   )
@@ -188,6 +274,7 @@ export default function EntrenarDia() {
   const { perfil } = useAuth()
   const [dia, setDia] = useState(null)
   const [logsHoy, setLogsHoy] = useState([])
+  const [cierresHoy, setCierresHoy] = useState([])
   const [ultimaVez, setUltimaVez] = useState({})
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
@@ -222,19 +309,23 @@ export default function EntrenarDia() {
       const inicio = inicioDeHoyISO()
       const columnas = 'id, routine_exercise_id, exercise_id, sesion_id, numero_serie, repeticiones, peso_kg, rpe, realizado_en'
 
-      const [hoy, previos] = await Promise.all([
+      const [hoy, previos, cierres] = await Promise.all([
         supabase.from('routine_logs').select(columnas)
           .eq('user_id', perfil.id).in('routine_exercise_id', idsFilas)
           .gte('realizado_en', inicio).order('numero_serie'),
         supabase.from('routine_logs').select(columnas)
           .eq('user_id', perfil.id).in('exercise_id', idsEjercicios)
           .lt('realizado_en', inicio).order('realizado_en', { ascending: false }).limit(150),
+        // Ejercicios que el atleta finalizó hoy sin completar las series (con su nota)
+        supabase.from('exercise_closures').select('id, routine_exercise_id, nota, series_hechas, series_objetivo')
+          .eq('user_id', perfil.id).eq('fecha', fechaLocalISO()).in('routine_exercise_id', idsFilas),
       ])
       if (cancelado) return
-      if (hoy.error || previos.error) { setError('No se pudieron cargar tus series.'); setCargando(false); return }
+      if (hoy.error || previos.error || cierres.error) { setError('No se pudieron cargar tus series.'); setCargando(false); return }
 
       setDia(d)
       setLogsHoy(hoy.data)
+      setCierresHoy(cierres.data)
       setUltimaVez(calcularUltimaVez(previos.data))
       setError('')
       setCargando(false)
@@ -256,6 +347,14 @@ export default function EntrenarDia() {
 
   const sesionId = logsHoy.find((l) => l.sesion_id)?.sesion_id ?? sesionNueva
 
+  // Estado de cada ejercicio (completo / finalizado con nota / pendiente) y de la rutina del día
+  const estados = dia.routine_exercises.map((fila) => {
+    const hechas = logsHoy.filter((l) => l.routine_exercise_id === fila.id).length
+    const objetivo = seriesObjetivoDe(fila, ultimaVez[fila.exercise_id])
+    return estadoEjercicio(hechas, objetivo, cierresHoy.find((c) => c.routine_exercise_id === fila.id))
+  })
+  const resumen = resumenRutinaDia(estados)
+
   return (
     <div className="flex flex-col gap-4">
       <div>
@@ -264,6 +363,16 @@ export default function EntrenarDia() {
         {dia.notas && <p className="text-sm text-suave">{dia.notas}</p>}
       </div>
 
+      {resumen.terminada && (
+        <div role="status" className="rounded-2xl bg-primario p-4 text-white">
+          <p className="text-lg font-bold">¡Rutina del día completada! ✓</p>
+          <p className="text-sm">
+            {resumen.completos} {resumen.completos === 1 ? 'ejercicio completo' : 'ejercicios completos'}
+            {resumen.cerrados > 0 && ` · ${resumen.cerrados} ${resumen.cerrados === 1 ? 'finalizado' : 'finalizados'} con nota`}
+          </p>
+        </div>
+      )}
+
       <ul className="flex flex-col gap-4">
         {dia.routine_exercises.map((fila) => (
           <EjercicioEntrenamiento
@@ -271,6 +380,7 @@ export default function EntrenarDia() {
             fila={fila}
             seriesHoy={logsHoy.filter((l) => l.routine_exercise_id === fila.id)}
             ultimaVez={ultimaVez[fila.exercise_id]}
+            cierre={cierresHoy.find((c) => c.routine_exercise_id === fila.id)}
             userId={perfil.id}
             sesionId={sesionId}
             onCambio={() => setVersion((v) => v + 1)}
@@ -278,9 +388,23 @@ export default function EntrenarDia() {
         ))}
       </ul>
 
-      <Link to="/atleta/entrenar" className={`${BOTON_SEC} flex items-center justify-center`}>
-        Terminar y volver a mi rutina
-      </Link>
+      {resumen.terminada ? (
+        // Al cerrar la rutina completada, Entrenar muestra la confirmación positiva
+        <Link to="/atleta/entrenar" state={{ rutinaCompletada: dia.nombre }} className={`${BOTON} flex items-center justify-center`}>
+          Terminar rutina
+        </Link>
+      ) : (
+        <>
+          {resumen.total > 0 && (
+            <p className="text-center text-sm text-suave">
+              Te {resumen.pendientes === 1 ? 'falta 1 ejercicio' : `faltan ${resumen.pendientes} ejercicios`} por completar o finalizar.
+            </p>
+          )}
+          <Link to="/atleta/entrenar" className={`${BOTON_SEC} flex items-center justify-center`}>
+            Terminar y volver a mi rutina
+          </Link>
+        </>
+      )}
     </div>
   )
 }

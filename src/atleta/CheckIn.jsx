@@ -2,6 +2,8 @@
 // CheckIn — la encuesta diaria previa al entrenamiento. SE LLENA UNA SOLA VEZ AL DÍA.
 //
 // Secuencia:
+//   0) Es OBLIGATORIO: mientras esté pendiente, PantallaAtleta redirige aquí cualquier otra
+//      pantalla de la zona del atleta y oculta la barra inferior.
 //   1) PantallaAtleta ya sabe si hoy está hecho (viene por el contexto del Outlet).
 //   2) Si ya está hecho -> esta pantalla no se muestra: redirige a "Entrenar".
 //   3) Si está pendiente -> se muestra el formulario.

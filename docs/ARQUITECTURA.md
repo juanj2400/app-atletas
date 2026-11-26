@@ -1,6 +1,6 @@
 # ARQUITECTURA
 
-> Última actualización: 2026-11-26 · Mantener al día es obligatorio (ver `AGENTS.md`).
+> Última actualización: 2026-11-26 (paso 20) · Mantener al día es obligatorio (ver `AGENTS.md`).
 
 ## 1. Visión general
 
@@ -166,7 +166,7 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 - **Recuperar contraseña:** `RecuperarContrasena` llama a `resetPasswordForEmail` con `redirectTo = <sitio>/restablecer` → el correo trae un enlace → al abrirlo, Supabase crea una sesión temporal y `AuthProvider` marca `recuperando` (por el evento `PASSWORD_RECOVERY` o, si ese evento se pierde, porque la URL traía `type=recovery`, leído al cargar el módulo) → `App.jsx` manda a `/restablecer` hasta que se cambia la contraseña (`updateUser`) → `Continuar` lleva a `/` y de ahí a su zona.
 - **Aviso de versión nueva:** `AvisoActualizacion` usa `useRegisterSW` (`virtual:pwa-register/react`): cuando el service worker nuevo queda en espera muestra el cartel; *Actualizar* ejecuta `updateServiceWorker(true)` (activa y recarga). Busca versiones cada hora y al volver a la app.
 - **Inicio de sesión:** `signInWithPassword` → `AuthProvider` recibe `SIGNED_IN` → consulta `profiles` por el id → `Inicio` redirige según rol.
-- **Check-in:** `PantallaAtleta` consulta si existe el de hoy → si no, muestra la pestaña y el formulario → `insert` (error `23505` = ya existía) → marca hecho → redirige a Entrenar.
+- **Check-in (obligatorio):** `PantallaAtleta` consulta si existe el de hoy → mientras no se sepa muestra "Cargando..." sin dibujar pantallas hijas; si está pendiente, redirige cualquier ruta distinta de `/atleta` al formulario y oculta la barra inferior (con un aviso arriba) → `insert` (error `23505` = ya existía) → marca hecho → redirige a Entrenar.
 - **Registrar serie:** cada "Guardar serie" hace un `insert` en `routine_logs` con `routine_exercise_id` y `sesion_id` (se reutiliza el de hoy si ya hay series). "Hoy" = desde la medianoche local; "última vez" = serie del entrenamiento anterior del mismo ejercicio. Cuando se completan las series de un ejercicio, el formulario desaparece; si aun así llega una de más (pantalla desactualizada, doble toque), el trigger responde con un error `P0001` ya redactado en español y la pantalla se recarga. Si el ejercicio no pide RPE (`pide_rpe = false`), el campo no se dibuja y se guarda `rpe = null`.
 - **Activar rutina:** RPC `activate_routine` (archiva la activa anterior y activa la nueva, todo o nada).
 - **Volumen:** `calcularVolumen()` multiplica series × factor de cada músculo, separando directas (factor ≥ 1) e indirectas.
@@ -220,7 +220,7 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 5. **RLS silencioso:** un `update`/`delete` bloqueado afecta 0 filas sin error; por eso se encadena `.select('id')` y se comprueba el resultado.
 6. **Operaciones críticas en la base de datos** (RPC "todo o nada"): activar y copiar rutinas, reemplazar músculos, resolver propuestas.
 7. **Una rutina activa por atleta** (índice único parcial); el atleta no ve borradores.
-8. **Check-in de una sola vez:** la regla está en RLS (solo `insert`) más la unicidad `(user_id, fecha)`; la interfaz lo refleja ocultando la pestaña. `useHoy` actualiza el día a medianoche y al volver a la app.
+8. **Check-in de una sola vez y obligatorio cada día:** la regla de "una vez" está en RLS (solo `insert`) más la unicidad `(user_id, fecha)`; la obligatoriedad (no entrar a Entrenar, Mis datos, etc. sin él) la impone solo la interfaz, en `PantallaAtleta`, que además oculta la barra inferior mientras esté pendiente. `useHoy` actualiza el día a medianoche y al volver a la app.
 9. **Mediciones solo del admin;** el atleta las lee. Reemplazo por fecha con `upsert` sobre `(user_id, fecha)`.
 10. **Volumen por músculo en el cliente** (función pura `calcularVolumen`): simple y rápido para 30 atletas. Factores 1 / 0,5 editables por ejercicio.
 11. **IA como asistente, nunca autónoma:** propuestas `pendiente` forzadas por trigger; aplicación solo por RPC de admin; sin identificadores personales hacia Gemini; límites de ±10 %; lotes de 3 atletas por llamada por el límite de la capa gratuita y el tiempo de ejecución.
@@ -277,6 +277,7 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 - Día realizado: el trigger usa la zona `America/Bogota` y la pantalla la del celular (coinciden en Colombia; fuera de ella podrían diferir cerca de la medianoche del lunes). Nada verifica en la base de datos que el día realmente se completó: *Terminar rutina* lo registra el cliente. La semana es de lunes a domingo, no la "semana del ciclo"; `routines.cycle_id` sigue sin usarse.
 - Rutina híbrida: el bloque no depende del tipo del ejercicio (`tipo_ejercicio`): el entrenador decide en qué bloque va cada uno. El historial del entrenador no indica el bloque de cada serie.
 - `CargasAtleta` calcula la próxima meta con las series de la última sesión registrada (incluida la de hoy) y solo ve las 800 series más recientes: un ejercicio muy antiguo podría aparecer "sin registros". No hay ajuste en bloque por disciplina (cada ejercicio se ajusta aparte).
+- Check-in obligatorio solo en pantalla: un atleta que llame a la API a mano (o con la app desactualizada) podría leer sus datos o registrar series sin check-in. Solo afecta a sus propios datos; si se quiere blindar, una migración con un trigger en `routine_logs` que exija el check-in del día. Si falla la consulta del check-in (sin conexión) se trata como pendiente y el atleta queda en el formulario hasta recuperar la conexión.
 - Sin pruebas automáticas ni ESLint.
 - El eje X del gráfico de evolución (peso + calorías) trata las fechas como categorías; el de tendencia del peso ya usa escala de días.
 - La evolución de peso/repeticiones compara primer y último entrenamiento dentro de las 500 series más recientes del ejercicio; no suaviza días malos ni descuenta calentamientos por debajo del peso más alto del día. La oscilación usa las 30 mediciones más recientes.

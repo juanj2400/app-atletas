@@ -5,6 +5,16 @@ Tipos: `feat`, `fix`, `style`, `refactor`, `docs`, `chore`, `db`.
 
 ---
 
+## 2026-11-26 · Paso 20 — Check-in diario obligatorio antes de entrar al resto de la zona del atleta
+
+- **feat:** mientras el check-in de hoy esté pendiente, el atleta **solo ve el formulario**: la barra inferior se oculta y cualquier otra dirección (Entrenar, Mis datos, Récords, Nutrición, enlaces guardados) lo redirige al check-in, con un aviso arriba. Al guardarlo se habilita todo y va a Entrenar como antes.
+- **feat:** mientras la app averigua si ya hay check-in no se dibuja ninguna pantalla (se evita un parpadeo y pedir datos de más). Al cambiar el día (12 a. m. local) vuelve a ser obligatorio solo.
+- **docs:** `AGENTS.md` (invariante 4), `REQUERIMIENTOS.md` y `ARQUITECTURA.md` (flujo, decisión 8 y deuda técnica). Solo cambia `PantallaAtleta.jsx` y un comentario en `CheckIn.jsx`. Sin cambios de base de datos y sin dependencias nuevas.
+
+**Commit sugerido:** `feat: exigir el check-in diario antes de acceder al resto de la zona del atleta`
+
+---
+
 ## 2026-11-26 · Paso 19 — Oscilación del peso y evolución de peso/repeticiones por ejercicio
 
 - **feat:** nueva gráfica **"Oscilación del peso"** en *Mis datos › Medidas* (atleta) y en *Mediciones* de la ficha del atleta (entrenador): línea del peso con su promedio, barras con el cambio entre mediciones (subió/bajó) y mínimo, máximo y mayor salto.

@@ -7,6 +7,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import Encabezado from '../components/Encabezado'
+import { textoTipo } from '../lib/tiposEjercicio'
 import FormEjercicio from './FormEjercicio'
 import { CAMPO, BOTON, BOTON_SEC, TARJETA } from '../lib/estilos'
 
@@ -95,7 +96,7 @@ export default function Ejercicios() {
   useEffect(() => {
     let cancelado = false
     Promise.all([
-      supabase.from('exercises').select('id, nombre, grupo_muscular, descripcion, video_url, restringido').order('nombre'),
+      supabase.from('exercises').select('id, nombre, grupo_muscular, tipo_ejercicio, descripcion, video_url, restringido').order('nombre'),
       supabase.from('exercise_muscles').select('exercise_id, muscle, factor'),
       supabase.from('muscle_groups').select('codigo, nombre, orden').order('orden'),
     ]).then(([ej, mus, gru]) => {
@@ -161,7 +162,7 @@ export default function Ejercicios() {
             return (
               <li key={e.id} className={TARJETA}>
                 <p className="font-semibold">{e.nombre}</p>
-                <p className="text-sm text-suave">{e.grupo_muscular || 'Sin grupo'}</p>
+                <p className="text-sm text-suave">{e.grupo_muscular || 'Sin grupo'} · {textoTipo(e.tipo_ejercicio)}</p>
                 {e.restringido && <p className="text-sm text-alerta">Restringido (lista negra global)</p>}
                 {asignados.length === 0 ? (
                   <p className="mt-1 text-sm text-alerta">Sin músculos asignados</p>

@@ -5,6 +5,18 @@ Tipos: `feat`, `fix`, `style`, `refactor`, `docs`, `chore`, `db`.
 
 ---
 
+## 2026-11-26 · Paso 15 — 1RM estimado solo para ejercicios no aislados
+
+- **feat:** el entrenador clasifica cada ejercicio en la Biblioteca: **compuesto, fuerza, halterofilia o aislado** (campo obligatorio al crear; se ve en la lista).
+- **feat:** los **aislados ya no muestran 1RM estimado**: salen del ranking, su tarjeta muestra el **mayor peso** y su detalle omite la gráfica de evolución del 1RM. Siguen guardando y mostrando sus **mejores repeticiones con cada peso**.
+- **db:** `migracion_15_tipo_ejercicio_1rm.sql` — columna `exercises.tipo_ejercicio` (CHECK, por defecto `compuesto`), clasificación de los ejercicios iniciales (curl y press francés = aislado; sentadilla, banca, peso muerto y press militar = fuerza) y `v_athlete_prs` actualizada (`e1rm_kg` null para aislados; columnas nuevas `tipo_ejercicio` y `aplica_1rm`). Probada con un Postgres real: los compuestos dan exactamente lo mismo que antes y la RLS se mantiene. Contiene dos UPDATE con WHERE, no borra nada. **Aplicar primero el SQL y después subir el código.**
+- **refactor:** nueva `src/lib/tiposEjercicio.js`; `GraficosRecord` acepta `con1RM`.
+- **docs:** `AGENTS.md` (invariante 13), `REQUERIMIENTOS.md`, `ARQUITECTURA.md` y `supabase/sql/README.md` actualizados.
+
+**Commit sugerido:** `feat: estimar 1RM solo en ejercicios no aislados y clasificar ejercicios por tipo`
+
+---
+
 ## 2026-11-26 · Paso 14 — Días realizados por semana en Entrenar
 
 - **feat:** al pulsar *Terminar rutina* el día queda **registrado como realizado** en la semana (lunes a domingo, fecha local). En *Entrenar* aparece marcado "Realizado ✓" con su fecha y un contador de días de la semana.

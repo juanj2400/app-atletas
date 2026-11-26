@@ -5,6 +5,7 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { CAMPO, BOTON, BOTON_SEC, TARJETA } from '../lib/estilos'
+import { TIPOS_EJERCICIO } from '../lib/tiposEjercicio'
 
 // Solo se aceptan enlaces http o https (un "javascript:..." podría ejecutar código al tocarlo).
 // La base de datos aplica la misma regla (migración 09): aquí solo damos el aviso rápido.
@@ -14,6 +15,8 @@ export default function FormEjercicio({ ejercicio, gruposExistentes, onGuardado,
   const [f, setF] = useState({
     nombre: ejercicio?.nombre ?? '',
     grupo: ejercicio?.grupo_muscular ?? '',
+    // En un ejercicio nuevo no hay tipo por defecto: el entrenador debe elegirlo a conciencia.
+    tipo: ejercicio?.tipo_ejercicio ?? '',
     descripcion: ejercicio?.descripcion ?? '',
     video: ejercicio?.video_url ?? '',
     restringido: ejercicio?.restringido ?? false,
@@ -27,6 +30,7 @@ export default function FormEjercicio({ ejercicio, gruposExistentes, onGuardado,
     const nombre = f.nombre.trim()
     const video = f.video.trim()
     if (nombre.length < 2 || nombre.length > 80) return setError('El nombre debe tener entre 2 y 80 caracteres.')
+    if (!TIPOS_EJERCICIO.some((t) => t.valor === f.tipo)) return setError('Elige el tipo de ejercicio (define si se estima su 1RM).')
     if (f.grupo.trim().length > 40) return setError('El grupo muscular es demasiado largo (máximo 40 caracteres).')
     if (f.descripcion.length > 1000) return setError('La descripción es demasiado larga (máximo 1.000 caracteres).')
     if (video && !URL_VALIDA.test(video)) return setError('El enlace del video debe empezar por http:// o https://')
@@ -34,6 +38,7 @@ export default function FormEjercicio({ ejercicio, gruposExistentes, onGuardado,
     const campos = {
       nombre,
       grupo_muscular: f.grupo.trim() || null,
+      tipo_ejercicio: f.tipo,
       descripcion: f.descripcion.trim() || null,
       video_url: video || null,
       restringido: f.restringido,
@@ -66,6 +71,15 @@ export default function FormEjercicio({ ejercicio, gruposExistentes, onGuardado,
       <datalist id="grupos-existentes">
         {gruposExistentes.map((g) => <option key={g} value={g} />)}
       </datalist>
+
+      <label htmlFor="ej-tipo" className="text-sm text-suave">Tipo de ejercicio</label>
+      <select id="ej-tipo" value={f.tipo} onChange={(e) => cambiar('tipo', e.target.value)} className={CAMPO}>
+        <option value="">Elige un tipo...</option>
+        {TIPOS_EJERCICIO.map((t) => <option key={t.valor} value={t.valor}>{t.etiqueta}</option>)}
+      </select>
+      <p className="-mt-2 text-xs text-suave">
+        Compuesto, fuerza y halterofilia muestran 1RM estimado en los récords. Aislado solo guarda las mejores repeticiones con cada peso.
+      </p>
 
       <label htmlFor="ej-desc" className="text-sm text-suave">Cómo se hace (opcional; lo ve el atleta)</label>
       <textarea id="ej-desc" rows={3} maxLength={1000} value={f.descripcion} onChange={(e) => cambiar('descripcion', e.target.value)}

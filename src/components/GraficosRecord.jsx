@@ -1,6 +1,7 @@
 // =====================================================================
 // GraficosRecord — las dos gráficas de UN ejercicio:
-//   1) Evolución del 1RM estimado a lo largo del tiempo (línea).
+//   1) Evolución del 1RM estimado a lo largo del tiempo (línea) — solo si el ejercicio
+//      aplica a 1RM (con1RM); los aislados no la muestran.
 //   2) Repeticiones máximas logradas con cada peso (barras).
 // Recibe los datos ya preparados por props; no consulta nada.
 // =====================================================================
@@ -45,7 +46,7 @@ function TooltipBarras({ active, payload }) {
   )
 }
 
-export default function GraficosRecord({ progreso, marcas }) {
+export default function GraficosRecord({ progreso, marcas, con1RM = true }) {
   // Las marcas llegan del peso mayor al menor; en el gráfico se leen de menor a mayor.
   const barras = [...marcas]
     .sort((a, b) => Number(a.peso_kg) - Number(b.peso_kg))
@@ -54,6 +55,7 @@ export default function GraficosRecord({ progreso, marcas }) {
 
   return (
     <div className="flex flex-col gap-4">
+      {con1RM && (
       <div>
         <p className="mb-1 text-sm font-semibold">Evolución del 1RM estimado</p>
         {progreso.length < 2 ? (
@@ -82,6 +84,7 @@ export default function GraficosRecord({ progreso, marcas }) {
           </>
         )}
       </div>
+      )}
 
       <div>
         <p className="mb-1 text-sm font-semibold">Repeticiones máximas con cada peso</p>

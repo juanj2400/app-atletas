@@ -49,7 +49,7 @@ Node >= 20.19 (requisito de Vite 8). Gestor: npm; `package-lock.json` versionado
 │  ├─ sql/                        scripts SQL (esquema y migraciones), se aplican a mano en el SQL Editor
 │  │   ├─ README.md               orden de aplicación y nombre de cada uno en el SQL Editor
 │  │   ├─ schema_supabase.sql
-│  │   └─ migracion_02 … migracion_09, migracion_11, migracion_12, migracion_13 y migracion_14 (la 10, de la IA, no está en el repo ni aplicada)
+│  │   └─ migracion_02 … migracion_09, migracion_11, migracion_12, migracion_13, migracion_14 y migracion_15 (la 10, de la IA, no está en el repo ni aplicada)
 │  └─ functions/generate-weekly-proposals/index.ts   Edge Function de IA (TypeScript/Deno)
 ├─ public/                        _redirects (Netlify SPA), favicon, íconos PWA
 ├─ index.html · vite.config.js · package.json · .env.example
@@ -72,6 +72,7 @@ Node >= 20.19 (requisito de Vite 8). Gestor: npm; `package-lock.json` versionado
    │   ├─ nutricion.js            macros↔kcal, objetivo de calorías por fecha, adherencia
    │   ├─ ciclos.js               semana del mesociclo, ciclo vigente, validación de fechas
    │   ├─ progresion.js           meta del día (rango de reps y fuerza simple), esquemas NxM y sus textos
+   │   ├─ tiposEjercicio.js       tipos de ejercicio (compuesto/fuerza/halterofilia/aislado) y si aplican a 1RM
    │   └─ records.js              1RM (Epley), progreso por día, textos y fechas de los récords
    ├─ auth/
    │   ├─ AuthProvider.jsx        sesión + perfil (rol); useAuth()
@@ -109,14 +110,14 @@ Node >= 20.19 (requisito de Vite 8). Gestor: npm; `package-lock.json` versionado
 
 ## 5. Base de datos (Supabase / PostgreSQL)
 
-Scripts aplicados, en orden: `schema_supabase.sql` → `migracion_02_nutricion_dashboard.sql` → `03_metricas_admin` → `04_rutinas` → `05_checkin_una_vez` → `06_volumen_muscular` → `07_records_por_peso` → `08_plan_nutricional` → `09_ejercicios_video_seguro`. → `11_progresion` (progresión automática; ya aplicada en Supabase). La 10 (IA, en pausa) no está en el repo. → `12_series_y_rpe` (tope de series y `pide_rpe`; ya aplicada) → `13_cierre_ejercicio` (tabla `exercise_closures`; ya aplicada) → `14_dias_realizados` (tabla `routine_day_completions` y trigger `bloquear_dia_realizado`; **SQL primero, luego el código**).
+Scripts aplicados, en orden: `schema_supabase.sql` → `migracion_02_nutricion_dashboard.sql` → `03_metricas_admin` → `04_rutinas` → `05_checkin_una_vez` → `06_volumen_muscular` → `07_records_por_peso` → `08_plan_nutricional` → `09_ejercicios_video_seguro`. → `11_progresion` (progresión automática; ya aplicada en Supabase). La 10 (IA, en pausa) no está en el repo. → `12_series_y_rpe` (tope de series y `pide_rpe`; ya aplicada) → `13_cierre_ejercicio` (tabla `exercise_closures`; ya aplicada) → `14_dias_realizados` (tabla `routine_day_completions` y trigger `bloquear_dia_realizado`; ya aplicada) → `15_tipo_ejercicio_1rm` (columna `tipo_ejercicio` y vista `v_athlete_prs` actualizada; **SQL primero, luego el código**).
 
 ### 5.1 Tablas
 
 | Tabla | Propósito | Claves y restricciones destacadas |
 |---|---|---|
 | `profiles` | 1 fila por usuario (se crea con trigger desde `auth.users`) | `rol` ∈ {admin, client}; el cliente solo puede editar `nombre_completo` |
-| `exercises` | Biblioteca global | `nombre` único; `restringido` (lista negra global); `video_url` (solo http/https: CHECK de la migración 09), `descripcion` |
+| `exercises` | Biblioteca global | `nombre` único; `tipo_ejercicio` ∈ {compuesto, fuerza, halterofilia, aislado} (migración 15, por defecto `compuesto`; los aislados no tienen 1RM); `restringido` (lista negra global); `video_url` (solo http/https: CHECK de la migración 09), `descripcion` |
 | `muscle_groups` | Catálogo de 14 músculos | `codigo` PK, `orden` |
 | `exercise_muscles` | Músculos de cada ejercicio | PK (`exercise_id`,`muscle`); `factor` ∈ (0,1] (1 principal, 0,5 secundario) |
 | `metrics` | Mediciones (peso, cintura, calorías, estado calórico) | **único** (`user_id`,`fecha`) |
@@ -166,7 +167,7 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 - **Registrar serie:** cada "Guardar serie" hace un `insert` en `routine_logs` con `routine_exercise_id` y `sesion_id` (se reutiliza el de hoy si ya hay series). "Hoy" = desde la medianoche local; "última vez" = serie del entrenamiento anterior del mismo ejercicio. Cuando se completan las series de un ejercicio, el formulario desaparece; si aun así llega una de más (pantalla desactualizada, doble toque), el trigger responde con un error `P0001` ya redactado en español y la pantalla se recarga. Si el ejercicio no pide RPE (`pide_rpe = false`), el campo no se dibuja y se guarda `rpe = null`.
 - **Activar rutina:** RPC `activate_routine` (archiva la activa anterior y activa la nueva, todo o nada).
 - **Volumen:** `calcularVolumen()` multiplica series × factor de cada músculo, separando directas (factor ≥ 1) e indirectas.
-- **Récords:** `RecordsAtleta` pide a `v_athlete_prs` una fila por ejercicio; al desplegar uno, pide a `v_best_reps_by_weight` sus marcas por peso y hasta 500 series recientes de ese ejercicio (para "última vez" y la evolución del 1RM, agrupada por día local). Las vistas respetan RLS (`security_invoker`): el atleta ve lo suyo y el entrenador, todo.
+- **Récords:** `RecordsAtleta` pide a `v_athlete_prs` una fila por ejercicio (con `aplica_1rm`: en los aislados `e1rm_kg` es null y la mejor serie es la de mayor peso; no entran al ranking y su detalle no pide ni dibuja la evolución del 1RM); al desplegar uno, pide a `v_best_reps_by_weight` sus marcas por peso y hasta 500 series recientes de ese ejercicio (para "última vez" y la evolución del 1RM, agrupada por día local). Las vistas respetan RLS (`security_invoker`): el atleta ve lo suyo y el entrenador, todo.
 - **Plan nutricional:** el entrenador guarda un plan con `set_nutrition_plan` (RPC: cierra el vigente y crea el nuevo, todo o nada; valida rangos). El atleta lo lee en *Mis datos › Nutrición*. Los gráficos de calorías reciben el historial de planes y dibujan el objetivo vigente en cada fecha (`kcalObjetivoEnFecha`).
 - **Ciclos:** `CiclosAtleta` (entrenador) valida con `validarCiclo` (fechas, pertenencia al macrociclo, solapes) y guarda en `training_cycles`. `CicloActual` (atleta, en *Entrenar*) lee sus ciclos y `cicloVigente()` decide el mesociclo en curso con la fecha local que entrega `PantallaAtleta`.
 - **Día realizado:** *Terminar rutina* inserta en `routine_day_completions` (fecha y lunes locales). `Entrenar` carga los de la semana actual (se recalcula con `useHoy`) y marca esos días; `EntrenarDia` consulta el día y, si ya está realizado, muestra el aviso en vez del formulario. El trigger `bloquear_dia_realizado` rechaza (P0001, mensaje en español) las series de ese día durante la misma semana; calcula la semana con `America/Bogota`.
@@ -255,6 +256,7 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 - `Mediciones.jsx` define su propio `CAMPO` en vez de importarlo de `estilos.js`.
 - `npm audit` reporta 4 avisos moderados en herramientas de construcción (`vite-plugin-pwa → workbox-build → glob/minimatch`): no afectan al código publicado; esperar versión corregida y entonces `npm update`. **No** usar `npm audit fix --force`.
 - `v_athlete_prs` no limita las repeticiones al estimar el 1RM (Epley pierde fiabilidad con muchas repeticiones).
+- Tipo de ejercicio: los ejercicios creados antes de la migración 15 (salvo los 6 iniciales que clasificó) quedan como `compuesto` hasta que el entrenador los revise. La Edge Function de la IA (en pausa) usa su propia fórmula de 1RM para elegir la mejor serie y no distingue tipos.
 - La evolución del 1RM usa como máximo las 500 series más recientes de cada ejercicio.
 - La línea de objetivo de calorías se dibuja solo en fechas con medición (no es una línea continua en el tiempo).
 - La pestaña activa de la ficha del atleta es estado local: se pierde al recargar la página.

@@ -49,7 +49,7 @@ Node >= 20.19 (requisito de Vite 8). Gestor: npm; `package-lock.json` versionado
 │  ├─ sql/                        scripts SQL (esquema y migraciones), se aplican a mano en el SQL Editor
 │  │   ├─ README.md               orden de aplicación y nombre de cada uno en el SQL Editor
 │  │   ├─ schema_supabase.sql
-│  │   └─ migracion_02 … migracion_09 y migracion_11 (la 10, de la IA, no está en el repo ni aplicada)
+│  │   └─ migracion_02 … migracion_09, migracion_11 y migracion_12 (la 10, de la IA, no está en el repo ni aplicada)
 │  └─ functions/generate-weekly-proposals/index.ts   Edge Function de IA (TypeScript/Deno)
 ├─ public/                        _redirects (Netlify SPA), favicon, íconos PWA
 ├─ index.html · vite.config.js · package.json · .env.example
@@ -108,7 +108,7 @@ Node >= 20.19 (requisito de Vite 8). Gestor: npm; `package-lock.json` versionado
 
 ## 5. Base de datos (Supabase / PostgreSQL)
 
-Scripts aplicados, en orden: `schema_supabase.sql` → `migracion_02_nutricion_dashboard.sql` → `03_metricas_admin` → `04_rutinas` → `05_checkin_una_vez` → `06_volumen_muscular` → `07_records_por_peso` → `08_plan_nutricional` → `09_ejercicios_video_seguro`. → `11_progresion` (progresión automática; ya aplicada en Supabase). La 10 (IA, en pausa) no está en el repo.
+Scripts aplicados, en orden: `schema_supabase.sql` → `migracion_02_nutricion_dashboard.sql` → `03_metricas_admin` → `04_rutinas` → `05_checkin_una_vez` → `06_volumen_muscular` → `07_records_por_peso` → `08_plan_nutricional` → `09_ejercicios_video_seguro`. → `11_progresion` (progresión automática; ya aplicada en Supabase). La 10 (IA, en pausa) no está en el repo. → `12_series_y_rpe` (tope de series y `pide_rpe`; **pendiente de aplicar: SQL primero, luego el código**).
 
 ### 5.1 Tablas
 
@@ -122,7 +122,7 @@ Scripts aplicados, en orden: `schema_supabase.sql` → `migracion_02_nutricion_d
 | `daily_check_ins` | Check-in diario | **único** (`user_id`,`fecha`); horas 0–24; ánimo ∈ {mal, regular, bien} |
 | `routines` | Rutina de un atleta | `estado` ∈ {borrador, activa, archivada}; `origen` ∈ {manual, ia}; **índice único parcial: una `activa` por atleta** |
 | `routine_days` | Días de la rutina | `orden` |
-| `routine_exercises` | Ejercicios prescritos de cada día | series 1–20, `reps_min`/`reps_max`, `rpe_objetivo`, `descanso_seg`, `peso_sugerido_kg`; progresión (migración 11): `progresion_tipo` ∈ {ninguna, doble, escalera}, `escalera` (jsonb: lista de parejas `[series, reps]`), `incremento_kg` (> 0 y ≤ 20; la interfaz ofrece 2,5 o 5), `peso_inicial_kg` (propio de cada atleta, no se copia) |
+| `routine_exercises` | Ejercicios prescritos de cada día | series 1–20, `reps_min`/`reps_max`, `rpe_objetivo`, `descanso_seg`, `peso_sugerido_kg`; progresión (migración 11): `progresion_tipo` ∈ {ninguna, doble, escalera}, `escalera` (jsonb: lista de parejas `[series, reps]`), `incremento_kg` (> 0 y ≤ 20; la interfaz ofrece 2,5 o 5), `peso_inicial_kg` (propio de cada atleta, no se copia); `pide_rpe` boolean, por defecto true (migración 12: si es false, el atleta no ve ni llena el RPE) |
 | `routine_logs` | Cada serie ejecutada | `routine_exercise_id` (opcional), `sesion_id`, `numero_serie`, RPE 1–10 |
 | `nutrition_plans` | Plan nutricional oficial (manual: `set_nutrition_plan`; IA: `resolve_nutrition_suggestion`) | **único parcial**: un plan vigente por atleta (`vigente_hasta is null`) |
 | `ai_load_suggestions` | Buzón de cargas de la IA | estados pendiente/aceptado/rechazado |
@@ -149,7 +149,7 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 
 ### 5.3 Funciones, triggers y vistas
 - **Funciones:** `is_admin()` · `activate_routine(uuid)` · `duplicate_routine(uuid, uuid)` (desde la migración 11 también copia la configuración de progresión, pero no el peso inicial) · `set_progresion(...)` (RPC solo admin: valida y guarda la progresión de un ejercicio) · `set_exercise_muscles(uuid, jsonb)` · `set_nutrition_plan(...)` · `resolve_nutrition_suggestion(...)` (RPC solo admin, `security definer`, `search_path=''`).
-- **Triggers:** `handle_new_user` (crea el perfil) · `force_suggestion_pending` (toda propuesta nace `pendiente`) · `guard_suggestion_resolution` (resuelta = inmutable; sella fecha y autor) · `block_blacklisted_suggestion` (la IA no puede proponer ejercicios en lista negra).
+- **Triggers:** `handle_new_user` (crea el perfil) · `force_suggestion_pending` (toda propuesta nace `pendiente`) · `guard_suggestion_resolution` (resuelta = inmutable; sella fecha y autor) · `block_blacklisted_suggestion` (la IA no puede proponer ejercicios en lista negra) · `limitar_series_por_ejercicio` (migración 12; `before insert` en `routine_logs`: rechaza una serie si ya hay tantas como las prescritas para ese ejercicio en ese `sesion_id`; `security definer`, con candado para que dos inserciones simultáneas no se salten el tope).
 - **Vistas** (`security_invoker`): `v_athlete_overview`, `v_metrics_trend`, `v_athlete_prs`, `v_current_training_cycle`, `v_pending_ai_suggestions` y `v_best_reps_by_weight` (migración 07: mejor cantidad de repeticiones por peso). La app usa `v_athlete_prs` y `v_best_reps_by_weight` (récords); el resto está listo para los pasos 9–11. `v_athlete_prs` calcula el 1RM (Epley) sin límite de repeticiones.
 
 ## 6. Flujos clave
@@ -158,7 +158,7 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 - **Aviso de versión nueva:** `AvisoActualizacion` usa `useRegisterSW` (`virtual:pwa-register/react`): cuando el service worker nuevo queda en espera muestra el cartel; *Actualizar* ejecuta `updateServiceWorker(true)` (activa y recarga). Busca versiones cada hora y al volver a la app.
 - **Inicio de sesión:** `signInWithPassword` → `AuthProvider` recibe `SIGNED_IN` → consulta `profiles` por el id → `Inicio` redirige según rol.
 - **Check-in:** `PantallaAtleta` consulta si existe el de hoy → si no, muestra la pestaña y el formulario → `insert` (error `23505` = ya existía) → marca hecho → redirige a Entrenar.
-- **Registrar serie:** cada "Guardar serie" hace un `insert` en `routine_logs` con `routine_exercise_id` y `sesion_id` (se reutiliza el de hoy si ya hay series). "Hoy" = desde la medianoche local; "última vez" = serie del entrenamiento anterior del mismo ejercicio.
+- **Registrar serie:** cada "Guardar serie" hace un `insert` en `routine_logs` con `routine_exercise_id` y `sesion_id` (se reutiliza el de hoy si ya hay series). "Hoy" = desde la medianoche local; "última vez" = serie del entrenamiento anterior del mismo ejercicio. Cuando se completan las series de un ejercicio, el formulario desaparece; si aun así llega una de más (pantalla desactualizada, doble toque), el trigger responde con un error `P0001` ya redactado en español y la pantalla se recarga. Si el ejercicio no pide RPE (`pide_rpe = false`), el campo no se dibuja y se guarda `rpe = null`.
 - **Activar rutina:** RPC `activate_routine` (archiva la activa anterior y activa la nueva, todo o nada).
 - **Volumen:** `calcularVolumen()` multiplica series × factor de cada músculo, separando directas (factor ≥ 1) e indirectas.
 - **Récords:** `RecordsAtleta` pide a `v_athlete_prs` una fila por ejercicio; al desplegar uno, pide a `v_best_reps_by_weight` sus marcas por peso y hasta 500 series recientes de ese ejercicio (para "última vez" y la evolución del 1RM, agrupada por día local). Las vistas respetan RLS (`security_invoker`): el atleta ve lo suyo y el entrenador, todo.
@@ -222,6 +222,7 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 20. **Ficha del atleta en pestañas** (Resumen, Entrenamiento, Cuerpo y nutrición) con estado local, al crecer a más de diez secciones.
 21. **Progresión por reglas fijas, calculada en el cliente y sin guardar la meta:** la meta de hoy sale de las series reales de la última sesión (`lib/progresion.js`), así no hay estado que se desincronice ni columnas nuevas en `routine_logs`. El peso de trabajo es el más alto de la última sesión: el sistema detecta solo cuánto subió el atleta. La configuración (tipo, escalera, incremento, peso inicial) vive en `routine_exercises` y se guarda solo por la RPC `set_progresion`, que valida en la base de datos. La IA queda fuera de este flujo (en pausa).
 22. **Recuperar contraseña con el flujo estándar de Supabase** (correo con enlace + `updateUser`), sin servidor propio. Lo que decide quién puede cambiar la contraseña es el enlace del correo (la sesión temporal); la app no revela si un correo existe. `AuthProvider` solo guarda estado al recibir `PASSWORD_RECOVERY` (respeta la regla de no consultar dentro del listener).
+23. **Tope de series y RPE opcional en dos capas:** la pantalla oculta el formulario al completar las series y no dibuja el RPE si el ejercicio no lo pide; la base de datos es la barrera real (trigger `limitar_series_por_ejercicio` y columna `pide_rpe`). `pide_rpe` vive en `routine_exercises` (decisión por ejercicio y por atleta, como el resto de la prescripción) y por defecto es true para no cambiar lo ya existente.
 
 ## 9. Configuración y despliegue
 
@@ -253,6 +254,8 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 - `routines.cycle_id` existe pero no se usa todavía.
 - La meta de progresión solo se prueba con funciones puras y datos de ejemplo (sin pruebas automáticas en el repo); `calcularUltimaVez` usa como máximo 150 series previas por día, suficiente para rutinas normales.
 - La recuperación de contraseña y el aviso de versión nueva solo se probaron con pantallas simuladas (sin Supabase ni service worker reales): falta probarlos de extremo a extremo tras publicar.
+- El tope de series se controla por `sesion_id`: quien manipule la app a mano puede mandar otro `sesion_id` y saltárselo (protege de errores, no de un atacante; solo afecta datos propios). En fuerza simple la base usa como tope el paso con más series de la escalera, más permisivo que el tope exacto de cada día, que solo calcula la pantalla.
+- Si el atleta borra una serie intermedia, el número de la siguiente se calcula como el mayor + 1 y puede superar las series prescritas (por ejemplo "Serie 4" de 3); no afecta al tope, que cuenta filas.
 - Sin pruebas automáticas ni ESLint.
 - El eje X del gráfico trata las fechas como categorías, no como escala de tiempo.
 - En `Mediciones.jsx`, el aviso "ya hay una medición en esta fecha" solo mira las últimas 30.

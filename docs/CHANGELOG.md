@@ -5,6 +5,17 @@ Tipos: `feat`, `fix`, `style`, `refactor`, `docs`, `chore`, `db`.
 
 ---
 
+## 2026-11-25 · Paso 12 (parte 2) — Tope de series y RPE opcional por ejercicio
+
+- **feat:** el atleta **no puede anotar más series de las que le tocan** en cada ejercicio: al completarlas desaparece el formulario y aparece "Completaste las N series ✓" (si borra una, el formulario vuelve). En fuerza simple el tope de hoy es el número de series del paso de la meta.
+- **feat:** el entrenador decide, **ejercicio por ejercicio, si se pide RPE** (selector Sí/No en el editor de rutinas). Si es No, el atleta no ve ni llena el RPE, el RPE objetivo se guarda vacío y no se muestra en la prescripción. Los ejercicios que ya existen siguen pidiendo RPE.
+- **db:** `migracion_12_series_y_rpe.sql` — columna `pide_rpe` (por defecto true), trigger `limitar_series_por_ejercicio` (tope en la base de datos, a prueba de doble toque y de inserciones simultáneas) y `duplicate_routine` actualizada para copiar `pide_rpe`. Probada con un Postgres real. No elimina nada. **Aplicar primero el SQL y después subir el código.**
+- **docs:** `AGENTS.md` (invariante 10), `REQUERIMIENTOS.md`, `ARQUITECTURA.md` y `supabase/sql/README.md` actualizados.
+
+**Commit sugerido:** `feat: limitar series al número prescrito y hacer el RPE opcional por ejercicio`
+
+---
+
 ## 2026-11-25 · Paso 12 (parte 1) — Aviso de versión nueva, recuperar contraseña y nombre MyProgress
 
 - **feat:** **aviso de versión nueva** en la PWA: cartel "Hay una versión nueva de MyProgress" con *Actualizar* y *Después*. La app busca versiones cada hora y al volver a abrirse. Cambia `registerType` de `autoUpdate` a `prompt`.

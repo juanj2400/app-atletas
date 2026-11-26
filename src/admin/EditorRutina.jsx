@@ -39,6 +39,7 @@ function FilaEjercicio({ fila, listaNegra, aplicar }) {
     repsMin: String(fila.reps_min ?? ''),
     repsMax: String(fila.reps_max ?? ''),
     rpe: String(fila.rpe_objetivo ?? ''),
+    pideRpe: fila.pide_rpe !== false, // ¿el atleta debe anotar el RPE en este ejercicio?
     descanso: String(fila.descanso_seg ?? ''),
     notas: fila.notas ?? '',
     // Progresión automática (migración 11). escalera = lista de parejas [[series, reps], ...].
@@ -58,7 +59,8 @@ function FilaEjercicio({ fila, listaNegra, aplicar }) {
     const series = aNumero(f.series)
     const repsMin = aNumero(f.repsMin)
     const repsMax = aNumero(f.repsMax)
-    const rpe = aNumero(f.rpe)
+    // Si no se pide RPE, el RPE objetivo no aplica (se guarda vacío).
+    const rpe = f.pideRpe ? aNumero(f.rpe) : null
     const descanso = aNumero(f.descanso)
     const pesoInicial = aNumero(f.pesoInicial)
 
@@ -91,7 +93,7 @@ function FilaEjercicio({ fila, listaNegra, aplicar }) {
     // 1) Datos básicos del ejercicio. Va primero porque set_progresion revisa las reps ya guardadas.
     const base = await supabase.from('routine_exercises')
       .update({
-        series, reps_min: repsMin, reps_max: repsMax, rpe_objetivo: rpe,
+        series, reps_min: repsMin, reps_max: repsMax, rpe_objetivo: rpe, pide_rpe: f.pideRpe,
         descanso_seg: descanso, notas: f.notas.trim() || null,
       })
       .eq('id', fila.id).select('id')
@@ -141,8 +143,8 @@ function FilaEjercicio({ fila, listaNegra, aplicar }) {
           <input id={`rmax-${fila.id}`} inputMode="numeric" value={f.repsMax} onChange={(e) => cambiar('repsMax', e.target.value)} className={CAMPO} />
         </div>
         <div>
-          <label className={mini} htmlFor={`rpe-${fila.id}`}>RPE</label>
-          <input id={`rpe-${fila.id}`} inputMode="decimal" value={f.rpe} onChange={(e) => cambiar('rpe', e.target.value)} className={CAMPO} />
+          <label className={mini} htmlFor={`rpe-${fila.id}`}>RPE objetivo</label>
+          <input id={`rpe-${fila.id}`} inputMode="decimal" value={f.rpe} disabled={!f.pideRpe} onChange={(e) => cambiar('rpe', e.target.value)} className={`${CAMPO} disabled:opacity-50`} />
         </div>
         <div className="col-span-2">
           <label className={mini} htmlFor={`d-${fila.id}`}>Descanso (segundos)</label>
@@ -150,6 +152,19 @@ function FilaEjercicio({ fila, listaNegra, aplicar }) {
         </div>
       </div>
       <p className="mt-1 text-xs text-suave">Si las repeticiones son fijas, repite el mismo número en mín. y máx.</p>
+
+      {/* El atleta solo ve y llena el campo RPE si aquí está en "Sí". */}
+      <div className="mt-3">
+        <p className={mini}>¿Pedir RPE al atleta en este ejercicio?</p>
+        <div className="mt-1 grid grid-cols-2 gap-2">
+          <button type="button" aria-pressed={f.pideRpe} onClick={() => cambiar('pideRpe', true)} className={claseToggle(f.pideRpe)}>
+            Sí
+          </button>
+          <button type="button" aria-pressed={!f.pideRpe} onClick={() => cambiar('pideRpe', false)} className={claseToggle(!f.pideRpe)}>
+            No
+          </button>
+        </div>
+      </div>
 
       {/* Progresión automática: la meta de cada sesión se calcula con lo que el atleta anota. */}
       <div className="mt-3 flex flex-col gap-2 rounded-xl border border-borde p-3">
@@ -358,7 +373,7 @@ export default function EditorRutina() {
           routine_days (
             id, orden, nombre, notas,
             routine_exercises (
-              id, orden, exercise_id, series, reps_min, reps_max, rpe_objetivo, descanso_seg, notas,
+              id, orden, exercise_id, series, reps_min, reps_max, rpe_objetivo, pide_rpe, descanso_seg, notas,
               progresion_tipo, escalera, incremento_kg, peso_inicial_kg,
               exercises ( nombre, grupo_muscular, restringido )
             )

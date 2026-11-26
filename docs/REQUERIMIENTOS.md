@@ -1,6 +1,6 @@
 # REQUERIMIENTOS — Qué hace la app y qué falta
 
-> Última actualización: 2026-11-25 · Estado: pasos 1 a 10 y 11B (progresión automática, sin IA) construidos y publicados; paso 12 (parte 1: aviso de versión nueva, recuperar contraseña y nombre **MyProgress**) entregado, pendiente de publicar y de configurar el correo en Supabase. **La IA está en pausa: se deja para el final.**
+> Última actualización: 2026-11-25 · Estado: pasos 1 a 10 y 11B (progresión automática, sin IA) construidos y publicados; paso 12 (parte 1: aviso de versión nueva, recuperar contraseña y nombre **MyProgress**) publicado (falta configurar el correo en Supabase); reglas de registro (tope de series y RPE opcional por ejercicio, migración 12) entregadas, pendientes de aplicar. **La IA está en pausa: se deja para el final.**
 > Mantener este archivo al día es obligatorio (ver regla en `AGENTS.md`).
 
 ## 1. Resumen del producto
@@ -38,7 +38,7 @@ Barra inferior con pestañas: **Check-in** (solo mientras esté pendiente), **En
 - **Check-in diario:** ¿cumpliste las calorías de ayer? (sí/no), horas dormidas, estado de ánimo (😞 😐 😄) y ¿te sientes recuperado? (sí/no).
   - Se llena **una sola vez por día** y no se puede modificar. Al guardarlo, la pestaña desaparece y la app lo lleva a "Entrenar" con un aviso.
   - El día cambia a las **12 a. m. hora del celular**; la pestaña reaparece sola (aunque la app quede abierta).
-- **Entrenar:** arriba ve el **ciclo en curso** (macrociclo, mesociclo, fase y semana, con barra de progreso) si el entrenador lo definió. Ve su rutina **activa** y elige el día a entrenar. En cada día ve, por ejercicio: lo prescrito (series × reps · RPE · descanso), notas del entrenador, "última vez" (marca del entrenamiento anterior), "Cómo se hace" (descripción y video si existen) y registra **cada serie** (peso, repeticiones, RPE obligatorio). La serie se guarda al instante; puede borrarla. El peso de la siguiente serie viene precargado. Si el entrenador activó una **progresión** en ese ejercicio, ve además una tarjeta **"Meta de hoy"** (series × repeticiones con qué peso y por qué) y el peso y las repeticiones vienen precargados con esa meta.
+- **Entrenar:** arriba ve el **ciclo en curso** (macrociclo, mesociclo, fase y semana, con barra de progreso) si el entrenador lo definió. Ve su rutina **activa** y elige el día a entrenar. En cada día ve, por ejercicio: lo prescrito (series × reps · RPE · descanso), notas del entrenador, "última vez" (marca del entrenamiento anterior), "Cómo se hace" (descripción y video si existen) y registra **cada serie** (peso, repeticiones y, solo si el entrenador lo pide en ese ejercicio, RPE obligatorio; si no se pide, el campo no aparece). **No puede anotar más series de las que le tocan:** al completarlas desaparece el formulario y aparece "Completaste las N series ✓" (si borra una, el formulario vuelve). La serie se guarda al instante; puede borrarla. El peso de la siguiente serie viene precargado. Si el entrenador activó una **progresión** en ese ejercicio, ve además una tarjeta **"Meta de hoy"** (series × repeticiones con qué peso y por qué) y el peso y las repeticiones vienen precargados con esa meta.
 - **Mis datos › Medidas (solo lectura):** tarjetas de resumen (peso actual y cambio, cintura, calorías promedio de 7 días, estado calórico), gráfico de evolución (peso en línea, calorías en barras y una **línea punteada con el objetivo de calorías** del plan vigente) e historial de mediciones. La tarjeta de calorías muestra también el objetivo.
 - **Mis datos › Récords (solo lectura, con gráficas):**
   - Arriba, un **ranking visual** del 1RM estimado de los ejercicios con mayor marca.
@@ -60,7 +60,7 @@ Barra inferior con pestañas: **Check-in** (solo mientras esté pendiente), **En
   - **Entrenamientos recientes:** series registradas, agrupadas por día y ejercicio.
   - **Check-ins recientes** (últimos 14).
 - **Editor de rutinas** (`/admin/rutinas/:rutinaId`):
-  - Rutina → días → ejercicios; por ejercicio: series, repeticiones (mín–máx), RPE objetivo, descanso, notas y **progresión** (sin progresión, rango de repeticiones o fuerza simple; ver 3.4). En fuerza simple se marcan casillas de pasos (series × reps); en ambos sistemas se elige el salto de peso (2,5 o 5 kg) y, opcionalmente, el peso inicial del atleta. Se guarda con la función `set_progresion`, que valida todo en la base de datos.
+  - Rutina → días → ejercicios; por ejercicio: series, repeticiones (mín–máx), RPE objetivo, **¿pedir RPE al atleta? (Sí/No)**, descanso, notas y **progresión** (sin progresión, rango de repeticiones o fuerza simple; ver 3.4). En fuerza simple se marcan casillas de pasos (series × reps); en ambos sistemas se elige el salto de peso (2,5 o 5 kg) y, opcionalmente, el peso inicial del atleta. Se guarda con la función `set_progresion`, que valida todo en la base de datos.
   - Buscador de ejercicios por nombre y grupo; **advertencia** si el ejercicio es restringido (global) o está en la lista negra del atleta.
   - Estados: **borrador** (el atleta no la ve), **activa**, **archivada**. Activar archiva la activa anterior automáticamente y exige al menos un ejercicio.
   - **Copiar a otro atleta** (la copia nace como borrador, sin pesos sugeridos) y eliminar.
@@ -69,7 +69,8 @@ Barra inferior con pestañas: **Check-in** (solo mientras esté pendiente), **En
 
 ### 3.4 Reglas de negocio vigentes
 - Mediciones: una por atleta y día. Validación de interfaz: peso 20–400 kg, cintura 30–250 cm, calorías 0–10.000; al menos un dato; fecha no futura. Estado calórico opcional: déficit, superávit o normocalórica.
-- Series: peso 0–1.000 kg (0 = peso corporal), repeticiones enteras 1–100, RPE 1–10 (obligatorio en la interfaz; opcional en la base de datos).
+- Series: peso 0–1.000 kg (0 = peso corporal), repeticiones enteras 1–100, RPE 1–10 (obligatorio en la interfaz solo si el ejercicio lo pide con `pide_rpe`, que por defecto es sí; opcional en la base de datos y se guarda vacío si no se pide).
+- **Tope de series:** en un mismo entrenamiento el atleta no puede guardar más series de las que le tocan en cada ejercicio. Tope = `series` del ejercicio; en fuerza simple, el número de series del paso de hoy (en pantalla) y, como barrera en la base de datos, el mayor número de series de la escalera. Lo comprueban la pantalla y el trigger `limitar_series_por_ejercicio` (migración 12).
 - Prescripción: series 1–20, repeticiones 1–100 (mín ≤ máx), RPE 1–10 (admite decimales), descanso 0–900 s.
 - Una sola rutina activa por atleta; el atleta nunca ve borradores ni archivadas.
 - **Progresión automática** (por ejercicio de la rutina; reglas fijas, sin IA; lógica en `src/lib/progresion.js`). Siempre compara las series de la **última sesión** hechas con el **peso más alto de esa sesión** (el "peso de trabajo"); así, si el atleta sube el peso por su cuenta, se detecta solo.

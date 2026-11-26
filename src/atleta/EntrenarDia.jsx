@@ -38,22 +38,27 @@ function EjercicioEntrenamiento({ fila, seriesHoy, ultimaVez, userId, sesionId, 
   const [error, setError] = useState('')
 
   const siguiente = seriesHoy.reduce((max, s) => Math.max(max, s.numero_serie ?? 0), 0) + 1
+  // Tope: no se pueden anotar más series de las que tocan hoy. Al completarlas, el formulario
+  // desaparece (si borra una serie, vuelve a aparecer). La base de datos también lo comprueba.
   const completado = seriesHoy.length >= seriesObjetivo
+  // El entrenador decide por ejercicio si se pide RPE (si la columna no llegó, se pide).
+  const pideRpe = fila.pide_rpe !== false
 
   async function guardarSerie(evento) {
     evento.preventDefault()
+    if (completado) return setError('Ya registraste todas las series de este ejercicio.')
     const repeticiones = aNumero(reps)
     const pesoKg = aNumero(peso)
-    const rpeN = aNumero(rpe)
+    const rpeN = pideRpe ? aNumero(rpe) : null
 
-    if (repeticiones === null || pesoKg === null || rpeN === null || [repeticiones, pesoKg, rpeN].some(Number.isNaN)) {
-      return setError('Completa peso, repeticiones y RPE con números.')
+    if (repeticiones === null || pesoKg === null || (pideRpe && rpeN === null) || [repeticiones, pesoKg, rpeN].some(Number.isNaN)) {
+      return setError(pideRpe ? 'Completa peso, repeticiones y RPE con números.' : 'Completa peso y repeticiones con números.')
     }
     if (!Number.isInteger(repeticiones) || repeticiones < 1 || repeticiones > 100) {
       return setError('Las repeticiones deben ser un número entero entre 1 y 100.')
     }
     if (pesoKg < 0 || pesoKg > 1000) return setError('El peso debe estar entre 0 y 1000 kg (0 si es peso corporal).')
-    if (rpeN < 1 || rpeN > 10) return setError('El RPE debe estar entre 1 y 10.')
+    if (pideRpe && (rpeN < 1 || rpeN > 10)) return setError('El RPE debe estar entre 1 y 10.')
 
     setError('')
     setGuardando(true)
@@ -65,10 +70,15 @@ function EjercicioEntrenamiento({ fila, seriesHoy, ultimaVez, userId, sesionId, 
       numero_serie: siguiente,
       repeticiones,
       peso_kg: pesoKg,
-      rpe: rpeN,
+      rpe: rpeN, // null si el entrenador no pide RPE en este ejercicio
     })
     setGuardando(false)
-    if (errorBD) {
+    if (errorBD?.code === 'P0001') {
+      // La base de datos dice que ya están todas las series (pantalla desactualizada o doble
+      // toque). Su mensaje ya viene redactado en español; recargamos para mostrar lo real.
+      setError(errorBD.message)
+      onCambio()
+    } else if (errorBD) {
       // Los valores quedan escritos en el formulario para reintentar sin volver a teclear.
       setError('No se pudo guardar. Revisa tu conexión e inténtalo de nuevo.')
     } else {
@@ -134,9 +144,17 @@ function EjercicioEntrenamiento({ fila, seriesHoy, ultimaVez, userId, sesionId, 
         </ol>
       )}
 
+      {completado ? (
+        <>
+          <p role="status" className="rounded-xl border border-borde bg-hundido px-3 py-2 text-sm font-semibold text-enlace">
+            Completaste las {seriesObjetivo} {seriesObjetivo === 1 ? 'serie' : 'series'} de este ejercicio ✓
+          </p>
+          {error && <p role="alert" className="text-sm text-alerta">{error}</p>}
+        </>
+      ) : (
       <form onSubmit={guardarSerie} className="flex flex-col gap-2">
-        <p className="text-sm font-semibold">Serie {siguiente}</p>
-        <div className="grid grid-cols-3 gap-2">
+        <p className="text-sm font-semibold">Serie {siguiente} de {seriesObjetivo}</p>
+        <div className={`grid gap-2 ${pideRpe ? 'grid-cols-3' : 'grid-cols-2'}`}>
           <div>
             <label htmlFor={`p-${fila.id}`} className="text-xs text-suave">Peso (kg)</label>
             <input id={`p-${fila.id}`} inputMode="decimal" value={peso} onChange={(e) => { setPeso(e.target.value); setError('') }} className={CAMPO} />
@@ -145,16 +163,19 @@ function EjercicioEntrenamiento({ fila, seriesHoy, ultimaVez, userId, sesionId, 
             <label htmlFor={`r-${fila.id}`} className="text-xs text-suave">Reps</label>
             <input id={`r-${fila.id}`} inputMode="numeric" value={reps} onChange={(e) => { setReps(e.target.value); setError('') }} className={CAMPO} />
           </div>
-          <div>
-            <label htmlFor={`e-${fila.id}`} className="text-xs text-suave">RPE (1-10)</label>
-            <input id={`e-${fila.id}`} inputMode="decimal" value={rpe} onChange={(e) => { setRpe(e.target.value); setError('') }} className={CAMPO} />
-          </div>
+          {pideRpe && (
+            <div>
+              <label htmlFor={`e-${fila.id}`} className="text-xs text-suave">RPE (1-10)</label>
+              <input id={`e-${fila.id}`} inputMode="decimal" value={rpe} onChange={(e) => { setRpe(e.target.value); setError('') }} className={CAMPO} />
+            </div>
+          )}
         </div>
         {error && <p role="alert" className="text-sm text-alerta">{error}</p>}
         <button type="submit" disabled={guardando} className={BOTON}>
           {guardando ? 'Guardando...' : `Guardar serie ${siguiente}`}
         </button>
       </form>
+      )}
     </li>
   )
 }
@@ -184,7 +205,7 @@ export default function EntrenarDia() {
           id, nombre, notas,
           routine_exercises (
             id, orden, exercise_id, series, reps_min, reps_max, rpe_objetivo, descanso_seg, peso_sugerido_kg, notas,
-            progresion_tipo, escalera, incremento_kg, peso_inicial_kg,
+            progresion_tipo, escalera, incremento_kg, peso_inicial_kg, pide_rpe,
             exercises ( nombre, grupo_muscular, descripcion, video_url )
           )
         `)

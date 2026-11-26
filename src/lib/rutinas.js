@@ -28,7 +28,8 @@ export function textoPrescripcion(fila) {
     : `${fila.series} × ${textoReps(fila)} reps`
   return [
     base,
-    fila.rpe_objetivo !== null && `RPE ${fila.rpe_objetivo}`,
+    // Si el entrenador no pide RPE en este ejercicio, tampoco se muestra el objetivo.
+    fila.pide_rpe !== false && fila.rpe_objetivo !== null && `RPE ${fila.rpe_objetivo}`,
     fila.descanso_seg !== null && `descanso ${textoDescanso(fila.descanso_seg)}`,
   ].filter(Boolean).join(' · ')
 }

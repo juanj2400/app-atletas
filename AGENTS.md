@@ -91,6 +91,7 @@ React 19 + Vite 8 · Tailwind CSS 4 (configuración en `src/index.css`) · PWA c
 7. **No ejecutes** `npm audit fix --force` ni bajes `vite-plugin-pwa` a 1.x (no es compatible con Vite 8). Los 4 avisos de `npm audit` son de herramientas de construcción y no afectan a la app publicada.
 8. Los scripts SQL y la Edge Function ya entregados se consideran aplicados salvo que `docs/` diga lo contrario.
 9. **Ciclos:** el ciclo en curso se calcula en el cliente con la fecha local (`lib/ciclos.js`); no uses la vista `v_current_training_cycle` (trabaja con la fecha UTC).
+10. **Registro de series:** el atleta no puede guardar más series de las prescritas por ejercicio (la pantalla oculta el formulario y el trigger `limitar_series_por_ejercicio` lo impone en la base de datos). El RPE solo se pide si `routine_exercises.pide_rpe` es true; si es false el campo no se muestra y se guarda `rpe = null`. Quien cambie una de las dos capas debe revisar la otra.
 
 ## 8. Cómo verificar antes de entregar
 

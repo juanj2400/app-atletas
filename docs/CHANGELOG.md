@@ -5,6 +5,17 @@ Tipos: `feat`, `fix`, `style`, `refactor`, `docs`, `chore`, `db`.
 
 ---
 
+## 2026-11-26 · Paso 22 — Peso corporal opcional en el check-in diario
+
+- **feat:** el check-in tiene un campo **"Peso corporal (kg) · opcional"**: acepta coma decimal (`aNumero`), exige 20–400 kg si se llena y se puede dejar vacío sin impedir enviar el check-in. Un aviso aclara que el entrenador lo verá y que no reemplaza sus mediciones oficiales.
+- **feat:** el entrenador ve **"Peso (check-in)"** en *Check-ins recientes* de la ficha del atleta.
+- **db:** `migracion_18_peso_en_checkin.sql` — columna `daily_check_ins.peso_corporal_kg` (numeric(4,1), opcional, CHECK 20–400). Las políticas no cambian: el atleta solo crea su check-in una vez al día y no lo modifica ni borra; `metrics` sigue siendo solo del admin (el peso del check-in no se copia ahí). Probada con un Postgres real: límites 20 y 400 válidos, 19,9/400,1/0/negativos rechazados, redondeo a un decimal, el atleta no puede modificar ni borrar su check-in ni escribir en `metrics`. No elimina nada. **Aplicar primero el SQL y después subir el código.**
+- **docs:** `AGENTS.md` (invariante 2), `REQUERIMIENTOS.md`, `ARQUITECTURA.md` (decisión 27) y `supabase/sql/README.md` actualizados. Sin dependencias nuevas.
+
+**Commit sugerido:** `feat: permitir registrar el peso corporal de forma opcional en el check-in`
+
+---
+
 ## 2026-11-26 · Paso 21 — Cumplimiento de calorías con tres estados
 
 - **feat:** en el check-in, la pregunta pasa de Sí/No a **"¿Cómo fueron tus calorías de ayer?"** con tres opciones apiladas: *Cumplí las calorías*, *Consumí menos de las estipuladas* y *Consumí más de las estipuladas*. El entrenador las ve en **Check-ins recientes** de la ficha ("Calorías de ayer"); los check-ins viejos con "no" aparecen como "No cumplió (sin detalle)" porque no se sabe la dirección.

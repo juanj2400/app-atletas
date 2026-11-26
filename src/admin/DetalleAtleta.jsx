@@ -22,6 +22,7 @@ import CargasAtleta from './CargasAtleta'
 import RecordsAtleta from '../components/RecordsAtleta'
 import { fechaLocalISO, formatearFecha } from '../lib/fechas'
 import { textoAnimo, textoSiNo, textoCumplimientoCalorias } from '../lib/opciones'
+import { textoKg } from '../lib/records'
 
 const PESTANAS = [
   { id: 'resumen', texto: 'Resumen' },
@@ -51,7 +52,7 @@ export default function DetalleAtleta() {
         supabase.from('profiles').select('id, nombre_completo, email').eq('id', id).maybeSingle(),
         supabase
           .from('daily_check_ins')
-          .select('fecha, calorias_ayer_cumplidas, cumplimiento_calorias, horas_sueno, estado_animo, se_siente_recuperado')
+          .select('fecha, calorias_ayer_cumplidas, cumplimiento_calorias, horas_sueno, peso_corporal_kg, estado_animo, se_siente_recuperado')
           .eq('user_id', id)
           .order('fecha', { ascending: false }) // los más recientes primero
           .limit(14),                            // solo las últimas 2 semanas
@@ -139,6 +140,8 @@ export default function DetalleAtleta() {
                           <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
                             <dt className="text-suave">Sueño</dt>
                             <dd>{c.horas_sueno === null ? '—' : `${c.horas_sueno} h`}</dd>
+                            <dt className="text-suave">Peso (check-in)</dt>
+                            <dd>{c.peso_corporal_kg === null ? '—' : `${textoKg(c.peso_corporal_kg)} kg`}</dd>
                             <dt className="text-suave">Ánimo</dt>
                             <dd>{textoAnimo(c.estado_animo)}</dd>
                             <dt className="text-suave">Recuperado</dt>

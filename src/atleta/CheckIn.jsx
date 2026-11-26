@@ -16,6 +16,7 @@ import { useState } from 'react'
 import { Navigate, useOutletContext } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../auth/AuthProvider'
+import { aNumero } from '../lib/numeros'
 import { ANIMOS, CUMPLIMIENTO_CALORIAS } from '../lib/opciones'
 import Selector from '../components/Selector'
 
@@ -26,7 +27,7 @@ const SI_NO = [
 const OPCIONES_ANIMO = ANIMOS.map((a) => ({ valor: a.valor, etiqueta: `${a.emoji} ${a.etiqueta}` }))
 // caloriasAyer: 'cumplio' | 'menos' | 'mas' | null (sin responder)
 const OPCIONES_CALORIAS = CUMPLIMIENTO_CALORIAS.map((o) => ({ valor: o.valor, etiqueta: o.etiqueta }))
-const FORM_VACIO = { caloriasAyer: null, horas: '', animo: null, recuperado: null }
+const FORM_VACIO = { caloriasAyer: null, horas: '', peso: '', animo: null, recuperado: null }
 
 export default function CheckIn() {
   const { perfil } = useAuth()
@@ -59,6 +60,12 @@ export default function CheckIn() {
     }
     if (horas < 0 || horas > 24) return setError('Las horas de sueño deben estar entre 0 y 24.')
 
+    // Peso OPCIONAL: vacío = no lo anotó (null, no es un error); texto raro = NaN (sí es error).
+    // El mismo rango de las mediciones oficiales; la base de datos lo vuelve a exigir (migración 18).
+    const peso = aNumero(form.peso)
+    if (Number.isNaN(peso)) return setError('El peso debe ser un número, por ejemplo 82,4.')
+    if (peso !== null && (peso < 20 || peso > 400)) return setError('El peso debe estar entre 20 y 400 kg.')
+
     setGuardando(true)
     const { error: errorBD } = await supabase.from('daily_check_ins').insert({
       user_id: perfil.id,
@@ -66,6 +73,7 @@ export default function CheckIn() {
       // Solo se envía la columna nueva: un trigger de la base de datos mantiene al día el sí/no antiguo.
       cumplimiento_calorias: form.caloriasAyer,
       horas_sueno: horas,
+      peso_corporal_kg: peso === null ? null : Math.round(peso * 10) / 10, // 1 decimal, como la columna
       estado_animo: form.animo,
       se_siente_recuperado: form.recuperado,
     })
@@ -109,6 +117,24 @@ export default function CheckIn() {
           onChange={(e) => actualizar('horas', e.target.value)}
           className="mt-3 min-h-11 w-full rounded-xl border border-[#5B6372] bg-fondo px-3"
         />
+      </div>
+
+      <div className="rounded-2xl border border-borde bg-superficie p-4">
+        <label htmlFor="peso-checkin" className="font-semibold">
+          Peso corporal (kg) <span className="font-normal text-suave">· opcional</span>
+        </label>
+        <input
+          id="peso-checkin"
+          type="text"
+          inputMode="decimal"
+          placeholder="Ej: 82,4"
+          value={form.peso}
+          onChange={(e) => actualizar('peso', e.target.value)}
+          className="mt-3 min-h-11 w-full rounded-xl border border-[#5B6372] bg-fondo px-3"
+        />
+        <p className="mt-2 text-xs text-suave">
+          Tu entrenador lo verá en tu check-in. No reemplaza sus mediciones oficiales y no se puede cambiar después.
+        </p>
       </div>
 
       <fieldset className="rounded-2xl border border-borde bg-superficie p-4">

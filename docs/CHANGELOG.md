@@ -5,6 +5,17 @@ Tipos: `feat`, `fix`, `style`, `refactor`, `docs`, `chore`, `db`.
 
 ---
 
+## 2026-11-26 · Paso 19 — Oscilación del peso y evolución de peso/repeticiones por ejercicio
+
+- **feat:** nueva gráfica **"Oscilación del peso"** en *Mis datos › Medidas* (atleta) y en *Mediciones* de la ficha del atleta (entrenador): línea del peso con su promedio, barras con el cambio entre mediciones (subió/bajó) y mínimo, máximo y mayor salto.
+- **feat:** en **Récords** (atleta y entrenador, mismo componente `RecordsAtleta`), al desplegar un ejercicio aparece **"¿He mejorado con el tiempo?"**: frases y gráficas del **peso máximo** y de las **repeticiones** por entrenamiento. Funciona también en aislados (sin 1RM) y en ejercicios con peso corporal. Se calcula con las series que ya se cargaban: no hay consultas nuevas.
+- **refactor:** nuevo `LineaTemporal.jsx` compartido (línea valor-por-día con tooltip y referencia) usado por la oscilación y por los récords; `lib/oscilacionPeso.js` y nuevas funciones en `lib/records.js` (puras, probadas con datos de ejemplo en zona Bogotá y UTC). Todo con carga perezosa de Recharts y colores de `coloresGrafico.js`.
+- **docs:** `REQUERIMIENTOS.md` y `ARQUITECTURA.md` actualizados (decisión 25 y deuda). Sin cambios de base de datos y sin dependencias nuevas.
+
+**Commit sugerido:** `feat: agregar gráfica de oscilación del peso y evolución de peso y repeticiones por ejercicio`
+
+---
+
 ## 2026-11-26 · Paso 18 — Tendencia y proyección del peso al abrir Mis datos › Medidas
 
 - **feat:** lo primero que ve el atleta en *Medidas* es la gráfica **"Tendencia de tu peso"**: pesos reales (puntos), línea de tendencia continua y proyección punteada a 14 días, con una frase en lenguaje simple ("Tu peso baja unos 0,7 kg por semana") y leyenda propia legible en celular. Con menos de 3 pesos o menos de 7 días de diferencia muestra un aviso en lugar de la recta.

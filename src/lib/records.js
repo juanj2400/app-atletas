@@ -46,3 +46,59 @@ export function calcularProgreso1RM(series) {
   }
   return [...porDia.values()].sort((a, b) => a.fecha.localeCompare(b.fecha))
 }
+
+// ---------------------------------------------------------------------
+// Evolución del PESO y de las REPETICIONES de un ejercicio (¿he mejorado?)
+// ---------------------------------------------------------------------
+// UN punto por día de entrenamiento (en hora LOCAL, igual que calcularProgreso1RM):
+//   - peso: el mayor peso movido ese día.
+//   - reps: las repeticiones de la serie con ese peso (si hay varias con el mismo peso, la de más reps).
+// Se compara siempre al peso más alto del día para no mezclar series de calentamiento con las
+// de trabajo. A diferencia del 1RM, aquí SÍ entra el peso 0 (peso corporal): en dominadas o
+// fondos la mejora está en las repeticiones. Sirve también para los ejercicios aislados.
+// Devuelve los puntos de más antiguo a más reciente: [{ fecha, peso, reps }]
+export function calcularEvolucionPesoReps(series) {
+  const porDia = new Map()
+  for (const s of series) {
+    const peso = Number(s.peso_kg)
+    if (!Number.isFinite(peso) || peso < 0 || !(s.repeticiones > 0)) continue
+    const fecha = fechaLocalISO(new Date(s.realizado_en))
+    const actual = porDia.get(fecha)
+    if (!actual || peso > actual.peso || (peso === actual.peso && s.repeticiones > actual.reps)) {
+      porDia.set(fecha, { fecha, peso, reps: s.repeticiones })
+    }
+  }
+  return [...porDia.values()].sort((a, b) => a.fecha.localeCompare(b.fecha))
+}
+
+// Compara el primer y el último entrenamiento disponibles. Devuelve null con menos de 2 días.
+// { desde, hasta, conPeso, peso:{inicio, fin, delta}, reps:{inicio, fin, delta} }
+// conPeso = false si todo el historial es con peso corporal (0 kg): no tiene sentido hablar de kg.
+export function resumirMejoraEjercicio(puntos) {
+  if (puntos.length < 2) return null
+  const a = puntos[0]
+  const b = puntos[puntos.length - 1]
+  return {
+    desde: a.fecha,
+    hasta: b.fecha,
+    conPeso: puntos.some((p) => p.peso > 0),
+    peso: { inicio: a.peso, fin: b.peso, delta: Math.round((b.peso - a.peso) * 100) / 100 },
+    reps: { inicio: a.reps, fin: b.reps, delta: b.reps - a.reps },
+  }
+}
+
+// Frases para el atleta/entrenador. Ej.: "Peso máximo: subió de 60 a 70 kg (+10 kg)."
+export function textoMejoraPeso(r) {
+  if (!r || !r.conPeso) return null
+  const { inicio, fin, delta } = r.peso
+  if (delta === 0) return `Peso máximo: se mantiene en ${textoKg(fin)} kg.`
+  return `Peso máximo: ${delta > 0 ? 'subió' : 'bajó'} de ${textoKg(inicio)} a ${textoKg(fin)} kg (${delta > 0 ? '+' : ''}${textoKg(delta)} kg).`
+}
+
+export function textoMejoraReps(r) {
+  if (!r) return null
+  const { inicio, fin, delta } = r.reps
+  const cuando = r.conPeso ? 'con tu peso más alto' : 'por serie'
+  if (delta === 0) return `Repeticiones ${cuando}: se mantienen en ${fin}.`
+  return `Repeticiones ${cuando}: ${delta > 0 ? 'subieron' : 'bajaron'} de ${inicio} a ${fin} (${delta > 0 ? '+' : ''}${delta}).`
+}

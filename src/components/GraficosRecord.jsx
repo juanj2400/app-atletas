@@ -3,6 +3,9 @@
 //   1) Evolución del 1RM estimado a lo largo del tiempo (línea) — solo si el ejercicio
 //      aplica a 1RM (con1RM); los aislados no la muestran.
 //   2) Repeticiones máximas logradas con cada peso (barras).
+//   3) Peso máximo por entrenamiento y 4) repeticiones con ese peso, a lo largo del tiempo
+//      (props `evolucion`): responden "¿he mejorado en peso o en repeticiones?". Sirven también
+//      para los aislados, que no tienen 1RM, y para el peso corporal (0 kg), donde se mide en reps.
 // Recibe los datos ya preparados por props; no consulta nada.
 // =====================================================================
 import {
@@ -11,7 +14,10 @@ import {
 } from 'recharts'
 import { COLOR } from '../lib/coloresGrafico'
 import { formatearFecha, formatearFechaCorta } from '../lib/fechas'
-import { fechaCortaDeTimestamp, textoKg } from '../lib/records'
+import {
+  fechaCortaDeTimestamp, textoKg, resumirMejoraEjercicio, textoMejoraPeso, textoMejoraReps,
+} from '../lib/records'
+import LineaTemporal from './LineaTemporal'
 
 const TICK = { fill: COLOR.texto, fontSize: 12 }
 const CAJA = {
@@ -46,15 +52,43 @@ function TooltipBarras({ active, payload }) {
   )
 }
 
-export default function GraficosRecord({ progreso, marcas, con1RM = true }) {
+export default function GraficosRecord({ progreso, marcas, con1RM = true, evolucion = [] }) {
   // Las marcas llegan del peso mayor al menor; en el gráfico se leen de menor a mayor.
   const barras = [...marcas]
     .sort((a, b) => Number(a.peso_kg) - Number(b.peso_kg))
     .map((m) => ({ peso: Number(m.peso_kg), reps: m.reps_max, rpe: m.rpe, fecha: m.fecha_mejor }))
   const record = progreso.length ? Math.max(...progreso.map((p) => p.e1rm)) : null
+  const mejora = resumirMejoraEjercicio(evolucion)
+  const conPeso = evolucion.some((p) => p.peso > 0)
 
   return (
     <div className="flex flex-col gap-4">
+      <div>
+        <p className="mb-1 text-sm font-semibold">¿He mejorado con el tiempo?</p>
+        {!mejora ? (
+          <p className="text-sm text-suave">
+            Registra este ejercicio en al menos 2 entrenamientos distintos para ver si subes el peso o las repeticiones.
+          </p>
+        ) : (
+          <>
+            <ul className="mb-2 flex flex-col gap-1 text-sm">
+              {[textoMejoraPeso(mejora), textoMejoraReps(mejora)].filter(Boolean).map((t) => <li key={t}>{t}</li>)}
+            </ul>
+            {conPeso && (
+              <>
+                <p className="text-xs text-suave">Peso máximo de cada entrenamiento</p>
+                <LineaTemporal datos={evolucion} clave="peso" nombre="Peso máximo" unidad=" kg" margenY={2.5} extra={(p) => `${p.reps} ${p.reps === 1 ? 'repetición' : 'repeticiones'} con ese peso`} />
+              </>
+            )}
+            <p className="mt-2 text-xs text-suave">{conPeso ? 'Repeticiones con ese peso máximo' : 'Repeticiones de la mejor serie'}</p>
+            <LineaTemporal datos={evolucion} clave="reps" nombre="Repeticiones" entero margenY={1} color={COLOR.kcal} extra={conPeso ? (p) => `con ${textoKg(p.peso)} kg` : null} />
+            {conPeso && (
+              <p className="text-xs text-suave">Si subes el peso, es normal que las repeticiones bajen un poco: lo importante es que una de las dos mejore.</p>
+            )}
+          </>
+        )}
+      </div>
+
       {con1RM && (
       <div>
         <p className="mb-1 text-sm font-semibold">Evolución del 1RM estimado</p>

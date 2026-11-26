@@ -18,6 +18,7 @@ import { ESTADOS_CALORICOS } from '../lib/opciones'
 import { resumirMediciones, textoMedicion } from '../lib/mediciones'
 import ResumenMediciones from '../components/ResumenMediciones'
 import GraficoEvolucion from '../components/GraficoEvolucionLazy'
+import GraficoOscilacionPeso from '../components/GraficoOscilacionPesoLazy'
 
 const CAMPO = 'min-h-11 w-full rounded-xl border border-[#5B6372] bg-fondo px-3'
 
@@ -176,6 +177,7 @@ export default function Mediciones({ atletaId, versionPlan = 0 }) {
       <ResumenMediciones resumen={datos} objetivoKcal={planes.find((p) => p.vigente_hasta === null)?.calorias_objetivo ?? null} />
 
       <GraficoEvolucion mediciones={mediciones} planes={planes} />
+      <GraficoOscilacionPeso mediciones={mediciones} />
 
       <form
         ref={formRef}

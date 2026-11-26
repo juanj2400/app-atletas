@@ -13,6 +13,7 @@ import { resumirMediciones, textoMedicion } from '../lib/mediciones'
 import ResumenMediciones from '../components/ResumenMediciones'
 import GraficoEvolucion from '../components/GraficoEvolucionLazy'
 import GraficoTendenciaPeso from '../components/GraficoTendenciaPesoLazy'
+import GraficoOscilacionPeso from '../components/GraficoOscilacionPesoLazy'
 
 export default function MisMediciones() {
   const { perfil } = useAuth()
@@ -65,6 +66,7 @@ export default function MisMediciones() {
         <>
           {/* Lo primero que ve el atleta: hacia dónde va su peso (tendencia + proyección). */}
           <GraficoTendenciaPeso mediciones={mediciones} />
+          <GraficoOscilacionPeso mediciones={mediciones} />
           <p className="text-sm text-suave">
             Tu entrenador registra estas mediciones. Aquí puedes ver tu progreso.
           </p>

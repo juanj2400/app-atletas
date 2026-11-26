@@ -7,6 +7,7 @@
 //      los compuestos, de fuerza y de halterofilia: los AISLADOS no tienen 1RM.
 //   2) Una tarjeta por ejercicio (mejor serie y 1RM; en los aislados, el mayor peso sin
 //      1RM). Al desplegarla:
+//        - ¿he mejorado?: peso máximo y repeticiones por entrenamiento (todos los ejercicios),
 //        - gráfica de la evolución del 1RM (no en los aislados),
 //        - gráfica de repeticiones máximas con cada peso,
 //        - "última vez" y la lista de marcas por peso.
@@ -20,7 +21,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { calcularUltimaVez, textoSerie } from '../lib/rutinas'
 import {
-  calcularProgreso1RM, esRecordReciente, fechaCortaDeTimestamp, textoKg,
+  calcularProgreso1RM, calcularEvolucionPesoReps, esRecordReciente, fechaCortaDeTimestamp, textoKg,
 } from '../lib/records'
 import { formatearFechaCorta } from '../lib/fechas'
 import { BOTON_SEC, TARJETA } from '../lib/estilos'
@@ -65,6 +66,7 @@ function RankingRecords({ records }) {
 function DetalleEjercicio({ userId, exerciseId, aplica1RM }) {
   const [marcas, setMarcas] = useState([])
   const [progreso, setProgreso] = useState([])
+  const [evolucion, setEvolucion] = useState([]) // peso máximo y reps por entrenamiento
   const [ultimaVez, setUltimaVez] = useState(null)
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
@@ -87,6 +89,7 @@ function DetalleEjercicio({ userId, exerciseId, aplica1RM }) {
       else {
         setMarcas(m.data)
         setProgreso(aplica1RM ? calcularProgreso1RM(l.data) : []) // los aislados no tienen 1RM
+        setEvolucion(calcularEvolucionPesoReps(l.data))
         setUltimaVez(calcularUltimaVez(l.data)[exerciseId] ?? null)
       }
       setCargando(false)
@@ -99,7 +102,7 @@ function DetalleEjercicio({ userId, exerciseId, aplica1RM }) {
 
   return (
     <div className="mt-3 flex flex-col gap-4 rounded-xl border border-borde bg-hundido p-3">
-      <GraficosRecordLazy progreso={progreso} marcas={marcas} con1RM={aplica1RM} />
+      <GraficosRecordLazy progreso={progreso} marcas={marcas} con1RM={aplica1RM} evolucion={evolucion} />
 
       {ultimaVez && (
         <p className="text-sm">

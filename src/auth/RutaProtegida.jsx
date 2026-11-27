@@ -13,7 +13,7 @@
 // =====================================================================
 import { Navigate } from 'react-router-dom'
 import { useAuth } from './AuthProvider'
-import { Cargando, SinPerfil } from '../components/Estados'
+import { Cargando, SinPerfil, CuentaDesactivada } from '../components/Estados'
 
 export default function RutaProtegida({ rol, children }) {
   const { session, perfil, cargando } = useAuth()
@@ -21,6 +21,8 @@ export default function RutaProtegida({ rol, children }) {
   if (cargando) return <Cargando />
   if (!session) return <Navigate to="/login" replace />
   if (!perfil) return <SinPerfil />
+  // Atleta con el acceso desactivado por el entrenador (la barrera real es el bloqueo en Auth).
+  if (perfil.rol === 'client' && perfil.activo === false) return <CuentaDesactivada />
   // Rol equivocado: lo mandamos a "/", que lo redirige a SU zona.
   if (rol && perfil.rol !== rol) return <Navigate to="/" replace />
 

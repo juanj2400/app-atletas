@@ -49,8 +49,10 @@ Node >= 20.19 (requisito de Vite 8). Gestor: npm; `package-lock.json` versionado
 │  ├─ sql/                        scripts SQL (esquema y migraciones), se aplican a mano en el SQL Editor
 │  │   ├─ README.md               orden de aplicación y nombre de cada uno en el SQL Editor
 │  │   ├─ schema_supabase.sql
-│  │   └─ migracion_02 … migracion_09, migracion_11, migracion_12, migracion_13, migracion_14, migracion_15 … migracion_19 (la 10, de la IA, no está en el repo ni aplicada)
-│  └─ functions/generate-weekly-proposals/index.ts   Edge Function de IA (TypeScript/Deno)
+│  │   └─ migracion_02 … migracion_09, migracion_11, migracion_12, migracion_13, migracion_14, migracion_15 … migracion_20 (la 10, de la IA, no está en el repo ni aplicada)
+│  └─ functions/
+│      ├─ admin-usuarios/index.ts            Edge Function: crear atletas, cambiar contraseñas, activar/desactivar acceso (service_role, solo admin)
+│      └─ generate-weekly-proposals/index.ts Edge Function de IA (TypeScript/Deno)
 ├─ public/                        _redirects (Netlify SPA), favicon, íconos PWA
 ├─ index.html · vite.config.js · package.json · .env.example
 └─ src/
@@ -60,6 +62,8 @@ Node >= 20.19 (requisito de Vite 8). Gestor: npm; `package-lock.json` versionado
    ├─ lib/                        lógica pura y constantes
    │   ├─ supabase.js             cliente único de Supabase
    │   ├─ fechas.js               fechaLocalISO, formatearFecha, formatearFechaCorta, inicioSemanaISO (lunes local), inicioSemanaSiguienteISO
+   │   ├─ usuarios.js             validar nombre, correo y contraseña de un atleta, generar contraseña temporal aleatoria y texto de acceso para compartir (función pura)
+   │   ├─ adminUsuarios.js        llamada a la Edge Function admin-usuarios (devuelve {data} o {error} en español) y copiar al portapapeles
    │   ├─ useHoy.js               hook: fecha de hoy que cambia sola a medianoche
    │   ├─ numeros.js              aNumero (texto → número/null/NaN)
    │   ├─ opciones.js             ánimos, estados calóricos, estados de rutina + textos
@@ -84,7 +88,7 @@ Node >= 20.19 (requisito de Vite 8). Gestor: npm; `package-lock.json` versionado
    ├─ pages/                      Login.jsx, RecuperarContrasena.jsx, RestablecerContrasena.jsx, Inicio.jsx (redirige por rol)
    ├─ components/                 Encabezado, Estados, Selector, ResumenMediciones, GraficoEvolucion, GraficoEvolucionLazy, GraficoTendenciaPeso, GraficoTendenciaPesoLazy, GraficoOscilacionPeso, GraficoOscilacionPesoLazy, LineaTemporal, RecordsAtleta, GraficosRecord, GraficosRecordLazy, PlanNutricionalCard, CicloVigenteCard, AvisoActualizacion
    ├─ atleta/                     PantallaAtleta (marco), CheckIn, Entrenar, EntrenarDia, MisDatos (marco con secciones), MisMediciones, Records, Nutricion, CicloActual
-   └─ admin/                      ListaAtletas, CumpleanosAtletas, DetalleAtleta, FechaNacimientoAtleta, Mediciones, RutinasAtleta, CargasAtleta, EditorRutina,
+   └─ admin/                      ListaAtletas, CumpleanosAtletas, DetalleAtleta, FechaNacimientoAtleta, GestionUsuarios, FormNuevoAtleta, EditarAtleta, Mediciones, RutinasAtleta, CargasAtleta, EditorRutina,
                                   SelectorEjercicio, HistorialEntrenamiento, VolumenMuscular, PlanNutricional, CiclosAtleta, ListaNegraAtleta, FormEjercicio, Ejercicios
 ```
 
@@ -108,19 +112,20 @@ Node >= 20.19 (requisito de Vite 8). Gestor: npm; `package-lock.json` versionado
 | `/admin/atletas/:id` | admin | `DetalleAtleta` |
 | `/admin/rutinas/:rutinaId` | admin | `EditorRutina` |
 | `/admin/ejercicios` | admin | `Ejercicios` |
+| `/admin/usuarios` | admin | `GestionUsuarios` (crear atleta con `FormNuevoAtleta`; editar datos, acceso y contraseña con `EditarAtleta`) |
 | `*` | — | redirige a `/` |
 
 `PantallaAtleta` comparte con sus hijas, por el contexto del `<Outlet>`, `{ hoy, hecho, marcarHecho }` (estado del check-in de hoy).
 
 ## 5. Base de datos (Supabase / PostgreSQL)
 
-Scripts aplicados, en orden: `schema_supabase.sql` → `migracion_02_nutricion_dashboard.sql` → `03_metricas_admin` → `04_rutinas` → `05_checkin_una_vez` → `06_volumen_muscular` → `07_records_por_peso` → `08_plan_nutricional` → `09_ejercicios_video_seguro`. → `11_progresion` (progresión automática; ya aplicada en Supabase). La 10 (IA, en pausa) no está en el repo. → `12_series_y_rpe` (tope de series y `pide_rpe`; ya aplicada) → `13_cierre_ejercicio` (tabla `exercise_closures`; ya aplicada) → `14_dias_realizados` (tabla `routine_day_completions` y trigger `bloquear_dia_realizado`; ya aplicada) → `15_tipo_ejercicio_1rm` (columna `tipo_ejercicio` y vista `v_athlete_prs` actualizada; ya aplicada) → `16_rutina_hibrida` (columnas `modo_hibrido` y `bloque`, dos triggers y `duplicate_routine` actualizada; ya aplicada) → `17_cumplimiento_calorias` (columna `cumplimiento_calorias` y trigger `sincronizar_cumplimiento_calorias`; ya aplicada) → `18_peso_en_checkin` (columna `daily_check_ins.peso_corporal_kg`; ya aplicada) → `19_fecha_nacimiento` (columna `profiles.fecha_nacimiento`, trigger `validar_fecha_nacimiento` y RPC `set_fecha_nacimiento`; **SQL primero, luego el código**).
+Scripts aplicados, en orden: `schema_supabase.sql` → `migracion_02_nutricion_dashboard.sql` → `03_metricas_admin` → `04_rutinas` → `05_checkin_una_vez` → `06_volumen_muscular` → `07_records_por_peso` → `08_plan_nutricional` → `09_ejercicios_video_seguro`. → `11_progresion` (progresión automática; ya aplicada en Supabase). La 10 (IA, en pausa) no está en el repo. → `12_series_y_rpe` (tope de series y `pide_rpe`; ya aplicada) → `13_cierre_ejercicio` (tabla `exercise_closures`; ya aplicada) → `14_dias_realizados` (tabla `routine_day_completions` y trigger `bloquear_dia_realizado`; ya aplicada) → `15_tipo_ejercicio_1rm` (columna `tipo_ejercicio` y vista `v_athlete_prs` actualizada; ya aplicada) → `16_rutina_hibrida` (columnas `modo_hibrido` y `bloque`, dos triggers y `duplicate_routine` actualizada; ya aplicada) → `17_cumplimiento_calorias` (columna `cumplimiento_calorias` y trigger `sincronizar_cumplimiento_calorias`; ya aplicada) → `18_peso_en_checkin` (columna `daily_check_ins.peso_corporal_kg`; ya aplicada) → `19_fecha_nacimiento` (columna `profiles.fecha_nacimiento`, trigger `validar_fecha_nacimiento` y RPC `set_fecha_nacimiento`; ya aplicada) → `20_gestion_usuarios` (columna `profiles.activo` y RPC `set_perfil_atleta`; **SQL primero, luego el código**).
 
 ### 5.1 Tablas
 
 | Tabla | Propósito | Claves y restricciones destacadas |
 |---|---|---|
-| `profiles` | 1 fila por usuario (se crea con trigger desde `auth.users`) | `rol` ∈ {admin, client}; el cliente solo puede editar `nombre_completo`; `fecha_nacimiento` date opcional (migración 19: CHECK ≥ 1900, trigger contra fechas futuras; solo se escribe con la RPC `set_fecha_nacimiento`) |
+| `profiles` | 1 fila por usuario (se crea con trigger desde `auth.users`) | `rol` ∈ {admin, client}; el cliente solo puede editar `nombre_completo`; `fecha_nacimiento` date opcional (migración 19: CHECK ≥ 1900, trigger contra fechas futuras; solo se escribe con la RPC `set_fecha_nacimiento` o `set_perfil_atleta`); `activo` boolean (migración 20, por defecto true; el atleta no tiene permiso de escritura y solo la cambia la Edge Function `admin-usuarios`, que además bloquea el login en Auth) |
 | `exercises` | Biblioteca global | `nombre` único; `tipo_ejercicio` ∈ {compuesto, fuerza, halterofilia, aislado} (migración 15, por defecto `compuesto`; los aislados no tienen 1RM); `restringido` (lista negra global); `video_url` (solo http/https: CHECK de la migración 09), `descripcion` |
 | `muscle_groups` | Catálogo de 14 músculos | `codigo` PK, `orden` |
 | `exercise_muscles` | Músculos de cada ejercicio | PK (`exercise_id`,`muscle`); `factor` ∈ (0,1] (1 principal, 0,5 secundario) |
@@ -144,7 +149,7 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 
 | Tabla | Atleta | Admin |
 |---|---|---|
-| `profiles` | lee la suya; edita solo `nombre_completo` | lee todas; escribe `fecha_nacimiento` solo vía RPC |
+| `profiles` | lee la suya; edita solo `nombre_completo` | lee todas; escribe `nombre_completo` y `fecha_nacimiento` solo vía RPC (`set_perfil_atleta`, `set_fecha_nacimiento`); `activo` solo la Edge Function |
 | `exercises`, `muscle_groups`, `exercise_muscles` | lee | escribe |
 | `metrics` | **lee** las suyas | escribe |
 | `daily_check_ins` | lee las suyas; **inserta** la suya (fecha ± 1 día respecto a UTC); sin update/delete | todo |
@@ -158,7 +163,7 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 | `ai_nutrition_suggestions`, `athlete_exercise_blacklist` | sin acceso | todo |
 
 ### 5.3 Funciones, triggers y vistas
-- **Funciones:** `is_admin()` · `activate_routine(uuid)` · `duplicate_routine(uuid, uuid)` (desde la migración 11 también copia la configuración de progresión, pero no el peso inicial) · `set_progresion(...)` (RPC solo admin: valida y guarda la progresión de un ejercicio) · `set_fecha_nacimiento(uuid, date)` (RPC solo admin, `security definer`, `search_path=''`; null borra la fecha) · `set_exercise_muscles(uuid, jsonb)` · `set_nutrition_plan(...)` · `resolve_nutrition_suggestion(...)` (RPC solo admin, `security definer`, `search_path=''`).
+- **Funciones:** `is_admin()` · `activate_routine(uuid)` · `duplicate_routine(uuid, uuid)` (desde la migración 11 también copia la configuración de progresión, pero no el peso inicial) · `set_progresion(...)` (RPC solo admin: valida y guarda la progresión de un ejercicio) · `set_fecha_nacimiento(uuid, date)` (RPC solo admin, `security definer`, `search_path=''`; null borra la fecha) · `set_perfil_atleta(uuid, text, date)` (RPC solo admin, `security definer`, `search_path=''`; guarda nombre y fecha de nacimiento de un atleta, solo sobre `rol = 'client'`) · `set_exercise_muscles(uuid, jsonb)` · `set_nutrition_plan(...)` · `resolve_nutrition_suggestion(...)` (RPC solo admin, `security definer`, `search_path=''`).
 - **Triggers:** `handle_new_user` (crea el perfil) · `force_suggestion_pending` (toda propuesta nace `pendiente`) · `guard_suggestion_resolution` (resuelta = inmutable; sella fecha y autor) · `block_blacklisted_suggestion` (la IA no puede proponer ejercicios en lista negra) · `sincronizar_cumplimiento_calorias` (migración 17; `before insert or update` en `daily_check_ins`: el booleano antiguo refleja la columna nueva, y un "sí" de una app vieja completa `cumplimiento_calorias`) · `validar_fecha_nacimiento` (migración 19; `before insert or update` de `fecha_nacimiento` en `profiles`: rechaza fechas futuras) · `limitar_series_por_ejercicio` (migración 12; `before insert` en `routine_logs`: rechaza una serie si ya hay tantas como las prescritas para ese ejercicio en ese `sesion_id`; `security definer`, con candado para que dos inserciones simultáneas no se salten el tope).
 - **Vistas** (`security_invoker`): `v_athlete_overview`, `v_metrics_trend`, `v_athlete_prs`, `v_current_training_cycle`, `v_pending_ai_suggestions` y `v_best_reps_by_weight` (migración 07: mejor cantidad de repeticiones por peso). La app usa `v_athlete_prs` y `v_best_reps_by_weight` (récords); el resto está listo para los pasos 9–11. `v_athlete_prs` calcula el 1RM (Epley) sin límite de repeticiones.
 
@@ -181,6 +186,7 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 - **Progresión:** `EditorRutina` guarda primero los datos básicos del ejercicio y luego llama a la RPC `set_progresion` (tipo, escalera, incremento y peso inicial; la función revisa las reps ya guardadas). `EntrenarDia` ya trae las series del entrenamiento anterior (`calcularUltimaVez`) y se las pasa a `calcularMeta()` (función pura de `lib/progresion.js`), que devuelve la meta del día; `textoMeta()` la convierte en el texto de la tarjeta "Meta de hoy". No se guarda la meta: se recalcula siempre desde las series reales.
 - **Cumpleaños:** `ListaAtletas` pide `fecha_nacimiento` junto con nombre y correo (consulta que ya existía) y `CumpleanosAtletas` llama a `resumirCumpleanos(atletas, hoy)` (`lib/cumpleanos.js`) con la fecha local de `useHoy`. La fecha se anota en `FechaNacimientoAtleta` (ficha), que guarda con la RPC `set_fecha_nacimiento` y avisa a `DetalleAtleta` para refrescar el dato sin recargar.
 - **Lista negra:** `ListaNegraAtleta` escribe en `athlete_exercise_blacklist`; `EditorRutina` la lee para advertir; el trigger `block_blacklisted_suggestion` la usa contra la IA.
+- **Usuarios:** `GestionUsuarios` lista los perfiles `client` (con `activo`) y abre `FormNuevoAtleta` o `EditarAtleta`. Nombre y fecha se guardan con la RPC `set_perfil_atleta`. Crear atleta, activar/desactivar y cambiar contraseña pasan por `lib/adminUsuarios.js` → Edge Function `admin-usuarios` (`supabase.functions.invoke` envía la sesión del entrenador). La función verifica el JWT y `rol = 'admin'` con un cliente "como el usuario", y solo entonces crea el cliente `service_role`. Crear: `auth.admin.createUser` con `email_confirm: true` y el nombre en `user_metadata` (el trigger `handle_new_user` crea el perfil), después guarda la fecha y, si algo falla, borra el usuario recién creado. Estado: `ban_duration` en Auth (876000 h = bloqueado, `none` = libre) y luego `profiles.activo`. `RutaProtegida` muestra `CuentaDesactivada` si `perfil.activo === false`; `Login` traduce el error `user_banned`.
 - **IA (pendiente):** botón admin → Edge Function por lotes de 3 atletas → Gemini con esquema JSON → validación con límites (±10 % en kcal y cargas) → inserción como `pendiente` → el admin aprueba/edita/rechaza.
 
 ## 7. Diseño visual
@@ -246,6 +252,8 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 
 28. **Fecha de nacimiento solo del entrenador, por RPC, con cumpleaños en el cliente:** la columna vive en `profiles` y se escribe únicamente con `set_fecha_nacimiento` (comprueba `is_admin()`); no hay política de `update` nueva ni se amplía el `grant` por columnas, así el atleta no puede cambiarla. "No futura" va en un trigger (un CHECK con `current_date` no es estable) y "≥ 1900" en un CHECK. Los cumpleaños se calculan en el navegador con la fecha local (`lib/cumpleanos.js`; `Date.UTC` solo como aritmética de calendario), así Colombia no ve el cumpleaños un día corrido. No se creó vista ni consulta nueva: se reutiliza la lista de atletas (≤ 30 filas).
 
+29. **Gestión de usuarios por Edge Function, sin exponer `service_role`:** crear cuentas, cambiar contraseñas y bloquear el login son operaciones de la API de administración de Auth y exigen la clave `service_role`, así que viven solo en `supabase/functions/admin-usuarios` (Supabase la inyecta como variable de entorno; no hay secrets que crear ni nada en el frontend). La función es la barrera real: verifica JWT y rol admin antes de crear el cliente privilegiado, valida todo otra vez, solo actúa sobre perfiles `client` (nunca un admin ni uno mismo) y no registra contraseñas. **Desactivar** es doble: `ban_duration` en Auth (impide iniciar sesión y renovar) y `profiles.activo` (para mostrarlo y bloquear en pantalla); no existe función SQL para cambiar `activo` a propósito, así ambos no se descuadran, y la acción es repetible si una mitad falla. **El rol no se cambia desde la app:** un entrenador único no necesita más admins y evita que un error de clic otorgue control total. Nombre y fecha usan la RPC `set_perfil_atleta` (atómica), no la función. Se prefirió desactivar a eliminar para no perder historial (las tablas dependen de `profiles` con `on delete cascade`).
+
 ## 9. Configuración y despliegue
 
 **Variables de entorno (frontend, Netlify y `.env` local):** `VITE_SUPABASE_URL`, `VITE_SUPABASE_KEY` (clave pública). Ver `.env.example`.
@@ -253,14 +261,15 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 **Netlify:** *Build command* `npm run build` · *Publish directory* `dist` · variables anteriores · `public/_redirects` (`/* /index.html 200`).
 
 **Supabase (configuración manual):**
-- Authentication: desactivar el registro libre de usuarios; crear usuarios con *Add user* (Auto Confirm).
+- Authentication: **desactivar el registro libre de usuarios** (*Sign In / Providers* → "Allow new users to sign up" apagado; la Edge Function crea cuentas igual). Los atletas se crean desde la app (*Usuarios › Crear atleta*); *Add user* del panel sigue sirviendo.
 - URL Configuration: Site URL con la dirección de Netlify.
 - Primer admin: `update public.profiles set rol='admin' where email='…'`.
 - **Recuperar contraseña (obligatorio para que funcione con atletas):**
   - *Authentication > URL Configuration > Redirect URLs:* agregar `https://<tu-sitio>.netlify.app/restablecer` (y `http://localhost:5173/restablecer` para pruebas locales). Sin esto, Supabase manda el enlace a la raíz del sitio.
   - *Authentication > Emails > SMTP Settings:* configurar un SMTP propio (Brevo, Resend, etc.). El correo por defecto solo envía a miembros del equipo y con 2 mensajes por hora.
   - *Authentication > Sign In / Providers > Email:* subir "Minimum password length" a 8 (la app ya lo exige en pantalla; esta es la barrera real).
-- Edge Function (pendiente): secrets `GEMINI_API_KEY` y, opcional, `GEMINI_MODEL`.
+- **Edge Function `admin-usuarios` (obligatoria para crear usuarios y cambiar contraseñas/estado):** *Edge Functions > Deploy a new function > Via Editor*, nombre exacto `admin-usuarios`, pegar el contenido de `supabase/functions/admin-usuarios/index.ts` y *Deploy*. Dejar activada la opción *Verify JWT* (por defecto). No hay secrets que crear (`SUPABASE_URL`, `SUPABASE_ANON_KEY` y `SUPABASE_SERVICE_ROLE_KEY` los inyecta Supabase). Cada vez que cambie el archivo del repositorio hay que volver a desplegarla.
+- Edge Function de IA (pendiente): secrets `GEMINI_API_KEY` y, opcional, `GEMINI_MODEL`.
 
 **Flujo de cambios:** `git add .` → `git commit -m "tipo: descripción"` → `git push` → Netlify publica solo. Los cambios de base de datos se aplican **antes** en el SQL Editor.
 
@@ -287,6 +296,7 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 - Cumplimiento de calorías: los check-ins viejos con "no" se ven como "No cumplió (sin detalle)". El booleano `calorias_ayer_cumplidas` queda como legado (la Edge Function de la IA lo cuenta como sí/no; cuando se retome la IA conviene que use las tres categorías). Si el admin corrige un check-in desde Table Editor, debe cambiar `cumplimiento_calorias` (el booleano se recalcula solo).
 - Check-in obligatorio solo en pantalla: un atleta que llame a la API a mano (o con la app desactualizada) podría leer sus datos o registrar series sin check-in. Solo afecta a sus propios datos; si se quiere blindar, una migración con un trigger en `routine_logs` que exija el check-in del día. Si falla la consulta del check-in (sin conexión) se trata como pendiente y el atleta queda en el formulario hasta recuperar la conexión.
 - Cumpleaños: la ventana es fija (30 días, `DIAS_ADELANTE` en `lib/cumpleanos.js`); no hay aviso fuera de la app ni envío de felicitaciones. El atleta no ve su propia fecha en pantalla ni puede corregirla (la anota el entrenador). La validación de edad 5–100 solo está en el navegador; la base solo exige ≥ 1900 y no futura.
+- Usuarios: la función `admin-usuarios` se probó con Deno contra un Supabase simulado (no contra el real) y la migración 20 con un Postgres real; la función solo funciona tras desplegarla a mano en Supabase y no se redespliega sola con Netlify. Un token de sesión ya emitido sigue válido hasta ≤ 1 h tras desactivar (Auth lo bloquea al renovar); la pantalla lo corta al abrir la app. La Edge Function de la IA (en pausa) no mira `profiles.activo`: al retomarla debe omitir atletas desactivados. `Access-Control-Allow-Origin` es `*` (la protección real es el JWT + rol admin). No hay límite de intentos propio (solo lo que ponga Supabase). Sin lista paginada: pensada para ≤ 30 atletas.
 - Sin pruebas automáticas ni ESLint.
 - El eje X del gráfico de evolución (peso + calorías) trata las fechas como categorías; el de tendencia del peso ya usa escala de días.
 - La evolución de peso/repeticiones compara primer y último entrenamiento dentro de las 500 series más recientes del ejercicio; no suaviza días malos ni descuenta calentamientos por debajo del peso más alto del día. La oscilación usa las 30 mediciones más recientes.

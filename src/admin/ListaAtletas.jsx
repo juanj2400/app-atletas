@@ -18,7 +18,7 @@ export default function ListaAtletas() {
   useEffect(() => {
     supabase
       .from('profiles')
-      .select('id, nombre_completo, email, fecha_nacimiento')
+      .select('id, nombre_completo, email, fecha_nacimiento, activo')
       .eq('rol', 'client')
       .order('nombre_completo')
       .then(({ data, error }) => {
@@ -28,14 +28,22 @@ export default function ListaAtletas() {
       })
   }, [])
 
+  const activos = atletas.filter((a) => a.activo !== false)
+
   return (
     <>
       <Encabezado titulo="Atletas" />
       <main className="mx-auto max-w-3xl p-4">
-        <Link to="/admin/ejercicios" className="mb-4 flex min-h-11 items-center justify-center rounded-xl border border-borde bg-superficie px-4 text-sm font-semibold">
-          Biblioteca de ejercicios y músculos
-        </Link>
-        {!cargando && !error && atletas.length > 0 && <CumpleanosAtletas atletas={atletas} hoy={hoy} />}
+        <div className="mb-4 flex flex-col gap-2">
+          <Link to="/admin/usuarios" className="flex min-h-11 items-center justify-center rounded-xl border border-borde bg-superficie px-4 text-sm font-semibold">
+            Usuarios: crear y editar atletas
+          </Link>
+          <Link to="/admin/ejercicios" className="flex min-h-11 items-center justify-center rounded-xl border border-borde bg-superficie px-4 text-sm font-semibold">
+            Biblioteca de ejercicios y músculos
+          </Link>
+        </div>
+        {/* Los cumpleaños solo cuentan atletas con acceso activo. */}
+        {!cargando && !error && activos.length > 0 && <CumpleanosAtletas atletas={activos} hoy={hoy} />}
         {cargando && <p className="text-suave">Cargando atletas...</p>}
         {error && <p role="alert" className="text-alerta">{error}</p>}
         {!cargando && !error && atletas.length === 0 && (
@@ -53,6 +61,7 @@ export default function ListaAtletas() {
                 <div>
                   <p className="font-semibold">{a.nombre_completo || 'Sin nombre'}</p>
                   <p className="text-sm text-suave">{a.email}</p>
+                  {a.activo === false && <p className="text-sm text-alerta">Acceso desactivado</p>}
                 </div>
                 <span className="text-xl text-enlace" aria-hidden="true">›</span>
               </Link>

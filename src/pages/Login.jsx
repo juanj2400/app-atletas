@@ -14,6 +14,10 @@ function traducirError(error) {
   if (error.message?.includes('Invalid login credentials')) {
     return 'Correo o contraseña incorrectos.'
   }
+  // El entrenador desactivó el acceso (Auth bloquea el inicio de sesión).
+  if (error.code === 'user_banned' || error.message?.includes('banned')) {
+    return 'Tu acceso está desactivado. Habla con tu entrenador.'
+  }
   return 'No se pudo iniciar sesión. Inténtalo de nuevo.'
 }
 

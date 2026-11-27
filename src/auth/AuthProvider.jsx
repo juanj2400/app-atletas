@@ -62,7 +62,7 @@ export function AuthProvider({ children }) {
     setPerfilListo(false)
     supabase
       .from('profiles')
-      .select('id, rol, nombre_completo, email')
+      .select('id, rol, nombre_completo, email, activo')
       .eq('id', userId)
       .single()
       .then(({ data, error }) => {

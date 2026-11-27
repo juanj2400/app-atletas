@@ -9,6 +9,23 @@ export function Cargando() {
   )
 }
 
+// El entrenador desactivó el acceso de este atleta (profiles.activo = false).
+export function CuentaDesactivada() {
+  const { cerrarSesion } = useAuth()
+  return (
+    <div className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-4 p-6">
+      <h1 className="text-xl font-bold">Tu acceso está desactivado</h1>
+      <p className="text-suave">Habla con tu entrenador para volver a entrar.</p>
+      <button
+        onClick={cerrarSesion}
+        className="min-h-11 rounded-xl border border-borde bg-superficie px-4 font-semibold"
+      >
+        Cerrar sesión
+      </button>
+    </div>
+  )
+}
+
 // Caso raro: el usuario existe en Auth pero no tiene fila en "profiles"
 // (por ejemplo, si se creó antes de instalar el trigger). Lo explicamos.
 export function SinPerfil() {

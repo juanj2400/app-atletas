@@ -5,6 +5,19 @@ Tipos: `feat`, `fix`, `style`, `refactor`, `docs`, `chore`, `db`.
 
 ---
 
+## 2026-11-26 · Paso 24 — Gestión de usuarios desde la zona del entrenador
+
+- **feat:** nuevo apartado **Usuarios** (`/admin/usuarios`, botón en la lista de atletas). El entrenador **crea atletas** (nombre, correo, contraseña temporal —con generador aleatorio— y fecha de nacimiento opcional) y obtiene un botón *Copiar acceso* con el mensaje listo para WhatsApp. En cada atleta, *Editar* permite cambiar **nombre y fecha de nacimiento**, **desactivar o reactivar el acceso** (con confirmación; el atleta no puede iniciar sesión pero conserva sus datos) y **poner una contraseña nueva**.
+- **feat:** nueva **Edge Function `admin-usuarios`** (TypeScript/Deno): única que usa `service_role`. Verifica sesión y rol admin antes de actuar, valida todo otra vez, solo toca atletas (nunca un admin ni a uno mismo), deshace la creación si falla el guardado del perfil y no registra contraseñas. **Hay que desplegarla a mano en Supabase** (ver ARQUITECTURA, sección 9).
+- **feat:** un atleta desactivado ve "Tu acceso está desactivado" (`RutaProtegida`) y, al intentar entrar, el login lo explica (`user_banned`). La lista de atletas marca "Acceso desactivado" y los cumpleaños ya no cuentan a los desactivados.
+- **refactor:** `src/lib/usuarios.js` (funciones puras: validar nombre/correo/contraseña, generar contraseña, texto de acceso; probadas con datos de ejemplo) y `src/lib/adminUsuarios.js` (llamada a la función con errores en español y copiar al portapapeles).
+- **db:** `migracion_20_gestion_usuarios.sql` — columna `profiles.activo` (por defecto true) y RPC `set_perfil_atleta` (solo admin, `security definer`, `search_path=''`, solo sobre `client`). Sin políticas nuevas ni cambios al `grant`: el atleta sigue editando solo su nombre. Probada con un Postgres real (esquema y migraciones 2–19 previas): el admin guarda y quita la fecha; nombre corto/vacío/largo, fecha futura/1899, admin e id inexistente rechazados; el atleta no puede usar la RPC ni cambiar `activo`, `rol` ni la fecha; anon sin permiso; `service_role` sí cambia `activo`; el usuario nuevo nace `client` y activo. No elimina nada. **Aplicar primero el SQL, después desplegar la función y por último subir el código.**
+- **docs:** `AGENTS.md` (seguridad, invariantes 15 y 16), `REQUERIMIENTOS.md`, `ARQUITECTURA.md` (decisión 29, despliegue y deuda) y `supabase/sql/README.md` (marca la 19 como aplicada). Sin dependencias nuevas.
+
+**Commit sugerido:** `feat: gestionar usuarios desde la zona del entrenador (crear atletas, editar perfil, activar/desactivar acceso)`
+
+---
+
 ## 2026-11-26 · Paso 23 — Fecha de nacimiento y cumpleaños de los atletas
 
 - **feat:** el entrenador anota la **fecha de nacimiento** en la ficha del atleta ("Nacimiento: 3 nov 1996 · 30 años" con *Agregar/Editar* y *Quitar fecha*). Solo la escribe el entrenador; el atleta no la puede cambiar.

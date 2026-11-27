@@ -20,6 +20,7 @@ import ListaAtletas from './admin/ListaAtletas'
 import DetalleAtleta from './admin/DetalleAtleta'
 import EditorRutina from './admin/EditorRutina'
 import Ejercicios from './admin/Ejercicios'
+import GestionUsuarios from './admin/GestionUsuarios'
 
 export default function App() {
   const { recuperando } = useAuth()
@@ -71,6 +72,10 @@ export default function App() {
       <Route
         path="/admin/ejercicios"
         element={<RutaProtegida rol="admin"><Ejercicios /></RutaProtegida>}
+      />
+      <Route
+        path="/admin/usuarios"
+        element={<RutaProtegida rol="admin"><GestionUsuarios /></RutaProtegida>}
       />
       {/* Cualquier otra URL: de vuelta al inicio */}
       <Route path="*" element={<Navigate to="/" replace />} />

@@ -5,6 +5,17 @@ Tipos: `feat`, `fix`, `style`, `refactor`, `docs`, `chore`, `db`.
 
 ---
 
+## 2026-11-26 · Paso 27 — Panel general en la ficha del atleta
+
+- **feat:** al abrir la ficha de un atleta, la pestaña **Resumen** ahora es un **panel general**: un bloque **"Atención"** (sin check-in en 2+ días, sin rutina activa, 7+ días sin series, sin plan nutricional, sin medición en 14+ días) y **una tarjeta por apartado** (check-ins, rutina activa, semana, último entrenamiento, peso, plan nutricional, ciclo en curso, récords nuevos, volumen y lista negra). Cada tarjeta y cada aviso **lleva directo a su sección** (cambia de pestaña y baja hasta ella) para editarla.
+- **feat:** las pestañas *Entrenamiento* y *Cuerpo y nutrición* tienen una fila de accesos a sus secciones (con *‹ Panel* para volver) y la barra de pestañas queda fija arriba.
+- **refactor:** nuevo `PanelAtleta.jsx` y `src/lib/panelAtleta.js` (funciones puras, probadas con datos de ejemplo en zona Bogotá y UTC). `DetalleAtleta.jsx` envuelve cada sección en un contenedor con ancla y usa `irA(pestana, seccion)`. Las secciones existentes no cambian.
+- **docs:** `REQUERIMIENTOS.md` y `ARQUITECTURA.md` (decisión 31, flujo y deuda). Sin cambios de base de datos y sin dependencias nuevas.
+
+**Commit sugerido:** `feat: agregar panel general con avisos y accesos a cada sección en la ficha del atleta`
+
+---
+
 ## 2026-11-26 · Paso 26 — Rutina de larga duración con progresión continua y sin cortes
 
 - **feat:** una rutina activa puede mantenerse el tiempo que decida el entrenador, sin crear rutinas nuevas por ciclos cortos: la progresión (una repetición más dentro del rango o subir el peso al llegar al máximo, y fuerza simple) sigue sola con las marcas reales del atleta, y el historial se conserva aunque se edite la rutina o se cambie de rutina (se busca por ejercicio).

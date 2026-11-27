@@ -101,6 +101,8 @@ React 19 + Vite 8 · Tailwind CSS 4 (configuración en `src/index.css`) · PWA c
 
 16. **Gestión de usuarios:** `profiles.activo` (migración 20) la cambia **solo** la Edge Function `admin-usuarios` junto con el bloqueo en Auth (`ban_duration`); no añadas la columna al `grant update` ni crees una función SQL que la cambie por su cuenta (el estado y el bloqueo deben moverse juntos). Nombre y fecha de nacimiento del atleta los escribe el admin con la RPC `set_perfil_atleta`. La función solo actúa sobre perfiles `client` (nunca un admin ni quien llama). `RutaProtegida` bloquea en pantalla al atleta con `activo = false` y `Login` traduce `user_banned`. Si se retoma la IA, debe omitir atletas desactivados. Quien cambie la Edge Function debe volver a desplegarla a mano en Supabase.
 
+17. **Historial de progresión por ejercicio:** la "última vez" de cada ejercicio (meta de la progresión, `CargasAtleta`) se pide con la RPC `ultimas_series_por_ejercicio`, nunca con una consulta global limitada por filas: un tope compartido deja fuera los ejercicios que el atleta dejó de entrenar y rompe la continuidad de una rutina de larga duración. La rutina `activa` no caduca; la progresión depende de las series reales por `exercise_id`, no de la rutina.
+
 ## 8. Cómo verificar antes de entregar
 
 - `npm run build` debe terminar sin errores (con `VITE_SUPABASE_URL` y `VITE_SUPABASE_KEY` de prueba si no hay `.env`).

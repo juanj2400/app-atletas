@@ -331,9 +331,11 @@ export default function EntrenarDia() {
         supabase.from('routine_logs').select(columnas)
           .eq('user_id', perfil.id).in('routine_exercise_id', idsFilas)
           .gte('realizado_en', inicio).order('numero_serie'),
-        supabase.from('routine_logs').select(columnas)
-          .eq('user_id', perfil.id).in('exercise_id', idsEjercicios)
-          .lt('realizado_en', inicio).order('realizado_en', { ascending: false }).limit(150),
+        // Últimas series de CADA ejercicio por separado (migración 21): así la meta de la
+        // progresión no se pierde aunque pasen semanas sin entrenar un ejercicio.
+        supabase.rpc('ultimas_series_por_ejercicio', {
+          p_user_id: perfil.id, p_exercise_ids: idsEjercicios, p_antes: inicio,
+        }),
         // Ejercicios que el atleta finalizó hoy sin completar las series (con su nota)
         supabase.from('exercise_closures').select('id, routine_exercise_id, nota, series_hechas, series_objetivo')
           .eq('user_id', perfil.id).eq('fecha', fechaLocalISO()).in('routine_exercise_id', idsFilas),

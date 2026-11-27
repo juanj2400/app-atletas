@@ -5,6 +5,17 @@ Tipos: `feat`, `fix`, `style`, `refactor`, `docs`, `chore`, `db`.
 
 ---
 
+## 2026-11-26 · Paso 26 — Rutina de larga duración con progresión continua y sin cortes
+
+- **feat:** una rutina activa puede mantenerse el tiempo que decida el entrenador, sin crear rutinas nuevas por ciclos cortos: la progresión (una repetición más dentro del rango o subir el peso al llegar al máximo, y fuerza simple) sigue sola con las marcas reales del atleta, y el historial se conserva aunque se edite la rutina o se cambie de rutina (se busca por ejercicio).
+- **fix:** la "última vez" de cada ejercicio ya no se pierde con el tiempo. Antes se pedían las 150 (atleta) u 800 (entrenador) series más recientes de todos los ejercicios juntos; un ejercicio que el atleta dejaba de entrenar por semanas quedaba fuera y su meta volvía al inicio. Ahora se piden las últimas series **de cada ejercicio por separado** (`EntrenarDia` y `CargasAtleta`).
+- **db:** `migracion_21_ultima_vez_por_ejercicio.sql` — función `ultimas_series_por_ejercicio` (`security invoker`: respeta las políticas RLS, no abre permisos). Probada con un Postgres real (esquema y migraciones 2–20 previas, con un stub de Supabase Auth): con 300 series recientes de un ejercicio y 4 de otro de hace 40 días, el método anterior perdía el viejo y la función lo devuelve; el atleta no ve lo de otro atleta, el entrenador sí, `anon` sin permiso, `p_antes` y los topes de `p_max` correctos. No elimina nada. **Aplicar primero el SQL y después subir el código.**
+- **docs:** `AGENTS.md` (invariante 17), `REQUERIMIENTOS.md`, `ARQUITECTURA.md` (decisión 30) y `supabase/sql/README.md`. Sin dependencias nuevas.
+
+**Commit sugerido:** `fix: conservar el historial de progresión por ejercicio en rutinas de larga duración`
+
+---
+
 ## 2026-11-26 · Paso 25 — Ver en solo lectura lo hecho en un día ya realizado
 
 - **feat:** en *Entrenar*, el día marcado "Realizado ✓" ahora se puede **abrir para ver un resumen corto** de lo que hizo: por ejercicio, ✓ y sus series agrupadas ("2 × 8 con 60 kg · 1 × 6 con 60 kg"); si lo finalizó sin completar, "Finalizado 1 de 3" y su nota; en rutina híbrida, separado por bloques. Sin botones de guardar, borrar ni reabrir: sigue sin poder registrar nada hasta el lunes.

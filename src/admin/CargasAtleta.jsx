@@ -189,12 +189,9 @@ export default function CargasAtleta({ atletaId }) {
       const ids = [...new Set(res.data.routine_days.flatMap((d) => d.routine_exercises.map((e) => e.exercise_id)))]
       let logs = []
       if (ids.length > 0) {
-        const r = await supabase
-          .from('routine_logs')
-          .select('exercise_id, numero_serie, repeticiones, peso_kg, realizado_en')
-          .eq('user_id', atletaId).in('exercise_id', ids)
-          .order('realizado_en', { ascending: false })
-          .limit(800) // tope explícito: Supabase entrega máximo 1.000 filas por consulta
+        // Últimas series de cada ejercicio por separado (migración 21): un ejercicio sin
+        // entrenar por semanas no desaparece aunque haya muchas series de los demás.
+        const r = await supabase.rpc('ultimas_series_por_ejercicio', { p_user_id: atletaId, p_exercise_ids: ids })
         if (cancelado) return
         if (r.error) { setError('No se pudieron cargar las cargas del atleta.'); setCargando(false); return }
         logs = r.data

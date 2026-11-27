@@ -13,6 +13,10 @@ export function textoReps(fila) {
   return String(min ?? max ?? '—')
 }
 
+// Descansos rápidos del editor de rutinas (en segundos): 30 s, 1, 2 y 3 minutos.
+// El campo de segundos sigue editable (0–900) para cualquier otro valor.
+export const DESCANSOS_RAPIDOS = [30, 60, 120, 180]
+
 // 120 -> "2 min", 90 -> "90 s"
 export function textoDescanso(seg) {
   if (seg >= 60 && seg % 60 === 0) return `${seg / 60} min`

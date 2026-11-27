@@ -5,6 +5,16 @@ Tipos: `feat`, `fix`, `style`, `refactor`, `docs`, `chore`, `db`.
 
 ---
 
+## 2026-11-26 · Paso 28 — Descansos rápidos en el editor de rutinas
+
+- **feat:** en cada ejercicio del editor de rutinas (al agregarlo o al editarlo) hay cuatro botones de **descanso rápido**: 30 s, 1 min, 2 min y 3 min. Tocar uno rellena el campo de segundos; el botón queda marcado mientras el valor coincida. El campo de segundos sigue editable (0 a 900, mismas reglas y mensajes de antes) para cualquier otro valor.
+- **refactor:** `DESCANSOS_RAPIDOS` en `src/lib/rutinas.js`; los botones reutilizan `textoDescanso` para sus etiquetas. Sin cambios de base de datos, de validación ni dependencias nuevas.
+- **docs:** `REQUERIMIENTOS.md` y `ARQUITECTURA.md`.
+
+**Commit sugerido:** `feat: agregar descansos rápidos de 30 s, 1, 2 y 3 minutos en el editor de rutinas`
+
+---
+
 ## 2026-11-26 · Paso 27 — Panel general en la ficha del atleta
 
 - **feat:** al abrir la ficha de un atleta, la pestaña **Resumen** ahora es un **panel general**: un bloque **"Atención"** (sin check-in en 2+ días, sin rutina activa, 7+ días sin series, sin plan nutricional, sin medición en 14+ días) y **una tarjeta por apartado** (check-ins, rutina activa, semana, último entrenamiento, peso, plan nutricional, ciclo en curso, récords nuevos, volumen y lista negra). Cada tarjeta y cada aviso **lleva directo a su sección** (cambia de pestaña y baja hasta ella) para editarla.

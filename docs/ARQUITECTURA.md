@@ -1,6 +1,6 @@
 # ARQUITECTURA
 
-> Última actualización: 2026-11-26 (paso 27) · Mantener al día es obligatorio (ver `AGENTS.md`).
+> Última actualización: 2026-11-26 (paso 28) · Mantener al día es obligatorio (ver `AGENTS.md`).
 
 ## 1. Visión general
 
@@ -76,7 +76,7 @@ Node >= 20.19 (requisito de Vite 8). Gestor: npm; `package-lock.json` versionado
    │   ├─ mediciones.js           resumirMediciones, textoMedicion
    │   ├─ cierres.js              estado de cada ejercicio (completo/finalizado/pendiente), rutina del día completa, validar nota, unir cierres al historial, resumen de solo lectura de un día realizado (`resumenDiaRealizado`, `textoResumenSeries`)
 │   ├─ bloques.js              rutina híbrida: agrupar ejercicios por bloque (halterofilia primero), texto "2 de halterofilia + 5 de musculación" y cargas por disciplina
-│   ├─ rutinas.js              textos de prescripción/series, última vez, agrupar historial
+│   ├─ rutinas.js              textos de prescripción/series, descansos rápidos (`DESCANSOS_RAPIDOS`), última vez, agrupar historial
    │   ├─ volumen.js              calcularVolumen (series semanales por músculo)
    │   ├─ nutricion.js            macros↔kcal, objetivo de calorías por fecha, adherencia
    │   ├─ ciclos.js               semana del mesociclo, ciclo vigente, validación de fechas

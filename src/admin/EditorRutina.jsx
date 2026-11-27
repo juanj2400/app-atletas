@@ -20,6 +20,7 @@ import {
   alternarEsquema, tieneEsquema, normalizarEscalera, formatearKg,
 } from '../lib/progresion'
 import { CAMPO, BOTON, BOTON_SEC, TARJETA } from '../lib/estilos'
+import { DESCANSOS_RAPIDOS, textoDescanso } from '../lib/rutinas'
 
 const porOrden = (a, b) => a.orden - b.orden
 
@@ -166,6 +167,25 @@ function FilaEjercicio({ fila, listaNegra, aplicar, hibrido }) {
         </div>
         <div className="col-span-2">
           <label className={mini} htmlFor={`d-${fila.id}`}>Descanso (segundos)</label>
+          {/* Opciones rápidas: rellenan el campo de abajo, que sigue editable para otros valores (0–900 s). */}
+          <div role="group" aria-label="Descansos rápidos" className="mb-2 grid grid-cols-4 gap-2">
+            {DESCANSOS_RAPIDOS.map((seg) => {
+              const elegido = aNumero(f.descanso) === seg
+              return (
+                <button
+                  key={seg}
+                  type="button"
+                  aria-pressed={elegido}
+                  onClick={() => cambiar('descanso', String(seg))}
+                  className={`min-h-11 rounded-xl border px-1 text-sm font-semibold ${
+                    elegido ? 'border-primario bg-primario text-white' : 'border-borde text-suave'
+                  }`}
+                >
+                  {textoDescanso(seg)}
+                </button>
+              )
+            })}
+          </div>
           <input id={`d-${fila.id}`} inputMode="numeric" value={f.descanso} onChange={(e) => cambiar('descanso', e.target.value)} className={CAMPO} />
         </div>
       </div>

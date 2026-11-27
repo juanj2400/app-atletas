@@ -48,11 +48,15 @@ export default function App() {
         <Route index element={<CheckIn />} />
         <Route path="entrenar" element={<Entrenar />} />
         <Route path="entrenar/:diaId" element={<EntrenarDia />} />
-        {/* "datos" tiene sus propias hijas: Medidas (índice), Récords y Nutrición */}
+        {/* Nutrición es una sección principal (pestaña de la barra inferior). Al ser hija de
+            PantallaAtleta, también pasa por el portero del check-in. */}
+        <Route path="nutricion" element={<Nutricion />} />
+        {/* "datos" tiene sus propias hijas: Medidas (índice) y Récords */}
         <Route path="datos" element={<MisDatos />}>
           <Route index element={<MisMediciones />} />
           <Route path="records" element={<Records />} />
-          <Route path="nutricion" element={<Nutricion />} />
+          {/* Dirección antigua (cuando Nutrición era una sección de Mis datos): enlaces guardados */}
+          <Route path="nutricion" element={<Navigate to="/atleta/nutricion" replace />} />
         </Route>
       </Route>
 

@@ -1,8 +1,8 @@
 // =====================================================================
-// MisDatos — marco de la pestaña "Mis datos" con TRES secciones:
+// MisDatos — marco de la pestaña "Mis datos" con DOS secciones:
 //   - Medidas  (/atleta/datos)          peso, cintura, calorías y su gráfico.
 //   - Récords  (/atleta/datos/records)  mejores marcas y gráficas por ejercicio.
-//   - Nutrición (/atleta/datos/nutricion) plan de calorías y macros del entrenador.
+// (Nutrición ya no vive aquí: es una pestaña principal, /atleta/nutricion.)
 // Es otra ruta anidada: este marco se queda fijo y <Outlet /> cambia la sección.
 // Cada sección tiene su propia URL, así el botón "atrás" y recargar funcionan.
 // =====================================================================
@@ -11,7 +11,6 @@ import { NavLink, Outlet } from 'react-router-dom'
 const SECCIONES = [
   { a: '/atleta/datos', texto: 'Medidas', fin: true },   // fin: solo activa en la URL exacta
   { a: '/atleta/datos/records', texto: 'Récords', fin: false },
-  { a: '/atleta/datos/nutricion', texto: 'Nutrición', fin: false },
 ]
 
 export default function MisDatos() {
@@ -19,7 +18,7 @@ export default function MisDatos() {
     <div className="flex flex-col gap-4">
       <h2 className="text-xl font-bold">Mis datos</h2>
 
-      {/* Selector de sección: dos botones tipo "pestañas" */}
+      {/* Selector de sección: botones tipo "pestañas" */}
       <nav aria-label="Secciones de mis datos" className="flex gap-1 rounded-2xl border border-borde bg-superficie p-1">
         {SECCIONES.map((s) => (
           <NavLink

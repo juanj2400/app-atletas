@@ -9,13 +9,16 @@
 // de las otras pestañas) lleva directo a su sección: cambia de pestaña y baja hasta ella
 // (`irA`). La barra de pestañas queda fija arriba para volver al panel en cualquier momento.
 // (La pestaña activa es un simple estado local: al salir de la ficha vuelve a "Resumen".)
+// Si el editor de comidas tiene cambios sin guardar, `irA` pregunta antes de cambiar de
+// pestaña (al cambiar de pestaña esa sección se cierra y el borrador se perdería).
 // =====================================================================
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import Encabezado from '../components/Encabezado'
 import Mediciones from './Mediciones'
 import PlanNutricional from './PlanNutricional'
+import PlanComidas from './PlanComidas'
 import RutinasAtleta from './RutinasAtleta'
 import CiclosAtleta from './CiclosAtleta'
 import ListaNegraAtleta from './ListaNegraAtleta'
@@ -50,6 +53,7 @@ const INDICE = {
   ],
   cuerpo: [
     { id: 'seccion-plan', texto: 'Plan nutricional' },
+    { id: 'seccion-comidas', texto: 'Comidas' },
     { id: 'seccion-mediciones', texto: 'Mediciones' },
   ],
 }
@@ -79,6 +83,10 @@ export default function DetalleAtleta() {
   // Sección a la que hay que bajar tras cambiar de pestaña (objeto nuevo en cada salto)
   const [destino, setDestino] = useState(null)
   const [versionPlan, setVersionPlan] = useState(0) // sube cuando se cambia el plan, para refrescar el gráfico de Mediciones
+  // ¿El editor de comidas tiene cambios sin guardar? Es una referencia (no un estado) porque
+  // solo se consulta al cambiar de pestaña y no hace falta volver a dibujar la ficha.
+  const comidasSinGuardar = useRef(false)
+  const marcarComidasSinGuardar = useCallback((hay) => { comidasSinGuardar.current = hay }, [])
 
   // El efecto depende de [id]: si el id de la URL cambia, se vuelve a ejecutar.
   useEffect(() => {
@@ -113,6 +121,11 @@ export default function DetalleAtleta() {
   // la pestaña nueva se dibuje (los contenedores existen desde el primer momento, aunque sus
   // datos lleguen después).
   function irA(nuevaPestana, seccion = null) {
+    // Solo se pregunta si de verdad se sale de la pestaña (saltar entre secciones de la misma no la cierra).
+    if (
+      nuevaPestana !== pestana && comidasSinGuardar.current &&
+      !window.confirm('Tienes cambios sin guardar en las comidas del día. Si cambias de pestaña se perderán. ¿Salir de todos modos?')
+    ) return
     setPestana(nuevaPestana)
     setDestino(seccion ? { seccion } : null)
   }
@@ -222,6 +235,9 @@ export default function DetalleAtleta() {
                 <IndiceSecciones items={INDICE.cuerpo} onIr={irA} pestana="cuerpo" />
                 <div id="seccion-plan" className="scroll-mt-20">
                   <PlanNutricional atletaId={atleta.id} onCambio={() => setVersionPlan((v) => v + 1)} />
+                </div>
+                <div id="seccion-comidas" className="scroll-mt-20">
+                  <PlanComidas atletaId={atleta.id} onCambiosSinGuardar={marcarComidasSinGuardar} />
                 </div>
                 {/* Componente autónomo: solo necesita saber de qué atleta es. */}
                 <div id="seccion-mediciones" className="scroll-mt-20">

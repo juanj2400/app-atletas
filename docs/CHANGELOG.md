@@ -5,6 +5,20 @@ Tipos: `feat`, `fix`, `style`, `refactor`, `docs`, `chore`, `db`.
 
 ---
 
+## 2026-11-27 · Paso 31 — Nutrición como sección principal y comidas del día con cantidades exactas
+
+- **feat:** **Nutrición** pasa a ser una pestaña principal de la barra inferior del atleta (*Entrenar · Nutrición · Mis datos*) en `/atleta/nutricion`. Sigue protegida por el check-in diario (el portero está en `PantallaAtleta`). *Mis datos* queda con dos secciones (*Medidas* y *Récords*) y la dirección antigua `/atleta/datos/nutricion` redirige a la nueva, para no romper enlaces guardados.
+- **feat:** el atleta ve primero **"Tus comidas del día"**: una tarjeta por comida (desayuno, almuerzo, cena, snacks...) con sus alimentos y la cantidad exacta de cada uno (g, ml, unidades o porciones), nota opcional por alimento y por comida; cada tarjeta se puede plegar. Debajo siguen su objetivo diario y los últimos 7 días de calorías.
+- **feat:** el entrenador arma ese menú en la ficha del atleta (*Cuerpo y nutrición › Comidas*, con acceso rápido): agrega comidas con botones (+ Desayuno, + Almuerzo, + Cena, + Snack, + Otra), alimentos con cantidad y unidad, sube/baja el orden, quita, **guarda todo junto** o descarta. Hasta 10 comidas y 30 alimentos por comida. Avisa de cambios sin guardar (al cambiar de pestaña y al cerrar o recargar).
+- **db:** `migracion_23_comidas_del_dia.sql` — tablas `meals` y `meal_foods` (RLS: el atleta lee lo suyo, solo el admin escribe) y RPC `set_meal_plan` (solo admin; reemplaza el menú completo del atleta, todo o nada, con validación en español). El menú es del atleta, **no** del plan de calorías: cambiar kcal o macros no lo toca. Probada en un Postgres real con el esquema y las migraciones 2–22: permisos por rol, 18 validaciones, atomicidad (un fallo a mitad no cambia nada), orden, redondeo, cascada y clave compuesta. **Aplicar primero el SQL y después subir el código.**
+- **refactor:** `src/lib/comidas.js` (funciones puras: validar, armar, borrador, payload, textos de cantidad; 13 pruebas con datos de ejemplo en zona Bogotá y UTC), `src/lib/cargarComidas.js`, `src/components/ListaComidas.jsx`, `src/admin/PlanComidas.jsx`; cambian `App.jsx`, `PantallaAtleta.jsx`, `MisDatos.jsx`, `Nutricion.jsx` y `DetalleAtleta.jsx`. Sin dependencias nuevas.
+- **docs:** `AGENTS.md` (invariante 19), `REQUERIMIENTOS.md`, `ARQUITECTURA.md` (decisión 33, rutas, tablas, función, flujo y deuda) y `supabase/sql/README.md`.
+- **Alcance:** solo estructura **manual y visual**. No calcula calorías ni macros de las comidas, no hay catálogo de alimentos ni IA (queda para pasos siguientes).
+
+**Commit sugerido:** `feat: agregar sección Nutrición con comidas del día, alimentos y cantidades exactas`
+
+---
+
 ## 2026-11-26 · Paso 30 — Récords con buscador de ejercicio y 1RM según la fecha
 
 - **feat:** en *Récords* (atleta, en Mis datos, y entrenador, en la ficha) la lista de tarjetas con botón por ejercicio se reemplaza por un **buscador de ejercicio** (cuadro de búsqueda sin importar tildes ni mayúsculas y lista con la marca de cada uno). No se pide ni se dibuja ninguna gráfica hasta elegir un ejercicio; con un solo ejercicio se elige solo, y *Cambiar de ejercicio* vuelve al buscador. El ranking de 1RM de arriba no cambia.

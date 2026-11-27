@@ -50,8 +50,10 @@ export default function PantallaAtleta() {
   if (hecho === false && !enCheckIn) return <Navigate to="/atleta" replace />
 
   // Las pestañas solo existen con el check-in hecho: antes no hay a dónde ir.
+  // (El check-in no es una pestaña: es la puerta del día y desaparece al completarse.)
   const pestanas = [
     { a: '/atleta/entrenar', texto: 'Entrenar', fin: false },
+    { a: '/atleta/nutricion', texto: 'Nutrición', fin: false },
     { a: '/atleta/datos', texto: 'Mis datos', fin: false },
   ]
 
@@ -61,7 +63,7 @@ export default function PantallaAtleta() {
       <main className="mx-auto max-w-md p-4 pb-28">
         {hecho === false && (
           <p role="status" className="mb-4 rounded-2xl border border-borde bg-superficie p-4 text-sm text-suave">
-            Completa el check-in de hoy para entrar a tu entrenamiento y a tus datos.
+            Completa el check-in de hoy para entrar a tu entrenamiento, tu nutrición y tus datos.
           </p>
         )}
         {/* Mientras no sepamos si hay check-in (hecho === null) no se dibuja ninguna pantalla:

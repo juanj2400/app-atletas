@@ -23,6 +23,7 @@ Estos archivos son la **fuente de verdad del esquema** de Supabase. Se ejecutan 
 | 18 | `migracion_18_peso_en_checkin.sql` | `migracion_18_peso_en_checkin` (nombre sugerido) | Columna `daily_check_ins.peso_corporal_kg` (opcional, CHECK 20–400) | Aplicado |
 | 19 | `migracion_19_fecha_nacimiento.sql` | `migracion_19_fecha_nacimiento` (nombre sugerido) | Columna `profiles.fecha_nacimiento` (opcional, CHECK ≥ 1900), trigger `validar_fecha_nacimiento` (no futura) y RPC `set_fecha_nacimiento` (solo admin) | Aplicado |
 | 20 | `migracion_20_gestion_usuarios.sql` | `migracion_20_gestion_usuarios` (nombre sugerido) | Columna `profiles.activo` (estado del atleta) y RPC `set_perfil_atleta` (solo admin: nombre y fecha de nacimiento) | **Pendiente de aplicar** |
+| 22 | `migracion_22_historial_rutina.sql` | `migracion_22` | Tabla `routine_versions` (periodos de la rutina con foto de la prescripción), funciones `foto_rutina`, `congelar_version_rutina` y `resumen_periodo_rutina` y triggers que guardan la foto antes de ajustar una rutina con series registradas. No elimina nada | **Pendiente de aplicar** |
 | 21 | `migracion_21_ultima_vez_por_ejercicio.sql` | `migracion_21` | Función `ultimas_series_por_ejercicio`: las series más recientes de cada ejercicio por separado, para que la progresión no pierda el historial en rutinas de larga duración. No elimina nada | **Pendiente de aplicar** |
 | 17 | `migracion_17_cumplimiento_calorias.sql` | `migracion_17_cumplimiento_calorias` (nombre sugerido) | Columna `daily_check_ins.cumplimiento_calorias` (cumplio/menos/mas, con CHECK), copia de los "sí" antiguos y trigger que mantiene sincronizado el sí/no antiguo | Aplicado |
 | 16 | `migracion_16_rutina_hibrida.sql` | `migracion_16_rutina_hibrida` (nombre sugerido) | `routines.modo_hibrido`, `routine_exercises.bloque`, dos triggers y `duplicate_routine` actualizada | Aplicado |
@@ -45,6 +46,7 @@ No existe una "migración 01": el esquema inicial hace de base. La numeración s
 - La 19 requiere el esquema inicial (usa `profiles` e `is_admin()`).
 - La 20 requiere la 19 (usa `profiles.fecha_nacimiento` y su trigger). Además, la app nueva necesita desplegar la Edge Function `supabase/functions/admin-usuarios` (ver `docs/ARQUITECTURA.md`, sección 9).
 - La 21 requiere el esquema inicial (usa `routine_logs` y sus políticas RLS).
+- La 22 requiere la 04, la 11, la 12 y la 16 (la foto lee `routine_exercises` con `bloque`, `pide_rpe` y la progresión) y el esquema inicial (`is_admin()`).
 - La 17 y la 18 requieren el esquema inicial y la 05 (modifican `daily_check_ins`).
 - La 15 requiere el esquema inicial y la 02 (modifica `v_athlete_prs` y `exercises`).
 - La 13 y la 14 requieren el esquema inicial y la 04 (usan `routines`, `routine_days`, `routine_exercises`).
@@ -59,4 +61,4 @@ No existe una "migración 01": el esquema inicial hace de base. La numeración s
 
 ## Avisos esperables del SQL Editor
 
-Supabase muestra "Potential issue detected" cuando un script contiene `drop` o `delete`. Es normal en estos casos: la 02, la 03 y la 05 eliminan políticas o índices antiguos para reemplazarlos, y la 06 contiene un `delete` dentro de una función que solo se ejecuta cuando guardas los músculos de un ejercicio desde la app. Ninguna borra tablas ni datos de los usuarios. La 07, la 08, la 09, la 11, la 17, la 18, la 19, la 20 y la 21 no eliminan nada (vistas, funciones, columnas y reglas de validación nuevas), así que no deberían mostrar el aviso.
+Supabase muestra "Potential issue detected" cuando un script contiene `drop` o `delete`. Es normal en estos casos: la 02, la 03 y la 05 eliminan políticas o índices antiguos para reemplazarlos, y la 06 contiene un `delete` dentro de una función que solo se ejecuta cuando guardas los músculos de un ejercicio desde la app. Ninguna borra tablas ni datos de los usuarios. La 07, la 08, la 09, la 11, la 17, la 18, la 19, la 20, la 21 y la 22 no eliminan nada (vistas, funciones, columnas y reglas de validación nuevas), así que no deberían mostrar el aviso.

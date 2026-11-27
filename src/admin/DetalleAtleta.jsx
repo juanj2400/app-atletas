@@ -21,6 +21,7 @@ import CiclosAtleta from './CiclosAtleta'
 import ListaNegraAtleta from './ListaNegraAtleta'
 import VolumenMuscular from './VolumenMuscular'
 import HistorialEntrenamiento from './HistorialEntrenamiento'
+import HistorialRutina from './HistorialRutina'
 import CargasAtleta from './CargasAtleta'
 import FechaNacimientoAtleta from './FechaNacimientoAtleta'
 import RecordsAtleta from '../components/RecordsAtleta'
@@ -44,6 +45,7 @@ const INDICE = {
     { id: 'seccion-volumen', texto: 'Volumen' },
     { id: 'seccion-listanegra', texto: 'Lista negra' },
     { id: 'seccion-records', texto: 'Récords' },
+    { id: 'seccion-periodos', texto: 'Periodos' },
     { id: 'seccion-historial', texto: 'Historial' },
   ],
   cuerpo: [
@@ -210,6 +212,7 @@ export default function DetalleAtleta() {
                   <h3 className="text-lg font-bold">Récords personales</h3>
                   <RecordsAtleta userId={atleta.id} />
                 </section>
+                <div id="seccion-periodos" className="scroll-mt-20"><HistorialRutina atletaId={atleta.id} /></div>
                 <div id="seccion-historial" className="scroll-mt-20"><HistorialEntrenamiento atletaId={atleta.id} /></div>
               </>
             )}

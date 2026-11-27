@@ -5,6 +5,18 @@ Tipos: `feat`, `fix`, `style`, `refactor`, `docs`, `chore`, `db`.
 
 ---
 
+## 2026-11-26 · Paso 29 — Historial de periodos de la rutina
+
+- **feat:** el entrenador puede ajustar una rutina activa (cambiar o reemplazar un ejercicio, series, repeticiones, RPE, descanso, progresión, modo híbrido) sin perder cómo estaba prescrita cuando el atleta la entrenó. Antes de cada ajuste, si el atleta registró series desde la última foto, se guarda un **periodo**: foto de la rutina tal como estaba y rango real de sus series (primera a última). Sin series nuevas no se crea nada. Las series del atleta no se tocan.
+- **feat:** nueva sección **Periodos de la rutina** en la ficha del atleta (*Entrenamiento*): la rutina actual comparada con el último periodo y, por periodo, qué cambió respecto al anterior, la prescripción de ese momento y lo que hizo el atleta en cada ejercicio (series, días, mejor serie). Solo lectura.
+- **db:** `migracion_22_historial_rutina.sql` — tabla `routine_versions` (RLS: solo el admin lee; nadie escribe desde la app), funciones `foto_rutina`, `congelar_version_rutina` y `resumen_periodo_rutina` y triggers `before` en `routine_exercises`, `routine_days` y `routines`. Probada con un Postgres real (esquema y migraciones 2–21 previas): editar sin series no crea periodo; con series, la foto conserva la prescripción anterior y el rango real; ajustes repetidos sin series nuevas no duplican; quitar o reemplazar un ejercicio, activar/desactivar el modo híbrido (y el reinicio de bloques), borrar un día o la rutina conservan su periodo (con `routine_id` en null); el atleta no ve ni escribe periodos, el admin ve pero no escribe; `duplicate_routine` sigue funcionando. No elimina nada. **Aplicar primero el SQL y después subir el código.**
+- **refactor:** `src/lib/versionesRutina.js` (funciones puras `compararFotos`, `periodoAnterior`, `textoRangoPeriodo`, `textoActividad`, probadas con datos de ejemplo en zona Bogotá y UTC) y `src/admin/HistorialRutina.jsx`; `DetalleAtleta.jsx` añade la sección y su acceso rápido.
+- **docs:** `AGENTS.md` (invariante 18), `REQUERIMIENTOS.md`, `ARQUITECTURA.md` (decisión 32, flujo, tablas, funciones y deuda) y `supabase/sql/README.md`. Sin dependencias nuevas.
+
+**Commit sugerido:** `feat: guardar periodos de la rutina con foto de la prescripción y consultarlos en la ficha del atleta`
+
+---
+
 ## 2026-11-26 · Paso 28 — Descansos rápidos en el editor de rutinas
 
 - **feat:** en cada ejercicio del editor de rutinas (al agregarlo o al editarlo) hay cuatro botones de **descanso rápido**: 30 s, 1 min, 2 min y 3 min. Tocar uno rellena el campo de segundos; el botón queda marcado mientras el valor coincida. El campo de segundos sigue editable (0 a 900, mismas reglas y mensajes de antes) para cualquier otro valor.

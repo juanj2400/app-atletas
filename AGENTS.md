@@ -103,6 +103,8 @@ React 19 + Vite 8 · Tailwind CSS 4 (configuración en `src/index.css`) · PWA c
 
 17. **Historial de progresión por ejercicio:** la "última vez" de cada ejercicio (meta de la progresión, `CargasAtleta`) se pide con la RPC `ultimas_series_por_ejercicio`, nunca con una consulta global limitada por filas: un tope compartido deja fuera los ejercicios que el atleta dejó de entrenar y rompe la continuidad de una rutina de larga duración. La rutina `activa` no caduca; la progresión depende de las series reales por `exercise_id`, no de la rutina.
 
+18. **Periodos de la rutina (migración 22):** antes de cualquier cambio en `routine_exercises`, `routine_days` o `routines` (modo híbrido o borrado), los triggers llaman a `congelar_version_rutina`, que guarda en `routine_versions` una foto (`foto_rutina`) y el rango real de series (`desde`/`hasta`) **solo si hay series nuevas del atleta desde la última foto**. La tabla la lee solo el admin y no tiene permisos de escritura desde la app: no añadas políticas ni `grant` de escritura, ni insertes periodos desde React. `routine_id` pasa a null si se borra la rutina (el historial se conserva). Quien añada columnas a `routine_exercises` debe incluirlas también en `foto_rutina` (y en `compararFotos`, `src/lib/versionesRutina.js`). Las series (`routine_logs`) nunca se reescriben ni se reasignan.
+
 ## 8. Cómo verificar antes de entregar
 
 - `npm run build` debe terminar sin errores (con `VITE_SUPABASE_URL` y `VITE_SUPABASE_KEY` de prueba si no hay `.env`).

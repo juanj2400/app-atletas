@@ -1,128 +1,72 @@
-# AGENTS.md — Reglas obligatorias para cualquier IA que trabaje en este repositorio
+# AGENTS.md — Reglas obligatorias para IAs en MyProgress
 
-Este archivo es de lectura obligatoria **antes de tocar código**. Si una instrucción puntual del dueño contradice algo de aquí, avisa del conflicto antes de actuar.
+Lectura obligatoria antes de tocar código. Si una instrucción del dueño contradice este archivo, avisa del conflicto antes de actuar.
+Orden de lectura inicial: `docs/ARQUITECTURA.md` → `docs/REQUERIMIENTOS.md` → `docs/CHANGELOG.md`.
 
-## 0. Qué es este proyecto
+## 1. Contexto del dueño y comunicación
+- Está aprendiendo a programar. Todo en **español** (interfaz, comentarios, docs, errores). Trato de "tú".
+- Al terminar un cambio explica de forma simple y cotidiana: (1) qué cambió, (2) cómo funciona ahora, (3) cómo se hizo. Sin tecnicismos innecesarios salvo que se pida.
+- No inventes datos faltantes: usa un valor razonable, dilo y explica cómo cambiarlo.
+- Indica siempre **qué probaste y qué no** (nunca afirmes haber verificado algo sin hacerlo).
+- No enseñes a instalar programas; sí indica configuración de herramientas y flujo Git → GitHub → Netlify.
 
-Aplicación web privada (PWA) llamada **MyProgress** para que un entrenador de fuerza (rol `admin`) gestione a 15–30 atletas (rol `client`): rutinas, registro de series, mediciones corporales y calóricas, check-in diario, y —más adelante— propuestas de una IA que el entrenador siempre aprueba.
+## 2. Stack fijo (no cambiar sin autorización)
+React 19 + Vite 8 · Tailwind CSS 4 (`src/index.css` con `@theme`) · PWA (`vite-plugin-pwa` v2.x, `registerType: 'prompt'`) · React Router 7 · Supabase (Postgres, Auth, RLS, Edge Functions) · Recharts (solo carga perezosa) · Netlify · IA (en pausa): Gemini 3.8 Flash solo desde Edge Function.
+- Frontend en **JavaScript** (Edge Functions en TypeScript/Deno).
+- Sin dependencias nuevas sin justificar, pedir permiso y documentar en `docs/ARQUITECTURA.md`.
+- Node >= 20.19; mantener `package-lock.json`.
 
-**Antes de empezar cualquier tarea lee, en este orden:**
-1. `docs/ARQUITECTURA.md` (stack, estructura, diseño visual, decisiones).
-2. `docs/REQUERIMIENTOS.md` (qué está hecho y qué falta).
-3. `docs/CHANGELOG.md` (últimos cambios).
+## 3. Convenciones y patrones obligatorios
+- **Nombres:** componentes `PascalCase` en español (`ListaAtletas.jsx`); utilidades `src/lib/` en `camelCase` (`fechas.js`); hooks `useNombre.js`; tablas SQL en inglés plural `snake_case` (`routine_logs`); columnas en español `snake_case` (`peso_corporal_kg`), salvo FKs `*_id` y `created_at`.
+- **Estructura:** `src/atleta/`, `src/admin/`, `src/auth/`, `src/pages/`, `src/components/`, `src/lib/` (lógica pura y reutilizable, DRY).
+- **Datos y estado:** `useEffect` con bandera `cancelado` y limpieza; manejar estados **cargando, error y vacío**. Tras `update`/`delete` encadenar `.select('id')` para detectar bloqueos silenciosos de RLS. Nunca mutar estado (`[...lista].sort(...)`).
+- **Límite de filas:** Supabase devuelve máx. 1.000 filas; para históricos grandes usa vistas o RPC que resuman en SQL, o `limit` explícito.
+- **Formularios y entradas:** controlados; `<button type="button">` si no envía formulario; números del usuario con `aNumero()` (`src/lib/numeros.js`).
+- **Fechas:** usar siempre `fechaLocalISO()`, `formatearFecha()`, `formatearFechaCorta()` e `inicioSemanaISO()` (`src/lib/fechas.js`). Prohibido `new Date().toISOString().slice(0,10)` o `new Date("YYYY-MM-DD")` por desfase UTC (Colombia UTC-5).
+- **Validación, errores y A11y:** validar en navegador **y** BD (`CHECK`, `UNIQUE`, RLS). Errores en español sin detalles técnicos (salvo mensajes RPC en español). `<label htmlFor>`, `role="alert"`, `role="status"`, `aria-pressed`.
 
-## 1. Contexto del dueño (importante para cómo respondes)
-
-- El dueño **está aprendiendo a programar** con este proyecto. No es desarrollador profesional.
-- Idioma de todo: **español** (interfaz, comentarios, documentación, mensajes de error al usuario). Trato de "tú".
-- Al terminar un cambio, explica **de forma simple**: (1) qué cambiaste, (2) cómo funcionará la app/el flujo con ese cambio, (3) cómo lo hiciste, en lenguaje cotidiano. Sin tecnicismos innecesarios ni detalles línea por línea, salvo que lo pida.
-- Si pides un dato que el usuario no ha dado, no inventes: usa un valor razonable, dilo y deja claro cómo cambiarlo.
-- Dile siempre **qué probaste y qué no** (por ejemplo: "compila y la lógica está probada, pero no se probó contra Supabase"). No afirmes haber verificado algo que no verificaste.
-- No le enseñes a instalar programas. Sí indícale qué configuración necesita cada herramienta y cómo se suben los cambios (git → GitHub → Netlify).
-
-## 2. Stack (no cambiar sin autorización explícita)
-
-React 19 + Vite 8 · Tailwind CSS 4 (configuración en `src/index.css`) · PWA con `vite-plugin-pwa` · React Router 7 · Supabase (Postgres, Auth, RLS, Edge Functions) · Recharts (solo gráficos, con carga perezosa) · Netlify (despliegue desde GitHub) · IA: Gemini 3.8 Flash (`gemini-3.8-flash`) vía Google AI Studio, **solo desde una Edge Function**.
-
-- Frontend en **JavaScript** (no TypeScript). La Edge Function es TypeScript porque Supabase lo exige.
-- No agregues dependencias nuevas sin justificarlas, pedir autorización y documentarlas en `docs/ARQUITECTURA.md`.
-- Node >= 20.19. Respeta `package-lock.json` (se sube a GitHub).
-
-## 3. Convenciones de código
-
-**Nombres**
-- Componentes y pantallas: `PascalCase` en español, un componente por archivo (`ListaAtletas.jsx`). Pueden existir subcomponentes internos no exportados en el mismo archivo si solo se usan ahí.
-- Utilidades en `src/lib/`: `camelCase` (`fechas.js`). Los hooks propios empiezan por `use` (`useHoy.js`).
-- Tablas SQL: inglés, plural, `snake_case` (`routine_logs`). Columnas: español `snake_case` (`peso_corporal_kg`, `fecha`), salvo llaves foráneas `*_id` y `created_at`.
-
-**Organización**
-- `src/atleta/` pantallas del atleta · `src/admin/` pantallas del entrenador · `src/auth/` sesión y rutas protegidas · `src/pages/` pantallas comunes · `src/components/` piezas reutilizables (casi todas de presentación; `RecordsAtleta` carga sus propios datos porque lo usan las dos zonas) · `src/lib/` funciones puras, constantes y conexión a Supabase.
-- La lógica reutilizable o calculable va en `src/lib/` como **función pura** (recibe datos, devuelve resultado), no dentro de componentes. Si algo se usa en dos sitios, se extrae (DRY).
-
-**Patrones obligatorios**
-- Carga de datos: `useEffect` con bandera `cancelado` y limpieza; recarga con un contador `version`. Siempre se manejan los tres estados: **cargando, error y vacío**.
-- **Límite de filas:** Supabase devuelve como máximo 1.000 filas por consulta. Para históricos que crecen (series, mediciones) usa vistas o funciones RPC que resuman en la base de datos, o `limit` explícito; no traigas todo para calcular en el cliente.
-- Después de un `update`/`delete` por Supabase, encadena `.select('id')` y comprueba que volvió al menos una fila: RLS no da error cuando bloquea, solo afecta 0 filas.
-- Estado de React: **nunca se muta**. Copia antes de ordenar (`[...lista].sort(...)`) y actualiza con `setX((anterior) => ({ ...anterior, campo }))`.
-- Formularios controlados. Todo `<button>` dentro de un `<form>` que no deba enviarlo lleva `type="button"`.
-- Números escritos por el usuario: usar `aNumero()` (`src/lib/numeros.js`); acepta coma decimal y distingue vacío (`null`) de inválido (`NaN`).
-- Fechas: usar **siempre** `fechaLocalISO()`, `formatearFecha()` y `formatearFechaCorta()` (`src/lib/fechas.js`). Para la semana de entrenamiento usa `inicioSemanaISO()`. **Prohibido** `new Date().toISOString().slice(0,10)` para fechas de negocio ni `new Date("YYYY-MM-DD")` (desfase UTC en Colombia).
-- Validar en el navegador **y** en la base de datos (`CHECK`, `UNIQUE`, RLS). La validación del navegador es comodidad; la de la base de datos es la barrera real.
-- Mensajes de error para el usuario: en español, sin detalles técnicos. No mostrar `error.message` crudo salvo el de funciones RPC que lanzan mensajes ya redactados en español.
-- Accesibilidad mínima: `<label htmlFor>` en cada campo, `role="alert"` para errores y `role="status"` para avisos, `aria-pressed` en botones de selección.
-- Comentarios: en español, explican **el porqué**, no lo obvio. Mantén los existentes salvo que dejen de ser ciertos.
-
-## 4. Estilo visual (resumen; detalle en `docs/ARQUITECTURA.md`)
-
-- App **solo oscura** (`color-scheme: dark`). No se implementa modo claro sin autorización.
-- Colores **solo** mediante los tokens de `@theme` en `src/index.css`: `fondo`, `superficie`, `hundido`, `borde`, `texto`, `suave`, `primario`, `enlace`, `alerta` (clases `bg-superficie`, `text-suave`, etc.). No escribas colores hexadecimales nuevos en componentes. Excepciones ya existentes (deuda técnica): `border-[#5B6372]` en campos y los colores de los gráficos en `src/lib/coloresGrafico.js`.
-- Mobile-first. Controles táctiles **mínimo 44 px** (`min-h-11`); barra inferior del atleta `min-h-14`. Zona del atleta `max-w-md`; zona del admin `max-w-3xl`.
-- Reutiliza `src/lib/estilos.js` (`CAMPO`, `BOTON`, `BOTON_SEC`, `TARJETA`) y los componentes existentes antes de crear estilos nuevos. Tarjetas: `rounded-2xl border border-borde bg-superficie p-4`.
-- Tipografía: la del sistema (pila por defecto de Tailwind). No se cargan fuentes externas.
-- Sin emojis salvo los del estado de ánimo del check-in (😞 😐 😄).
-- Los gráficos con Recharts se cargan con carga perezosa (`GraficoEvolucionLazy`, `GraficosRecordLazy`); no importes Recharts en el paquete principal. Los colores de gráficos se toman de `src/lib/coloresGrafico.js`.
+## 4. Estilo visual
+- Solo modo oscuro (`color-scheme: dark`). Usar tokens de `@theme` (`fondo`, `superficie`, `hundido`, `borde`, `texto`, `suave`, `primario`, `enlace`, `alerta`) y estilos de `src/lib/estilos.js` (`CAMPO`, `BOTON`, `BOTON_SEC`, `TARJETA`). No agregar hex nuevos (deuda existente: `border-[#5B6372]` y `src/lib/coloresGrafico.js`).
+- Mobile-first: controles táctiles `min-h-11`, barra inferior `min-h-14`, atleta `max-w-md`, admin `max-w-3xl`. Sin fuentes externas ni emojis (salvo ánimo del check-in: 😞 😐 😄).
 
 ## 5. Seguridad (no negociable)
-
-- **Nunca** pongas en el frontend ni en el repositorio: la clave `service_role`/secret de Supabase, `GEMINI_API_KEY` ni ningún secreto. En React solo existen `VITE_SUPABASE_URL` y `VITE_SUPABASE_KEY` (clave **pública**). `.env` nunca se sube a GitHub.
-- **Crear cuentas, cambiar contraseñas y bloquear el acceso solo se hace en la Edge Function `admin-usuarios`**, que verifica el JWT y `rol = 'admin'` antes de usar `service_role`. Jamás desde React ni con la clave secreta fuera de esa función. El rol `admin` no se asigna desde la app (solo a mano en el SQL Editor).
-- **Ocultar un botón no es seguridad.** Toda regla de permisos debe existir como política RLS en Supabase. `RutaProtegida` solo mejora la experiencia.
-- Toda tabla nueva en `public` debe tener `enable row level security` y políticas explícitas en el mismo script.
-- **La IA nunca cambia datos del atleta por su cuenta.** Solo inserta propuestas con estado `pendiente` en los buzones; el entrenador las aprueba (rutinas, nutrición y cargas). Se aplican únicamente por funciones RPC que verifican `is_admin()`.
-- Todo enlace externo que se guarde (por ejemplo `video_url`) se valida como `http://` o `https://` **en la interfaz y con un CHECK en la base de datos**. Nunca renderices un `href` con un valor sin validar.
-- A Gemini **no** se envían nombres, correos ni IDs de usuario: solo cifras. (La capa gratuita de Google puede usar el contenido para mejorar sus productos.)
-- Las funciones SQL `security definer` deben fijar `set search_path = ''` y comprobar `public.is_admin()` si son de administración.
+- Nunca exponer `service_role`, `GEMINI_API_KEY` ni `.env` en frontend o repo (solo `VITE_SUPABASE_URL` y `VITE_SUPABASE_KEY`).
+- Crear cuentas, cambiar contraseñas y bloquear acceso solo vía Edge Function `admin-usuarios` (verifica JWT + `rol = 'admin'`). Rol `admin` no se asigna desde la app.
+- Toda tabla nueva en `public` lleva `enable row level security` y políticas explícitas.
+- Enlaces externos (`video_url`) validados como `http://` o `https://` en UI y `CHECK` SQL.
+- Funciones `security definer` deben fijar `set search_path = ''` y verificar `public.is_admin()` si son de administración.
+- La IA nunca modifica datos directos: inserta en buzones como `pendiente` sin enviar identificadores personales a Gemini.
 
 ## 6. Base de datos y migraciones
+- Fuente de verdad: `supabase/sql/` (`schema_supabase.sql` y `migracion_NN_*.sql`), ejecutados a mano en SQL Editor.
+- **Nunca edites una migración aplicada.** Crea `migracion_NN_descripcion.sql` con comentarios en español y avisa si tiene sentencias destructivas (`drop`, `delete`). Indica siempre el orden (normalmente **primero SQL, luego código**).
 
-- La fuente de verdad del esquema son los scripts de `supabase/sql/` (`schema_supabase.sql` y `migracion_NN_*.sql`), que se ejecutan a mano en el SQL Editor de Supabase.
-- **Nunca edites una migración ya aplicada.** Todo cambio nuevo es un archivo nuevo: `migracion_NN_descripcion.sql` (siguiente número libre).
-- Cada migración lleva comentarios en español que explican qué hace y por qué, y avisa cuando contiene sentencias destructivas (`drop`, `delete`): el SQL Editor muestra una advertencia y el dueño necesita saber que es esperable.
-- Valida la sintaxis antes de entregar. Indica en qué orden aplicar migración y código (normalmente: **primero SQL, luego código**).
-- Si un cambio de código depende de una migración, dilo de forma explícita al entregarlo.
+## 7. Invariantes del sistema (NO romper)
+1. **Auth (`AuthProvider.jsx`):** `onAuthStateChange` solo guarda sesión; el perfil se carga en `useEffect` aparte. Con `PASSWORD_RECOVERY` activa `recuperando` y `App.jsx` fuerza `/restablecer` hasta cambiar contraseña.
+2. **Permisos:** `metrics` solo escribe admin (atleta solo lee). `daily_check_ins.peso_corporal_kg` nunca se copia a `metrics`. `daily_check_ins`: atleta solo `insert` (1/día). `routines`: atleta solo ve `activa`. `nutrition_plans`: atleta solo lee. `routine_logs`: atleta crea/lee/borra solo las suyas.
+3. **Unicidades:** `metrics(user_id, fecha)`, `daily_check_ins(user_id, fecha)`, 1 rutina `activa` por atleta, 1 plan nutricional vigente (`vigente_hasta is null`), `exercise_muscles(exercise_id, muscle)`.
+4. **Check-in diario obligatorio:** día local (`useHoy`). Mientras esté pendiente, `PantallaAtleta` redirige toda ruta de `/atleta/*` a `/atleta` y oculta la barra inferior; no renderiza hijas hasta verificar el check-in.
+5. **Operaciones críticas por RPC:** `activate_routine`, `duplicate_routine`, `set_exercise_muscles`, `set_progresion`, `set_nutrition_plan`, `resolve_nutrition_suggestion`, `set_fecha_nacimiento`, `set_perfil_atleta`, `set_meal_plan`.
+6. **PWA:** SW no cachea Supabase; mantener `public/_redirects` y `registerType: 'prompt'` + `AvisoActualizacion`.
+7. **Dependencias:** no ejecutar `npm audit fix --force` ni bajar `vite-plugin-pwa` a 1.x.
+8. **Ciclos:** calcular ciclo vigente en cliente con fecha local (`lib/ciclos.js`), no usar `v_current_training_cycle` (UTC).
+9. **Series y RPE:** tope de series en UI y trigger `limitar_series_por_ejercicio`. RPE solo se muestra/exige si `routine_exercises.pide_rpe = true`.
+10. **Cierre de ejercicio (`exercise_closures`):** nota 3–500 chars con `series_hechas < series_objetivo` (1 por ejercicio/día local; atleta crea/borra en rutina activa). Lógica de estado en `src/lib/cierres.js`.
+11. **Días realizados (`routine_day_completions`):** 1 por día de rutina y semana lunes–domingo local (`inicioSemanaISO`). Bloqueado hasta el lunes en UI (`ResumenDiaRealizado` solo lectura) y trigger `bloquear_dia_realizado` (America/Bogota). Solo admin puede borrarlo para reabrir.
+12. **1RM:** `v_athlete_prs` devuelve `e1rm_kg = null` y `aplica_1rm = false` para ejercicios `aislado`. No mostrar/estimar 1RM en aislados.
+13. **Rutina híbrida:** `routines.modo_hibrido` habilita `bloque` (`halterofilia` | `musculacion`) en `routine_exercises` (triggers de migración 16). `EntrenarDia` agrupa con `src/lib/bloques.js` (halterofilia primero). `CargasAtleta` separa ambas disciplinas. Actualizar `duplicate_routine` si se agregan columnas a `routine_exercises`.
+14. **Fecha de nacimiento:** `profiles.fecha_nacimiento` solo editable por admin vía RPC (`set_fecha_nacimiento` / `set_perfil_atleta`). Cumpleaños calculados en cliente (`src/lib/cumpleanos.js`).
+15. **Usuarios:** `profiles.activo` solo lo cambia la Edge Function `admin-usuarios` junto con `ban_duration` en Auth. `RutaProtegida` bloquea en UI si `activo === false`.
+16. **Progresión por ejercicio:** pedir "última vez" con RPC `ultimas_series_por_ejercicio` (por ejercicio), nunca con un límite global de filas.
+17. **Periodos de rutina (`routine_versions`):** triggers `before` en `routine_exercises`/`routine_days`/`routines` llaman a `congelar_version_rutina` para guardar foto (`foto_rutina`) solo si hay series nuevas desde la última foto. Solo lectura admin. Si agregas columnas a `routine_exercises`, inclúyelas en `foto_rutina` y `compararFotos` (`src/lib/versionesRutina.js`).
+18. **Comidas del día (`meals`, `meal_foods`):** menú del atleta independiente de `nutrition_plans`. Se reemplaza completo vía RPC `set_meal_plan(p_user_id, p_comidas jsonb)` (cantidad como número JSON, unidades `g`/`ml`/`unidad`/`porcion`). Topes (10 comidas, 30 alimentos, cant. ≤ 10.000, 2 decimales) sincronizados entre `lib/comidas.js` y SQL. Ruta principal atleta: `/atleta/nutricion` (`/atleta/datos/nutricion` redirige).
 
-## 7. Qué NO romper (invariantes del sistema)
-
-1. **Sesión y rol** (`src/auth/AuthProvider.jsx`): el listener `onAuthStateChange` solo guarda la sesión; el perfil se consulta en un `useEffect` aparte. No hacer consultas a Supabase dentro del listener (con `PASSWORD_RECOVERY` solo se cambia el estado `recuperando`; `App.jsx` lleva a `/restablecer` y no se sale de ahí hasta cambiar la contraseña).
-2. **Permisos por rol:** `metrics` solo la escribe el admin (el atleta solo lee). El peso que el atleta anota en el check-in (`daily_check_ins.peso_corporal_kg`) es un dato declarado y aparte: nunca se copia a `metrics` ni la reemplaza, y no se puede cambiar después (el check-in solo se crea). `daily_check_ins`: el atleta solo **crea** (una vez por día), nunca modifica ni borra. `routines`: el atleta solo ve la **activa**. `nutrition_plans`: el atleta solo lo lee; solo el admin lo cambia. El atleta puede escribir y borrar solo sus propias series (`routine_logs`).
-3. **Unicidades:** `metrics (user_id, fecha)`, `daily_check_ins (user_id, fecha)`, una sola rutina `activa` por atleta (índice parcial), un solo plan nutricional vigente por atleta (índice parcial), `exercise_muscles (exercise_id, muscle)`.
-4. **Cambio de día a medianoche local** del dispositivo (`useHoy`, `fechaLocalISO`). El check-in desaparece al completarse y reaparece solo el día siguiente. **Es obligatorio:** mientras esté pendiente, `PantallaAtleta` redirige a `/atleta` (check-in) cualquier otra ruta de la zona del atleta y oculta la barra inferior; no dibuja ninguna pantalla hija hasta saber si el check-in de hoy existe. Es una regla de pantalla (la base de datos no la impone). Quien añada rutas o enlaces en la zona del atleta no debe saltarse este portero.
-5. **Activar y copiar rutinas** se hace por RPC (`activate_routine`, `duplicate_routine`), no con varios `update` sueltos. Igual los músculos de un ejercicio (`set_exercise_muscles`), la progresión de un ejercicio (`set_progresion`), el plan nutricional manual (`set_nutrition_plan`) y la resolución de propuestas nutricionales (`resolve_nutrition_suggestion`).
-6. **PWA:** el service worker solo guarda archivos de la app, **no** respuestas de Supabase. Mantén `public/_redirects` (sin él, recargar `/admin` da 404 en Netlify). Mantén `registerType: 'prompt'` con `AvisoActualizacion`: el atleta decide cuándo actualizar.
-7. **No ejecutes** `npm audit fix --force` ni bajes `vite-plugin-pwa` a 1.x (no es compatible con Vite 8). Los 4 avisos de `npm audit` son de herramientas de construcción y no afectan a la app publicada.
-8. Los scripts SQL y la Edge Function ya entregados se consideran aplicados salvo que `docs/` diga lo contrario.
-9. **Ciclos:** el ciclo en curso se calcula en el cliente con la fecha local (`lib/ciclos.js`); no uses la vista `v_current_training_cycle` (trabaja con la fecha UTC).
-10. **Registro de series:** el atleta no puede guardar más series de las prescritas por ejercicio (la pantalla oculta el formulario y el trigger `limitar_series_por_ejercicio` lo impone en la base de datos). El RPE solo se pide si `routine_exercises.pide_rpe` es true; si es false el campo no se muestra y se guarda `rpe = null`. Quien cambie una de las dos capas debe revisar la otra.
-11. **Cierre de ejercicio con nota:** el atleta puede finalizar un ejercicio sin completar las series solo con una nota de motivo (3–500 caracteres), guardada en `exercise_closures` (una por ejercicio y día local; solo crea o borra las suyas, sobre su rutina activa; no las modifica). La rutina del día se considera completada cuando ningún ejercicio queda pendiente (lógica pura en `src/lib/cierres.js`). El entrenador ve los cierres en el historial del atleta. Quien cambie la pantalla debe revisar las políticas y los CHECK de la migración 13.
-12. **Días realizados por semana:** al pulsar *Terminar rutina* se guarda una fila en `routine_day_completions` (una por día de rutina y semana; la semana va de **lunes a domingo en fecha local**, con `inicioSemanaISO()` de `src/lib/fechas.js`). Un día realizado aparece marcado en *Entrenar* y `EntrenarDia` no deja registrar series hasta el lunes (solo muestra un resumen de lectura, `ResumenDiaRealizado`: sin botones de editar, borrar ni reabrir); el trigger `bloquear_dia_realizado` lo impone en la base de datos (usa la hora de `America/Bogota`). El atleta solo crea el registro, nunca lo borra ni lo modifica; el admin sí (para reabrir un día). Quien cambie la pantalla debe revisar el trigger y la migración 14.
-13. **1RM solo para ejercicios no aislados:** cada ejercicio tiene `exercises.tipo_ejercicio` (compuesto, fuerza, halterofilia o aislado; lo elige el entrenador en la biblioteca). La vista `v_athlete_prs` devuelve `e1rm_kg = null` y `aplica_1rm = false` para los aislados (su "mejor serie" es el mayor peso), y la app no muestra ni estima 1RM para ellos (ranking, tarjeta ni gráfica de evolución). Los aislados conservan sus mejores repeticiones por peso (`v_best_reps_by_weight` no cambia). Si añades otro sitio que calcule 1RM, respeta `aplica_1rm`.
-14. **Rutina híbrida:** `routines.modo_hibrido` (lo activa el entrenador en el editor) permite que cada ejercicio (`routine_exercises.bloque`) sea de `halterofilia` o de `musculacion`. El bloque de halterofilia solo existe con el modo activo (trigger `bloquear_bloque_sin_hibrido`); al desactivarlo todo vuelve a musculación (trigger `reiniciar_bloques_sin_hibrido`). `EntrenarDia` agrupa y etiqueta los ejercicios con `src/lib/bloques.js` (halterofilia primero); sin modo híbrido todo se ve como siempre. `duplicate_routine` debe copiar `modo_hibrido` y `bloque`: quien añada columnas a `routine_exercises` debe actualizarla otra vez. En la ficha del atleta, `CargasAtleta` gestiona las cargas (progresión, incremento, peso inicial) con halterofilia y musculación en listas separadas; usa siempre la RPC `set_progresion`.
-15. **Fecha de nacimiento:** `profiles.fecha_nacimiento` (opcional) la escribe **solo el admin** con la RPC `set_fecha_nacimiento` o `set_perfil_atleta` (el atleta solo tiene permiso de edición sobre `nombre_completo`; no añadas la columna al `grant update`). La base rechaza fechas futuras (trigger) y anteriores a 1900 (CHECK). Los cumpleaños se calculan en el cliente con la fecha local (`src/lib/cumpleanos.js`), nunca con la fecha UTC.
-
-16. **Gestión de usuarios:** `profiles.activo` (migración 20) la cambia **solo** la Edge Function `admin-usuarios` junto con el bloqueo en Auth (`ban_duration`); no añadas la columna al `grant update` ni crees una función SQL que la cambie por su cuenta (el estado y el bloqueo deben moverse juntos). Nombre y fecha de nacimiento del atleta los escribe el admin con la RPC `set_perfil_atleta`. La función solo actúa sobre perfiles `client` (nunca un admin ni quien llama). `RutaProtegida` bloquea en pantalla al atleta con `activo = false` y `Login` traduce `user_banned`. Si se retoma la IA, debe omitir atletas desactivados. Quien cambie la Edge Function debe volver a desplegarla a mano en Supabase.
-
-17. **Historial de progresión por ejercicio:** la "última vez" de cada ejercicio (meta de la progresión, `CargasAtleta`) se pide con la RPC `ultimas_series_por_ejercicio`, nunca con una consulta global limitada por filas: un tope compartido deja fuera los ejercicios que el atleta dejó de entrenar y rompe la continuidad de una rutina de larga duración. La rutina `activa` no caduca; la progresión depende de las series reales por `exercise_id`, no de la rutina.
-
-18. **Periodos de la rutina (migración 22):** antes de cualquier cambio en `routine_exercises`, `routine_days` o `routines` (modo híbrido o borrado), los triggers llaman a `congelar_version_rutina`, que guarda en `routine_versions` una foto (`foto_rutina`) y el rango real de series (`desde`/`hasta`) **solo si hay series nuevas del atleta desde la última foto**. La tabla la lee solo el admin y no tiene permisos de escritura desde la app: no añadas políticas ni `grant` de escritura, ni insertes periodos desde React. `routine_id` pasa a null si se borra la rutina (el historial se conserva). Quien añada columnas a `routine_exercises` debe incluirlas también en `foto_rutina` (y en `compararFotos`, `src/lib/versionesRutina.js`). Las series (`routine_logs`) nunca se reescriben ni se reasignan.
-
-19. **Comidas del día (migración 23):** el menú del atleta vive en `meals` y `meal_foods` y es **independiente** del plan de calorías (`nutrition_plans`): cambiar el plan no toca las comidas. Se escribe solo con la RPC `set_meal_plan(p_user_id, p_comidas jsonb)`, que reemplaza todo el menú del atleta de una vez (todo o nada); nunca con `insert`/`update` sueltos desde React. La cantidad viaja como **número** JSON (no texto) y la unidad es `g`, `ml`, `unidad` o `porcion`. El atleta solo lee (RLS); `meal_foods` guarda `user_id` y su clave compuesta `(meal_id, user_id)` impide que un alimento apunte a la comida de otro atleta. Los topes (10 comidas, 30 alimentos, 10.000 de cantidad, 2 decimales) están en `lib/comidas.js` **y** en la base de datos: si cambias uno, cámbialos en ambos. La pestaña **Nutrición** del atleta es `/atleta/nutricion` (hija de `PantallaAtleta`, así pasa por el portero del check-in); `/atleta/datos/nutricion` solo redirige.
-
-## 8. Cómo verificar antes de entregar
-
-- `npm run build` debe terminar sin errores (con `VITE_SUPABASE_URL` y `VITE_SUPABASE_KEY` de prueba si no hay `.env`).
-- La lógica nueva en `src/lib/` se prueba con datos de ejemplo cuando sea posible.
-- No existe batería de pruebas automáticas ni ESLint todavía: no los des por hechos.
-- Entrega al dueño una lista corta de **pasos para probar** el cambio en la app.
-
-## 9. Control de versiones
-
-- Un cambio coherente = un commit. Mensajes en **Conventional Commits**, en español: `feat:`, `fix:`, `style:`, `refactor:`, `docs:`, `chore:`, `db:` (migraciones SQL).
-- Ejemplo: `feat: registrar series de entrenamiento del atleta`.
-- Nunca subas `.env`, `node_modules`, `dist` ni claves.
+## 8. Verificación y Git
+- Ejecutar `npm run build` sin errores. Probar lógica pura en `src/lib/` con ejemplos y entregar pasos cortos de prueba al dueño.
+- Commits atómicos en **Conventional Commits** en español (`feat:`, `fix:`, `style:`, `refactor:`, `docs:`, `chore:`, `db:`). Nunca subir `.env`, `node_modules`, `dist` ni `*.zip`.
 
 ## Regla obligatoria de mantenimiento de contexto
-Al finalizar cualquier cambio en el código (nueva funcionalidad, ajuste visual, refactorización o corrección):
-1. Actualiza únicamente las secciones afectadas en `docs/REQUERIMIENTOS.md` y/o `docs/ARQUITECTURA.md` si cambió algún flujo, estructura, dependencia o regla visual.
-2. Agrega una entrada breve en la parte superior de `docs/CHANGELOG.md` con lo que se modificó en este paso.
-3. Sugiere un mensaje de commit claro siguiendo Conventional Commits (ej. `feat: ...`, `fix: ...`, `style: ...`).
-No omitas este paso salvo que se indique explícitamente que es solo una consulta.
+Al finalizar cualquier cambio de código:
+1. Actualiza únicamente las secciones afectadas de `docs/REQUERIMIENTOS.md` y/o `docs/ARQUITECTURA.md`.
+2. Añade una entrada breve arriba en `docs/CHANGELOG.md`.
+3. Sugiere un mensaje de commit en Conventional Commits.

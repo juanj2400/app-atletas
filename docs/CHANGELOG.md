@@ -1,357 +1,62 @@
-# CHANGELOG
+# CHANGELOG — MyProgress
 
-Formato: las entradas más recientes arriba. Cada cambio de código debe agregar una entrada breve (ver regla en `AGENTS.md`).
-Tipos: `feat`, `fix`, `style`, `refactor`, `docs`, `chore`, `db`.
-
----
-
-## 2026-11-27 · Paso 31 — Nutrición como sección principal y comidas del día con cantidades exactas
-
-- **feat:** **Nutrición** pasa a ser una pestaña principal de la barra inferior del atleta (*Entrenar · Nutrición · Mis datos*) en `/atleta/nutricion`. Sigue protegida por el check-in diario (el portero está en `PantallaAtleta`). *Mis datos* queda con dos secciones (*Medidas* y *Récords*) y la dirección antigua `/atleta/datos/nutricion` redirige a la nueva, para no romper enlaces guardados.
-- **feat:** el atleta ve primero **"Tus comidas del día"**: una tarjeta por comida (desayuno, almuerzo, cena, snacks...) con sus alimentos y la cantidad exacta de cada uno (g, ml, unidades o porciones), nota opcional por alimento y por comida; cada tarjeta se puede plegar. Debajo siguen su objetivo diario y los últimos 7 días de calorías.
-- **feat:** el entrenador arma ese menú en la ficha del atleta (*Cuerpo y nutrición › Comidas*, con acceso rápido): agrega comidas con botones (+ Desayuno, + Almuerzo, + Cena, + Snack, + Otra), alimentos con cantidad y unidad, sube/baja el orden, quita, **guarda todo junto** o descarta. Hasta 10 comidas y 30 alimentos por comida. Avisa de cambios sin guardar (al cambiar de pestaña y al cerrar o recargar).
-- **db:** `migracion_23_comidas_del_dia.sql` — tablas `meals` y `meal_foods` (RLS: el atleta lee lo suyo, solo el admin escribe) y RPC `set_meal_plan` (solo admin; reemplaza el menú completo del atleta, todo o nada, con validación en español). El menú es del atleta, **no** del plan de calorías: cambiar kcal o macros no lo toca. Probada en un Postgres real con el esquema y las migraciones 2–22: permisos por rol, 18 validaciones, atomicidad (un fallo a mitad no cambia nada), orden, redondeo, cascada y clave compuesta. **Aplicar primero el SQL y después subir el código.**
-- **refactor:** `src/lib/comidas.js` (funciones puras: validar, armar, borrador, payload, textos de cantidad; 13 pruebas con datos de ejemplo en zona Bogotá y UTC), `src/lib/cargarComidas.js`, `src/components/ListaComidas.jsx`, `src/admin/PlanComidas.jsx`; cambian `App.jsx`, `PantallaAtleta.jsx`, `MisDatos.jsx`, `Nutricion.jsx` y `DetalleAtleta.jsx`. Sin dependencias nuevas.
-- **docs:** `AGENTS.md` (invariante 19), `REQUERIMIENTOS.md`, `ARQUITECTURA.md` (decisión 33, rutas, tablas, función, flujo y deuda) y `supabase/sql/README.md`.
-- **Alcance:** solo estructura **manual y visual**. No calcula calorías ni macros de las comidas, no hay catálogo de alimentos ni IA (queda para pasos siguientes).
-
-**Commit sugerido:** `feat: agregar sección Nutrición con comidas del día, alimentos y cantidades exactas`
+Registro cronológico de cambios. Agregar entradas nuevas arriba (`feat`, `fix`, `refactor`, `db`, `docs`, `chore`).
 
 ---
 
-## 2026-11-26 · Paso 30 — Récords con buscador de ejercicio y 1RM según la fecha
+## 2026-11-27 · Paso 31 — Nutrición principal y comidas del día
+- **feat:** Pestaña principal **Nutrición** (`/atleta/nutricion`, redirige desde `/atleta/datos/nutricion`) con tarjetas plegables de comidas del día, objetivo diario y promedio 7d. Editor de menú en ficha admin (`PlanComidas.jsx`) con borrador, reordenamiento y alerta sin guardar.
+- **db:** `migracion_23_comidas_del_dia.sql` — tablas `meals`, `meal_foods`, RLS y RPC atómica `set_meal_plan` (desacoplada de `nutrition_plans`). **Aplicar SQL primero.**
+- **refactor:** `lib/comidas.js`, `lib/cargarComidas.js`, `ListaComidas.jsx`.
 
-- **feat:** en *Récords* (atleta, en Mis datos, y entrenador, en la ficha) la lista de tarjetas con botón por ejercicio se reemplaza por un **buscador de ejercicio** (cuadro de búsqueda sin importar tildes ni mayúsculas y lista con la marca de cada uno). No se pide ni se dibuja ninguna gráfica hasta elegir un ejercicio; con un solo ejercicio se elige solo, y *Cambiar de ejercicio* vuelve al buscador. El ranking de 1RM de arriba no cambia.
-- **feat:** al elegir un ejercicio, la **gráfica del 1RM estimado según la fecha** pasa a ser la primera (carga perezosa con Recharts y colores de `coloresGrafico.js`, como antes) y se le añade una lista con las 8 fechas más recientes (1RM y mejor serie de cada día). Los aislados siguen sin 1RM (invariante 13): ven sus demás gráficas.
-- **refactor:** `normalizarBusqueda` y `filtrarEjercicios` en `src/lib/records.js` (funciones puras, probadas con datos de ejemplo); `RecordsAtleta.jsx` (nuevo `BuscadorEjercicio`) y `GraficosRecord.jsx` (orden y lista por fecha). Sin cambios de base de datos, de consultas ni dependencias nuevas.
-- **docs:** `REQUERIMIENTOS.md` y `ARQUITECTURA.md`.
+## 2026-11-26 · Paso 30 — Buscador en récords y 1RM por fecha
+- **feat:** Buscador de ejercicios sin tildes/mayúsculas en `RecordsAtleta` (carga perezosa al seleccionar) y gráfica principal de 1RM estimado por fecha con lista de últimas 8 marcas en `GraficosRecord`.
+- **refactor:** `normalizarBusqueda` y `filtrarEjercicios` en `lib/records.js`.
 
-**Commit sugerido:** `feat: agregar buscador de ejercicio en récords y gráfica del 1RM estimado por fecha`
+## 2026-11-26 · Paso 29 — Periodos de la rutina (snapshots)
+- **feat:** Vista `HistorialRutina` en ficha admin con comparativa de cambios entre versiones de rutina y actividad real del atleta por periodo.
+- **db:** `migracion_22_historial_rutina.sql` — tabla `routine_versions`, funciones `foto_rutina`, `congelar_version_rutina`, `resumen_periodo_rutina` y triggers `before`. **Aplicar SQL primero.**
+- **refactor:** `lib/versionesRutina.js`.
 
----
+## 2026-11-26 · Paso 28 — Descansos rápidos en editor
+- **feat/refactor:** Botones de 30 s, 1, 2 y 3 min (`DESCANSOS_RAPIDOS` en `lib/rutinas.js`) en `EditorRutina`.
 
-## 2026-11-26 · Paso 29 — Historial de periodos de la rutina
+## 2026-11-26 · Paso 27 — Panel general en ficha del atleta
+- **feat/refactor:** Pestaña *Resumen* convertida en `PanelAtleta` (`lib/panelAtleta.js`) con bloque "Atención", tarjetas KPI clicables hacia cada sección e índice de navegación en pestañas.
 
-- **feat:** el entrenador puede ajustar una rutina activa (cambiar o reemplazar un ejercicio, series, repeticiones, RPE, descanso, progresión, modo híbrido) sin perder cómo estaba prescrita cuando el atleta la entrenó. Antes de cada ajuste, si el atleta registró series desde la última foto, se guarda un **periodo**: foto de la rutina tal como estaba y rango real de sus series (primera a última). Sin series nuevas no se crea nada. Las series del atleta no se tocan.
-- **feat:** nueva sección **Periodos de la rutina** en la ficha del atleta (*Entrenamiento*): la rutina actual comparada con el último periodo y, por periodo, qué cambió respecto al anterior, la prescripción de ese momento y lo que hizo el atleta en cada ejercicio (series, días, mejor serie). Solo lectura.
-- **db:** `migracion_22_historial_rutina.sql` — tabla `routine_versions` (RLS: solo el admin lee; nadie escribe desde la app), funciones `foto_rutina`, `congelar_version_rutina` y `resumen_periodo_rutina` y triggers `before` en `routine_exercises`, `routine_days` y `routines`. Probada con un Postgres real (esquema y migraciones 2–21 previas): editar sin series no crea periodo; con series, la foto conserva la prescripción anterior y el rango real; ajustes repetidos sin series nuevas no duplican; quitar o reemplazar un ejercicio, activar/desactivar el modo híbrido (y el reinicio de bloques), borrar un día o la rutina conservan su periodo (con `routine_id` en null); el atleta no ve ni escribe periodos, el admin ve pero no escribe; `duplicate_routine` sigue funcionando. No elimina nada. **Aplicar primero el SQL y después subir el código.**
-- **refactor:** `src/lib/versionesRutina.js` (funciones puras `compararFotos`, `periodoAnterior`, `textoRangoPeriodo`, `textoActividad`, probadas con datos de ejemplo en zona Bogotá y UTC) y `src/admin/HistorialRutina.jsx`; `DetalleAtleta.jsx` añade la sección y su acceso rápido.
-- **docs:** `AGENTS.md` (invariante 18), `REQUERIMIENTOS.md`, `ARQUITECTURA.md` (decisión 32, flujo, tablas, funciones y deuda) y `supabase/sql/README.md`. Sin dependencias nuevas.
+## 2026-11-26 · Paso 26 — Historial continuo por ejercicio (rutinas largas)
+- **fix/db:** `migracion_21_ultima_vez_por_ejercicio.sql` — RPC `ultimas_series_por_ejercicio` (`lateral join`) para evitar que ejercicios poco frecuentes pierdan su progresión por límites globales de filas. **Aplicar SQL primero.**
 
-**Commit sugerido:** `feat: guardar periodos de la rutina con foto de la prescripción y consultarlos en la ficha del atleta`
+## 2026-11-26 · Paso 25 — Vista solo lectura de días realizados
+- **feat/refactor:** `ResumenDiaRealizado.jsx` y `resumenDiaRealizado` en `lib/cierres.js` para consultar series y cierres de días ya completados en la semana.
 
----
+## 2026-11-26 · Paso 24 — Gestión de usuarios admin
+- **feat:** Pantalla `/admin/usuarios` (`GestionUsuarios`, `FormNuevoAtleta`, `EditarAtleta`) y Edge Function `admin-usuarios` (alta, cambio de contraseña y bloqueo de acceso).
+- **db:** `migracion_20_gestion_usuarios.sql` — `profiles.activo` y RPC `set_perfil_atleta`. **Aplicar SQL y desplegar función antes del código.**
 
-## 2026-11-26 · Paso 28 — Descansos rápidos en el editor de rutinas
+## 2026-11-26 · Paso 23 — Cumpleaños y fecha de nacimiento
+- **feat/db:** `migracion_19_fecha_nacimiento.sql` (`profiles.fecha_nacimiento`, trigger y RPC `set_fecha_nacimiento`), `CumpleanosAtletas.jsx`, `FechaNacimientoAtleta.jsx` y `lib/cumpleanos.js`.
 
-- **feat:** en cada ejercicio del editor de rutinas (al agregarlo o al editarlo) hay cuatro botones de **descanso rápido**: 30 s, 1 min, 2 min y 3 min. Tocar uno rellena el campo de segundos; el botón queda marcado mientras el valor coincida. El campo de segundos sigue editable (0 a 900, mismas reglas y mensajes de antes) para cualquier otro valor.
-- **refactor:** `DESCANSOS_RAPIDOS` en `src/lib/rutinas.js`; los botones reutilizan `textoDescanso` para sus etiquetas. Sin cambios de base de datos, de validación ni dependencias nuevas.
-- **docs:** `REQUERIMIENTOS.md` y `ARQUITECTURA.md`.
+## 2026-11-26 · Paso 22 — Peso opcional en check-in
+- **feat/db:** `migracion_18_peso_en_checkin.sql` (`daily_check_ins.peso_corporal_kg` 20–400 kg) visible en check-ins del entrenador.
 
-**Commit sugerido:** `feat: agregar descansos rápidos de 30 s, 1, 2 y 3 minutos en el editor de rutinas`
+## 2026-11-26 · Paso 21 — Cumplimiento calórico en 3 estados
+- **feat/db:** `migracion_17_cumplimiento_calorias.sql` (`cumplio`/`menos`/`mas` + trigger de compatibilidad con booleano legado).
 
----
+## 2026-11-26 · Paso 20 — Check-in diario obligatorio
+- **feat:** `PantallaAtleta` bloquea rutas hijas y oculta barra inferior hasta completar el check-in del día local.
 
-## 2026-11-26 · Paso 27 — Panel general en la ficha del atleta
+## 2026-11-26 · Pasos 18 y 19 — Gráficas de tendencia, oscilación y progreso por ejercicio
+- **feat:** `GraficoTendenciaPeso` (`lib/tendenciaPeso.js`, proyección 14d), `GraficoOscilacionPeso` (`lib/oscilacionPeso.js`) y evolución de peso/reps por sesión en `GraficosRecord` (`LineaTemporal.jsx`).
 
-- **feat:** al abrir la ficha de un atleta, la pestaña **Resumen** ahora es un **panel general**: un bloque **"Atención"** (sin check-in en 2+ días, sin rutina activa, 7+ días sin series, sin plan nutricional, sin medición en 14+ días) y **una tarjeta por apartado** (check-ins, rutina activa, semana, último entrenamiento, peso, plan nutricional, ciclo en curso, récords nuevos, volumen y lista negra). Cada tarjeta y cada aviso **lleva directo a su sección** (cambia de pestaña y baja hasta ella) para editarla.
-- **feat:** las pestañas *Entrenamiento* y *Cuerpo y nutrición* tienen una fila de accesos a sus secciones (con *‹ Panel* para volver) y la barra de pestañas queda fija arriba.
-- **refactor:** nuevo `PanelAtleta.jsx` y `src/lib/panelAtleta.js` (funciones puras, probadas con datos de ejemplo en zona Bogotá y UTC). `DetalleAtleta.jsx` envuelve cada sección en un contenedor con ancla y usa `irA(pestana, seccion)`. Las secciones existentes no cambian.
-- **docs:** `REQUERIMIENTOS.md` y `ARQUITECTURA.md` (decisión 31, flujo y deuda). Sin cambios de base de datos y sin dependencias nuevas.
+## 2026-11-26 · Pasos 15, 16 y 17 — Tipos de ejercicio, rutina híbrida y cargas
+- **feat/db:** `migracion_15` (`tipo_ejercicio`, excluye `aislado` de 1RM en `v_athlete_prs`), `migracion_16` (`modo_hibrido` y `bloque` halterofilia/musculación con triggers) y pantalla `CargasAtleta` (`lib/bloques.js`).
 
-**Commit sugerido:** `feat: agregar panel general con avisos y accesos a cada sección en la ficha del atleta`
+## 2026-11-26 · Pasos 13 y 14 — Cierre de ejercicio con nota y días realizados
+- **feat/db:** `migracion_13` (`exercise_closures` con nota obligatoria) y `migracion_14` (`routine_day_completions` + trigger `bloquear_dia_realizado` semanal lunes–domingo).
 
----
+## 2026-11-25 · Pasos 11B y 12 — Progresión automática, tope de series, RPE opcional y PWA prompt
+- **feat/db:** `migracion_11` (`progresion_tipo` doble/escalera + `set_progresion`), `migracion_12` (`pide_rpe` + trigger `limitar_series_por_ejercicio`), `AvisoActualizacion` (`registerType: 'prompt'`), flujo `/recuperar` + `/restablecer` y marca **MyProgress**.
 
-## 2026-11-26 · Paso 26 — Rutina de larga duración con progresión continua y sin cortes
-
-- **feat:** una rutina activa puede mantenerse el tiempo que decida el entrenador, sin crear rutinas nuevas por ciclos cortos: la progresión (una repetición más dentro del rango o subir el peso al llegar al máximo, y fuerza simple) sigue sola con las marcas reales del atleta, y el historial se conserva aunque se edite la rutina o se cambie de rutina (se busca por ejercicio).
-- **fix:** la "última vez" de cada ejercicio ya no se pierde con el tiempo. Antes se pedían las 150 (atleta) u 800 (entrenador) series más recientes de todos los ejercicios juntos; un ejercicio que el atleta dejaba de entrenar por semanas quedaba fuera y su meta volvía al inicio. Ahora se piden las últimas series **de cada ejercicio por separado** (`EntrenarDia` y `CargasAtleta`).
-- **db:** `migracion_21_ultima_vez_por_ejercicio.sql` — función `ultimas_series_por_ejercicio` (`security invoker`: respeta las políticas RLS, no abre permisos). Probada con un Postgres real (esquema y migraciones 2–20 previas, con un stub de Supabase Auth): con 300 series recientes de un ejercicio y 4 de otro de hace 40 días, el método anterior perdía el viejo y la función lo devuelve; el atleta no ve lo de otro atleta, el entrenador sí, `anon` sin permiso, `p_antes` y los topes de `p_max` correctos. No elimina nada. **Aplicar primero el SQL y después subir el código.**
-- **docs:** `AGENTS.md` (invariante 17), `REQUERIMIENTOS.md`, `ARQUITECTURA.md` (decisión 30) y `supabase/sql/README.md`. Sin dependencias nuevas.
-
-**Commit sugerido:** `fix: conservar el historial de progresión por ejercicio en rutinas de larga duración`
-
----
-
-## 2026-11-26 · Paso 25 — Ver en solo lectura lo hecho en un día ya realizado
-
-- **feat:** en *Entrenar*, el día marcado "Realizado ✓" ahora se puede **abrir para ver un resumen corto** de lo que hizo: por ejercicio, ✓ y sus series agrupadas ("2 × 8 con 60 kg · 1 × 6 con 60 kg"); si lo finalizó sin completar, "Finalizado 1 de 3" y su nota; en rutina híbrida, separado por bloques. Sin botones de guardar, borrar ni reabrir: sigue sin poder registrar nada hasta el lunes.
-- **refactor:** `resumenDiaRealizado` y `textoResumenSeries` en `src/lib/cierres.js` (funciones puras, probadas con datos de ejemplo), `inicioDeFechaISO` en `fechas.js` y nuevo componente `ResumenDiaRealizado.jsx`.
-- **docs:** `AGENTS.md` (invariante 12), `REQUERIMIENTOS.md` y `ARQUITECTURA.md` (flujo y deuda). Sin cambios de base de datos y sin dependencias nuevas.
-
-**Commit sugerido:** `feat: mostrar resumen de solo lectura de los días ya realizados en Entrenar`
-
----
-
-## 2026-11-26 · Paso 24 — Gestión de usuarios desde la zona del entrenador
-
-- **feat:** nuevo apartado **Usuarios** (`/admin/usuarios`, botón en la lista de atletas). El entrenador **crea atletas** (nombre, correo, contraseña temporal —con generador aleatorio— y fecha de nacimiento opcional) y obtiene un botón *Copiar acceso* con el mensaje listo para WhatsApp. En cada atleta, *Editar* permite cambiar **nombre y fecha de nacimiento**, **desactivar o reactivar el acceso** (con confirmación; el atleta no puede iniciar sesión pero conserva sus datos) y **poner una contraseña nueva**.
-- **feat:** nueva **Edge Function `admin-usuarios`** (TypeScript/Deno): única que usa `service_role`. Verifica sesión y rol admin antes de actuar, valida todo otra vez, solo toca atletas (nunca un admin ni a uno mismo), deshace la creación si falla el guardado del perfil y no registra contraseñas. **Hay que desplegarla a mano en Supabase** (ver ARQUITECTURA, sección 9).
-- **feat:** un atleta desactivado ve "Tu acceso está desactivado" (`RutaProtegida`) y, al intentar entrar, el login lo explica (`user_banned`). La lista de atletas marca "Acceso desactivado" y los cumpleaños ya no cuentan a los desactivados.
-- **refactor:** `src/lib/usuarios.js` (funciones puras: validar nombre/correo/contraseña, generar contraseña, texto de acceso; probadas con datos de ejemplo) y `src/lib/adminUsuarios.js` (llamada a la función con errores en español y copiar al portapapeles).
-- **db:** `migracion_20_gestion_usuarios.sql` — columna `profiles.activo` (por defecto true) y RPC `set_perfil_atleta` (solo admin, `security definer`, `search_path=''`, solo sobre `client`). Sin políticas nuevas ni cambios al `grant`: el atleta sigue editando solo su nombre. Probada con un Postgres real (esquema y migraciones 2–19 previas): el admin guarda y quita la fecha; nombre corto/vacío/largo, fecha futura/1899, admin e id inexistente rechazados; el atleta no puede usar la RPC ni cambiar `activo`, `rol` ni la fecha; anon sin permiso; `service_role` sí cambia `activo`; el usuario nuevo nace `client` y activo. No elimina nada. **Aplicar primero el SQL, después desplegar la función y por último subir el código.**
-- **docs:** `AGENTS.md` (seguridad, invariantes 15 y 16), `REQUERIMIENTOS.md`, `ARQUITECTURA.md` (decisión 29, despliegue y deuda) y `supabase/sql/README.md` (marca la 19 como aplicada). Sin dependencias nuevas.
-
-**Commit sugerido:** `feat: gestionar usuarios desde la zona del entrenador (crear atletas, editar perfil, activar/desactivar acceso)`
-
----
-
-## 2026-11-26 · Paso 23 — Fecha de nacimiento y cumpleaños de los atletas
-
-- **feat:** el entrenador anota la **fecha de nacimiento** en la ficha del atleta ("Nacimiento: 3 nov 1996 · 30 años" con *Agregar/Editar* y *Quitar fecha*). Solo la escribe el entrenador; el atleta no la puede cambiar.
-- **feat:** en la **lista de atletas** hay un bloque compacto **"Cumpleaños"**: de hoy a los próximos 30 días (cubre lo que resta del mes), con fecha, edad que cumple y "¡Hoy!", "Mañana" o "en N días". Muestra los 3 más cercanos y un botón *Ver todos*; debajo, en una línea, quiénes ya cumplieron este mes y cuántos atletas no tienen fecha.
-- **refactor:** nueva `src/lib/cumpleanos.js` (funciones puras: validar, edad, próximo cumpleaños, resumen; el 29 de febrero se celebra el 28 en años no bisiestos). Probada con datos de ejemplo en tres zonas horarias (UTC, Bogotá, Auckland), incluido cambio de año y 29 de febrero. `fechas.js` suma `formatearFechaConAnio`.
-- **db:** `migracion_19_fecha_nacimiento.sql` — columna `profiles.fecha_nacimiento` (date, opcional, CHECK ≥ 1900), trigger `validar_fecha_nacimiento` (rechaza fechas futuras) y RPC `set_fecha_nacimiento` (solo admin, `security definer`, `search_path=''`). Sin políticas nuevas: el atleta sigue pudiendo editar solo `nombre_completo`. Probada con un Postgres real (esquema y migraciones 2–18 previas): admin guarda y borra, futura/1899/inexistente/id de admin rechazadas, atleta y anon no pueden escribir. No elimina nada. **Aplicar primero el SQL y después subir el código.**
-- **docs:** `AGENTS.md` (invariante 15), `REQUERIMIENTOS.md`, `ARQUITECTURA.md` (decisión 28) y `supabase/sql/README.md` (también marca la 18 como aplicada). Sin dependencias nuevas.
-
-**Commit sugerido:** `feat: agregar fecha de nacimiento del atleta y bloque de cumpleaños en la lista`
-
----
-
-## 2026-11-26 · Paso 22 — Peso corporal opcional en el check-in diario
-
-- **feat:** el check-in tiene un campo **"Peso corporal (kg) · opcional"**: acepta coma decimal (`aNumero`), exige 20–400 kg si se llena y se puede dejar vacío sin impedir enviar el check-in. Un aviso aclara que el entrenador lo verá y que no reemplaza sus mediciones oficiales.
-- **feat:** el entrenador ve **"Peso (check-in)"** en *Check-ins recientes* de la ficha del atleta.
-- **db:** `migracion_18_peso_en_checkin.sql` — columna `daily_check_ins.peso_corporal_kg` (numeric(4,1), opcional, CHECK 20–400). Las políticas no cambian: el atleta solo crea su check-in una vez al día y no lo modifica ni borra; `metrics` sigue siendo solo del admin (el peso del check-in no se copia ahí). Probada con un Postgres real: límites 20 y 400 válidos, 19,9/400,1/0/negativos rechazados, redondeo a un decimal, el atleta no puede modificar ni borrar su check-in ni escribir en `metrics`. No elimina nada. **Aplicar primero el SQL y después subir el código.**
-- **docs:** `AGENTS.md` (invariante 2), `REQUERIMIENTOS.md`, `ARQUITECTURA.md` (decisión 27) y `supabase/sql/README.md` actualizados. Sin dependencias nuevas.
-
-**Commit sugerido:** `feat: permitir registrar el peso corporal de forma opcional en el check-in`
-
----
-
-## 2026-11-26 · Paso 21 — Cumplimiento de calorías con tres estados
-
-- **feat:** en el check-in, la pregunta pasa de Sí/No a **"¿Cómo fueron tus calorías de ayer?"** con tres opciones apiladas: *Cumplí las calorías*, *Consumí menos de las estipuladas* y *Consumí más de las estipuladas*. El entrenador las ve en **Check-ins recientes** de la ficha ("Calorías de ayer"); los check-ins viejos con "no" aparecen como "No cumplió (sin detalle)" porque no se sabe la dirección.
-- **refactor:** `lib/opciones.js` suma `CUMPLIMIENTO_CALORIAS` y `textoCumplimientoCalorias`; `Selector` acepta `vertical`.
-- **db:** `migracion_17_cumplimiento_calorias.sql` — columna `cumplimiento_calorias` con CHECK (cumplio/menos/mas), copia de los "sí" antiguos a `cumplio` y trigger `sincronizar_cumplimiento_calorias` que mantiene el booleano antiguo coherente (la Edge Function de la IA y las apps sin actualizar siguen funcionando). Probada con un Postgres real (copia de datos, RLS del atleta, valor inválido rechazado, app vieja y corrección del admin). No elimina nada; contiene un UPDATE con WHERE. **Aplicar primero el SQL y después subir el código.**
-- **docs:** `REQUERIMIENTOS.md`, `ARQUITECTURA.md` (decisión 26) y `supabase/sql/README.md` actualizados. Sin dependencias nuevas. Las mediciones (`metrics`) no cambian: no tienen un "cumplimiento" sí/no.
-
-**Commit sugerido:** `feat: ampliar el cumplimiento de calorías del check-in a tres estados`
-
----
-
-## 2026-11-26 · Paso 20 — Check-in diario obligatorio antes de entrar al resto de la zona del atleta
-
-- **feat:** mientras el check-in de hoy esté pendiente, el atleta **solo ve el formulario**: la barra inferior se oculta y cualquier otra dirección (Entrenar, Mis datos, Récords, Nutrición, enlaces guardados) lo redirige al check-in, con un aviso arriba. Al guardarlo se habilita todo y va a Entrenar como antes.
-- **feat:** mientras la app averigua si ya hay check-in no se dibuja ninguna pantalla (se evita un parpadeo y pedir datos de más). Al cambiar el día (12 a. m. local) vuelve a ser obligatorio solo.
-- **docs:** `AGENTS.md` (invariante 4), `REQUERIMIENTOS.md` y `ARQUITECTURA.md` (flujo, decisión 8 y deuda técnica). Solo cambia `PantallaAtleta.jsx` y un comentario en `CheckIn.jsx`. Sin cambios de base de datos y sin dependencias nuevas.
-
-**Commit sugerido:** `feat: exigir el check-in diario antes de acceder al resto de la zona del atleta`
-
----
-
-## 2026-11-26 · Paso 19 — Oscilación del peso y evolución de peso/repeticiones por ejercicio
-
-- **feat:** nueva gráfica **"Oscilación del peso"** en *Mis datos › Medidas* (atleta) y en *Mediciones* de la ficha del atleta (entrenador): línea del peso con su promedio, barras con el cambio entre mediciones (subió/bajó) y mínimo, máximo y mayor salto.
-- **feat:** en **Récords** (atleta y entrenador, mismo componente `RecordsAtleta`), al desplegar un ejercicio aparece **"¿He mejorado con el tiempo?"**: frases y gráficas del **peso máximo** y de las **repeticiones** por entrenamiento. Funciona también en aislados (sin 1RM) y en ejercicios con peso corporal. Se calcula con las series que ya se cargaban: no hay consultas nuevas.
-- **refactor:** nuevo `LineaTemporal.jsx` compartido (línea valor-por-día con tooltip y referencia) usado por la oscilación y por los récords; `lib/oscilacionPeso.js` y nuevas funciones en `lib/records.js` (puras, probadas con datos de ejemplo en zona Bogotá y UTC). Todo con carga perezosa de Recharts y colores de `coloresGrafico.js`.
-- **docs:** `REQUERIMIENTOS.md` y `ARQUITECTURA.md` actualizados (decisión 25 y deuda). Sin cambios de base de datos y sin dependencias nuevas.
-
-**Commit sugerido:** `feat: agregar gráfica de oscilación del peso y evolución de peso y repeticiones por ejercicio`
-
----
-
-## 2026-11-26 · Paso 18 — Tendencia y proyección del peso al abrir Mis datos › Medidas
-
-- **feat:** lo primero que ve el atleta en *Medidas* es la gráfica **"Tendencia de tu peso"**: pesos reales (puntos), línea de tendencia continua y proyección punteada a 14 días, con una frase en lenguaje simple ("Tu peso baja unos 0,7 kg por semana") y leyenda propia legible en celular. Con menos de 3 pesos o menos de 7 días de diferencia muestra un aviso en lugar de la recta.
-- **refactor:** nueva `src/lib/tendenciaPeso.js` (función pura: regresión lineal sobre días transcurridos; probada con datos de ejemplo, incluido cambio de mes y año). Nuevos `GraficoTendenciaPeso.jsx` y `GraficoTendenciaPesoLazy.jsx` (Recharts con carga perezosa y colores de `coloresGrafico.js`). El eje X es de días reales, no categorías.
-- **docs:** `REQUERIMIENTOS.md` y `ARQUITECTURA.md` actualizados (decisión 24 y deuda). Sin cambios de base de datos y sin dependencias nuevas.
-
-**Commit sugerido:** `feat: mostrar tendencia y proyección del peso al inicio de Mis datos`
-
----
-
-## 2026-11-26 · Paso 17 — Gestión de cargas separada por disciplina (halterofilia / musculación)
-
-- **feat:** en la pestaña *Entrenamiento* de la ficha del atleta hay una sección nueva, **Cargas y progresión**. Por cada ejercicio de la rutina activa muestra la progresión, el incremento de peso, el peso inicial, lo que hizo la última vez y su próxima meta, y permite **ajustar progresión, incremento y peso inicial**.
-- **feat:** en una rutina **híbrida**, halterofilia y musculación se gestionan **por separado**: un selector (con el número de ejercicios de cada una) muestra una disciplina a la vez, agrupada por día. Sin modo híbrido hay una sola lista.
-- **refactor:** `cargasPorDisciplina` en `src/lib/bloques.js` (función pura, probada con datos de ejemplo). Los ajustes usan la RPC `set_progresion` existente.
-- **chore:** se guarda `supabase/sql/migracion_12_series_y_rpe.sql` en el repositorio, tal cual se ejecutó en Supabase. Se verificó que `duplicate_routine` de la migración 16 es coherente con la de la 12.
-- **docs:** `AGENTS.md`, `REQUERIMIENTOS.md`, `ARQUITECTURA.md` y `supabase/sql/README.md` actualizados. Sin cambios de base de datos y sin dependencias nuevas.
-
-**Commit sugerido:** `feat: gestionar cargas y progresiones por disciplina en la ficha del atleta`
-
----
-
-## 2026-11-26 · Paso 16 — Rutina híbrida: halterofilia + musculación en la misma sesión
-
-- **feat:** el entrenador puede **activar el modo híbrido** de una rutina. Con él, cada día tiene un **bloque de halterofilia** y un **bloque de musculación** (p. ej., 2 + 5); en el editor cada bloque tiene su botón para agregar ejercicios y cada ejercicio puede cambiar de bloque.
-- **feat:** el atleta ve ambos bloques **integrados en su sesión del día**: resumen de la sesión, "Bloque de halterofilia" primero y "Bloque de musculación" después, y una **etiqueta de color en cada ejercicio**. El registro de series, el tope, el cierre con nota y "Terminar rutina" funcionan igual. En la lista de días de *Entrenar* se indica cuántos ejercicios hay de cada bloque.
-- **feat:** al desactivar el modo híbrido los ejercicios de halterofilia pasan a musculación (con confirmación). Las rutinas existentes no cambian.
-- **refactor:** nueva `src/lib/bloques.js` (funciones puras, probadas con datos de ejemplo).
-- **db:** `migracion_16_rutina_hibrida.sql` — `routines.modo_hibrido`, `routine_exercises.bloque`, triggers `bloquear_bloque_sin_hibrido` y `reiniciar_bloques_sin_hibrido`, y `duplicate_routine` actualizada (copia modo y bloque). Probada con un Postgres real (triggers, RLS y copia). Contiene un UPDATE con WHERE dentro de un trigger; no borra nada. **Aplicar primero el SQL y después subir el código.**
-- **docs:** `AGENTS.md` (invariante 14), `REQUERIMIENTOS.md`, `ARQUITECTURA.md` y `supabase/sql/README.md` actualizados.
-
-**Commit sugerido:** `feat: agregar rutina híbrida con bloques de halterofilia y musculación`
-
----
-
-## 2026-11-26 · Paso 15 — 1RM estimado solo para ejercicios no aislados
-
-- **feat:** el entrenador clasifica cada ejercicio en la Biblioteca: **compuesto, fuerza, halterofilia o aislado** (campo obligatorio al crear; se ve en la lista).
-- **feat:** los **aislados ya no muestran 1RM estimado**: salen del ranking, su tarjeta muestra el **mayor peso** y su detalle omite la gráfica de evolución del 1RM. Siguen guardando y mostrando sus **mejores repeticiones con cada peso**.
-- **db:** `migracion_15_tipo_ejercicio_1rm.sql` — columna `exercises.tipo_ejercicio` (CHECK, por defecto `compuesto`), clasificación de los ejercicios iniciales (curl y press francés = aislado; sentadilla, banca, peso muerto y press militar = fuerza) y `v_athlete_prs` actualizada (`e1rm_kg` null para aislados; columnas nuevas `tipo_ejercicio` y `aplica_1rm`). Probada con un Postgres real: los compuestos dan exactamente lo mismo que antes y la RLS se mantiene. Contiene dos UPDATE con WHERE, no borra nada. **Aplicar primero el SQL y después subir el código.**
-- **refactor:** nueva `src/lib/tiposEjercicio.js`; `GraficosRecord` acepta `con1RM`.
-- **docs:** `AGENTS.md` (invariante 13), `REQUERIMIENTOS.md`, `ARQUITECTURA.md` y `supabase/sql/README.md` actualizados.
-
-**Commit sugerido:** `feat: estimar 1RM solo en ejercicios no aislados y clasificar ejercicios por tipo`
-
----
-
-## 2026-11-26 · Paso 14 — Días realizados por semana en Entrenar
-
-- **feat:** al pulsar *Terminar rutina* el día queda **registrado como realizado** en la semana (lunes a domingo, fecha local). En *Entrenar* aparece marcado "Realizado ✓" con su fecha y un contador de días de la semana.
-- **feat:** un día realizado **no se puede abrir ni repetir** hasta el lunes: la pantalla muestra "Día realizado" y la base de datos rechaza nuevas series de ese día esa semana.
-- **refactor:** `fechas.js` suma `inicioSemanaISO` e `inicioSemanaSiguienteISO` (probadas en tres zonas horarias, incluido cambio de mes y de año). `Entrenar` usa `useHoy` para liberar los días al llegar el lunes.
-- **db:** `migracion_14_dias_realizados.sql` — tabla `routine_day_completions` (RLS: el atleta solo crea; el admin gestiona) y trigger `bloquear_dia_realizado`. Probada con un Postgres real (políticas, duplicados, bordes de domingo y lunes). No elimina nada. **Aplicar primero el SQL y después subir el código.**
-- **docs:** `AGENTS.md` (invariante 12), `REQUERIMIENTOS.md`, `ARQUITECTURA.md` y `supabase/sql/README.md` actualizados.
-
-**Commit sugerido:** `feat: marcar días realizados por semana y bloquear su repetición`
-
----
-
-## 2026-11-25 · Paso 13 — Finalizar ejercicios con nota y confirmar la rutina del día
-
-- **feat:** el atleta puede **finalizar un ejercicio sin completar las series** escribiendo una nota obligatoria con el motivo (3–500 caracteres). Queda marcado "finalizado" y puede reabrirlo.
-- **feat:** el entrenador ve en **Entrenamientos recientes** "Finalizó con X de N series" y el motivo, incluso si el ejercicio no tiene series.
-- **feat:** al completar o finalizar todos los ejercicios del día aparece el indicador **"¡Rutina del día completada!"** (fondo `primario`, sin colores nuevos) y *Terminar rutina* vuelve a *Entrenar* con la misma confirmación.
-- **refactor:** nueva `src/lib/cierres.js` (funciones puras, probadas con datos de ejemplo).
-- **db:** `migracion_13_cierre_ejercicio.sql` — tabla `exercise_closures` con RLS (el atleta solo crea y borra lo suyo en su rutina activa; el admin gestiona todo), CHECK de nota y de series, único por ejercicio y día. Probada con un Postgres real (políticas incluidas). No elimina nada. **Aplicar primero el SQL y después subir el código.**
-- **docs:** `AGENTS.md` (invariante 11), `REQUERIMIENTOS.md`, `ARQUITECTURA.md` y `supabase/sql/README.md` actualizados.
-
-**Commit sugerido:** `feat: finalizar ejercicios con nota e indicar rutina del día completada`
-
----
-
-## 2026-11-25 · Paso 12 (parte 2) — Tope de series y RPE opcional por ejercicio
-
-- **feat:** el atleta **no puede anotar más series de las que le tocan** en cada ejercicio: al completarlas desaparece el formulario y aparece "Completaste las N series ✓" (si borra una, el formulario vuelve). En fuerza simple el tope de hoy es el número de series del paso de la meta.
-- **feat:** el entrenador decide, **ejercicio por ejercicio, si se pide RPE** (selector Sí/No en el editor de rutinas). Si es No, el atleta no ve ni llena el RPE, el RPE objetivo se guarda vacío y no se muestra en la prescripción. Los ejercicios que ya existen siguen pidiendo RPE.
-- **db:** `migracion_12_series_y_rpe.sql` — columna `pide_rpe` (por defecto true), trigger `limitar_series_por_ejercicio` (tope en la base de datos, a prueba de doble toque y de inserciones simultáneas) y `duplicate_routine` actualizada para copiar `pide_rpe`. Probada con un Postgres real. No elimina nada. **Aplicar primero el SQL y después subir el código.**
-- **docs:** `AGENTS.md` (invariante 10), `REQUERIMIENTOS.md`, `ARQUITECTURA.md` y `supabase/sql/README.md` actualizados.
-
-**Commit sugerido:** `feat: limitar series al número prescrito y hacer el RPE opcional por ejercicio`
-
----
-
-## 2026-11-25 · Paso 12 (parte 1) — Aviso de versión nueva, recuperar contraseña y nombre MyProgress
-
-- **feat:** **aviso de versión nueva** en la PWA: cartel "Hay una versión nueva de MyProgress" con *Actualizar* y *Después*. La app busca versiones cada hora y al volver a abrirse. Cambia `registerType` de `autoUpdate` a `prompt`.
-- **feat:** **recuperar contraseña**: enlace "¿Olvidaste tu contraseña?" en el login → correo con enlace → pantalla para elegir la contraseña nueva (mínimo 8 caracteres). El mensaje no revela si el correo existe. `AuthProvider` marca `recuperando` y `App.jsx` fuerza `/restablecer` hasta cambiarla.
-- **chore:** la app pasa a llamarse **MyProgress** (manifest, título, pantalla de login, README). Los celulares con la app ya instalada pueden seguir mostrando el nombre anterior hasta reinstalarla.
-- **chore:** `.gitignore` ignora `*.zip`; se quita del repositorio `progresion-paso11b.zip`, que se había subido por error.
-- **docs:** `AGENTS.md`, `REQUERIMIENTOS.md` y `ARQUITECTURA.md` actualizados, con la configuración necesaria en Supabase (Redirect URLs, SMTP propio, longitud mínima). Sin cambios de base de datos y sin dependencias nuevas.
-
-**Commit sugerido:** `feat: agregar aviso de versión nueva, recuperar contraseña y renombrar la app a MyProgress`
-
----
-
-## 2026-11-25 · Paso 11B — Progresión automática de repeticiones y carga (sin IA)
-
-- **feat:** el entrenador elige por ejercicio una **progresión**: *rango de repeticiones* (`doble`: una más cada semana; si no mejora se mantiene; al llegar al tope sugiere subir 2,5 o 5 kg y vuelve a empezar) o *fuerza simple* (`escalera`: pasos N×M marcados con casillas; primero suben las series, luego las repeticiones y al final el peso). Opcionalmente, un peso inicial por atleta.
-- **feat:** el atleta ve en *Entrenar* una tarjeta **"Meta de hoy"** con series, repeticiones, peso y el motivo. El formulario viene precargado con la meta. El sistema detecta solo el peso que el atleta usó (el más alto de la última sesión).
-- **refactor:** nueva `src/lib/progresion.js` (funciones puras); `textoPrescripcion` muestra la escalera. El editor guarda la progresión con la RPC `set_progresion`.
-- **db:** `migracion_11_progresion.sql` (ya aplicada en Supabase; se guarda en el repo tal cual se ejecutó) — columnas `progresion_tipo`, `escalera`, `incremento_kg`, `peso_inicial_kg`, función `set_progresion` y `duplicate_routine` actualizada. Verificada en un Postgres real. No elimina nada.
-- **docs:** `AGENTS.md` (invariante 5), `REQUERIMIENTOS.md`, `ARQUITECTURA.md` y `supabase/sql/README.md` actualizados. **La IA sigue en pausa.**
-
-**Commit sugerido:** `feat: agregar progresión automática de repeticiones y carga por ejercicio`
-
----
-
-## 2026-11-22 · Paso 10 — Ciclos, lista negra y biblioteca de ejercicios editable
-
-- **feat:** el entrenador crea y edita **macrociclos y mesociclos** de cada atleta (nombre, fase, fechas, objetivo, notas) con validación de fechas (dentro del macrociclo, sin solapes). Muestra el ciclo en curso con su semana y progreso.
-- **feat:** el atleta ve su **ciclo en curso** (fase y semana) en la parte superior de *Entrenar*.
-- **feat:** **lista negra por atleta**: el entrenador agrega ejercicios (con motivo) y los quita; el editor de rutinas ya advertía al usarlos.
-- **feat:** **crear y editar ejercicios** desde la biblioteca (nombre único, grupo, cómo se hace, enlace de video, restringido). Al crear uno se abre su editor de músculos.
-- **refactor:** la **ficha del atleta pasa a tres pestañas** (*Resumen*, *Entrenamiento*, *Cuerpo y nutrición*) porque ya tenía demasiadas secciones en una sola página.
-- **refactor:** `SelectorEjercicio` acepta opciones (`avisarRestringidos`, `textoBoton`, `titulo`) para reutilizarlo en la lista negra.
-- **db:** `migracion_09_ejercicios_video_seguro.sql` — CHECK: `video_url` solo http/https. Probada con un Postgres real.
-- **docs:** `REQUERIMIENTOS.md`, `ARQUITECTURA.md`, `AGENTS.md` (regla de enlaces externos e invariante de ciclos) y `supabase/sql/README.md` actualizados.
-
-**Commit sugerido:** `feat: agregar ciclos de entrenamiento, lista negra y gestión de ejercicios`
-
----
-
-## 2026-11-22 · Paso 9 — Plan nutricional manual
-
-- **feat:** el entrenador define y cambia el **plan nutricional** de cada atleta (calorías, proteína, carbohidratos, grasas, estado calórico, notas) desde su ficha, con historial de planes anteriores y opción de finalizar el vigente. Avisa si los macros no cuadran con las calorías (sin bloquear).
-- **feat:** el atleta ve su plan en **Mis datos › Nutrición** (tercera sección) junto con su promedio de calorías de los últimos 7 días frente al objetivo.
-- **feat:** los gráficos de evolución (atleta y entrenador) dibujan una **línea punteada con el objetivo de calorías** que cambia en la fecha de cada plan nuevo; la tarjeta de calorías muestra el objetivo.
-- **db:** `migracion_08_plan_nutricional.sql` — función `set_nutrition_plan` (cierra el plan vigente y crea el nuevo, todo o nada; valida rangos). Probada con un Postgres real. La tabla `nutrition_plans` y sus permisos ya existían desde la migración 02.
-- **docs:** `REQUERIMIENTOS.md`, `ARQUITECTURA.md`, `AGENTS.md` y `supabase/sql/README.md` actualizados.
-
-**Commit sugerido:** `feat: agregar plan nutricional manual con línea de objetivo en el gráfico`
-
----
-
-## 2026-11-21 · Paso 8b — Récords con gráficas dentro de "Mis datos"
-
-- **feat:** el atleta ve sus récords **con gráficas**: ranking visual de 1RM y, por ejercicio, evolución del 1RM en el tiempo y repeticiones máximas con cada peso. También las ve el entrenador en la ficha del atleta.
-- **refactor:** los récords dejan de ser una pestaña aparte; ahora son la sección **Récords** dentro de **Mis datos** (secciones *Medidas* y *Récords*, con rutas anidadas `/atleta/datos` y `/atleta/datos/records`). La barra inferior vuelve a tener 3 pestañas.
-- **refactor:** lo que era `MisDatos` (peso, cintura, calorías) pasa a `MisMediciones.jsx`; `MisDatos.jsx` es ahora el marco con las dos secciones.
-- **refactor:** colores de gráficos centralizados en `src/lib/coloresGrafico.js` (antes duplicados en `GraficoEvolucion.jsx`).
-- **docs:** `REQUERIMIENTOS.md`, `ARQUITECTURA.md` y `AGENTS.md` actualizados. Sin cambios de base de datos.
-
-**Commit sugerido:** `feat: mostrar récords con gráficas dentro de Mis datos`
-
----
-
-## 2026-11-21 · Paso 8 — Récords personales y mejores repeticiones por peso
-
-- **feat:** nueva pestaña **Récords** para el atleta y sección "Récords personales" en la ficha del entrenador: por ejercicio, mejor serie y 1RM estimado (Epley), etiqueta "Nuevo" (últimos 14 días), y al desplegar: mejores repeticiones con cada peso y "última vez".
-- **db:** `migracion_07_records_por_peso.sql` — vista `v_best_reps_by_weight` (resume en la base de datos para esquivar el límite de 1.000 filas de Supabase). Probada con un Postgres real en datos de ejemplo.
-- **docs:** `AGENTS.md` (regla del límite de filas), `REQUERIMIENTOS.md`, `ARQUITECTURA.md` y `supabase/sql/README.md` actualizados.
-- Prepara la **Idea 1** (progresión semanal de repeticiones): ya existe el dato "reps logradas con cada peso".
-
-**Commit sugerido:** `feat: agregar récords personales y mejores repeticiones por peso`
-
----
-
-## 2026-11-21 · Estado inicial documentado (pasos 1 a 7)
-
-**docs:** se crean `AGENTS.md`, `docs/REQUERIMIENTOS.md`, `docs/ARQUITECTURA.md` y este archivo para que el contexto del proyecto viva en el repositorio.
-**chore:** los scripts SQL (esquema y migraciones 02 a 06) se guardan en `supabase/sql/`, con un `README.md` que indica el orden de aplicación y el nombre de cada uno en el SQL Editor de Supabase.
-
-Resumen del estado al momento de documentar (historial de pasos anteriores):
-
-### Paso 7 — Check-in de una sola vez y volumen por músculo
-- **feat:** el check-in se llena una vez por día; la pestaña desaparece al completarlo y reaparece a las 12 a. m. hora local (`useHoy`). Al guardar, redirige a "Entrenar" con aviso. Contexto compartido por `Outlet`.
-- **db:** `migracion_05_checkin_una_vez.sql` — el atleta solo puede crear su check-in (sin update/delete); el admin conserva todo.
-- **feat:** volumen semanal por músculo (series × factor; compuestos reparten volumen) en la ficha del atleta y dentro del editor de rutinas.
-- **feat:** "Biblioteca de ejercicios" para editar los músculos de cada ejercicio.
-- **db:** `migracion_06_volumen_muscular.sql` — `muscle_groups` (14 músculos), `exercise_muscles`, función `set_exercise_muscles` y valores iniciales para los 14 ejercicios.
-
-### Paso 6 — Entrenar y registrar series
-- **feat:** pestaña "Entrenar": el atleta ve su rutina activa, elige el día y registra cada serie (peso, reps, RPE) con "última vez" y ayuda del ejercicio.
-- **feat:** el admin ve "Entrenamientos recientes" en la ficha del atleta.
-
-### Paso 5 — Rutinas asignadas por el entrenador
-- **feat:** creación y edición de rutinas (días y ejercicios con series, reps, RPE, descanso), activar/archivar/borrador, copiar a otro atleta, advertencias de lista negra.
-- **db:** `migracion_04_rutinas.sql` — `routines`, `routine_days`, `routine_exercises`, `routine_logs.routine_exercise_id`, funciones `activate_routine` y `duplicate_routine`.
-
-### Paso 4 — Vista de datos del atleta y gráfico
-- **feat:** pestaña "Mis datos" (solo lectura) con resumen, gráfico y historial; barra inferior y rutas anidadas.
-- **feat:** gráfico de evolución con Recharts (peso en línea, calorías en barras) también en la ficha del admin; carga perezosa.
-- **refactor:** lógica compartida en `lib/mediciones.js`, `ResumenMediciones`, `GraficoEvolucion`.
-
-### Paso 3 — Mediciones (solo admin)
-- **feat:** el admin registra/edita/elimina mediciones de peso, cintura, calorías y estado calórico.
-- **db:** `migracion_03_metricas_admin.sql` — índice único `(user_id, fecha)`; el atleta solo lee, el admin escribe.
-
-### Paso 2 — Check-in diario y ficha del atleta
-- **feat:** formulario de check-in del atleta (calorías de ayer, sueño, ánimo, recuperación).
-- **feat:** el admin abre a cada atleta (`/admin/atletas/:id`) y ve sus check-ins.
-- **feat:** utilidades de fechas locales (`fechas.js`), `Selector`, `numeros.js`.
-
-### Paso 1 — Proyecto base
-- **feat:** proyecto React + Vite + Tailwind 4 (tema oscuro) + PWA, conexión a Supabase, login con redirección por rol y rutas protegidas.
-- **chore:** despliegue continuo GitHub → Netlify.
-
-### Paso 0 — Base de datos
-- **db:** `schema_supabase.sql` — `profiles`, `exercises`, `metrics`, `routine_logs`, `ai_load_suggestions`, `daily_check_ins`, trigger de perfiles, RLS y 14 ejercicios iniciales.
-- **db:** `migracion_02_nutricion_dashboard.sql` — `nutrition_plans`, `ai_nutrition_suggestions`, `training_cycles`, `athlete_exercise_blacklist`, vistas del dashboard, triggers de seguridad de la IA y `resolve_nutrition_suggestion`.
-- **feat (sin desplegar):** Edge Function `generate-weekly-proposals` (Gemini 3.8 Flash).
-
-**Commit sugerido para este paso:** `docs: agregar AGENTS.md y documentación inicial del proyecto`
+## 2026-11-21 a 2026-11-22 · Pasos 0 a 10 — Base del proyecto
+- **feat/db:** Auth/RLS, check-ins, mediciones (`migracion_03`), rutinas (`migracion_04`), check-in único (`migracion_05`), volumen muscular (`migracion_06`), récords/1RM (`migracion_07`), plan nutricional versionado (`migracion_08`), ciclos/lista negra/ejercicios (`migracion_09` + pestañas en ficha admin) y Edge Function IA en pausa (`migracion_02`).

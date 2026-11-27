@@ -5,26 +5,27 @@
 // Qué se ve:
 //   1) Ranking visual: 1RM estimado de los ejercicios con mayor marca (barras). Solo entran
 //      los compuestos, de fuerza y de halterofilia: los AISLADOS no tienen 1RM.
-//   2) Una tarjeta por ejercicio (mejor serie y 1RM; en los aislados, el mayor peso sin
-//      1RM). Al desplegarla:
+//   2) Un buscador de ejercicio (cuadro de búsqueda + lista con la marca de cada uno). Las
+//      gráficas NO se dibujan hasta elegir uno; al elegirlo se ve su tarjeta (mejor serie y 1RM;
+//      en los aislados, el mayor peso sin 1RM) con:
+//        - gráfica de la evolución del 1RM estimado por fecha (no en los aislados),
 //        - ¿he mejorado?: peso máximo y repeticiones por entrenamiento (todos los ejercicios),
-//        - gráfica de la evolución del 1RM (no en los aislados),
 //        - gráfica de repeticiones máximas con cada peso,
 //        - "última vez" y la lista de marcas por peso.
 //
 // De dónde salen los datos (la base de datos resume, la app muestra):
 //   - v_athlete_prs            1 fila por ejercicio (mejor serie; 1RM estimado solo si aplica_1rm).
 //   - v_best_reps_by_weight    1 fila por ejercicio y PESO (mejores repeticiones).
-//   - routine_logs             solo al desplegar: hasta 500 series recientes de ESE ejercicio.
+//   - routine_logs             solo al elegir un ejercicio: hasta 500 series recientes del ejercicio ELEGIDO.
 // =====================================================================
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { calcularUltimaVez, textoSerie } from '../lib/rutinas'
 import {
-  calcularProgreso1RM, calcularEvolucionPesoReps, esRecordReciente, fechaCortaDeTimestamp, textoKg,
+  calcularProgreso1RM, calcularEvolucionPesoReps, esRecordReciente, fechaCortaDeTimestamp, filtrarEjercicios, textoKg,
 } from '../lib/records'
 import { formatearFechaCorta } from '../lib/fechas'
-import { BOTON_SEC, TARJETA } from '../lib/estilos'
+import { BOTON_SEC, CAMPO, TARJETA } from '../lib/estilos'
 import GraficosRecordLazy from './GraficosRecordLazy'
 
 // ---------------------------------------------------------------------
@@ -137,13 +138,60 @@ function DetalleEjercicio({ userId, exerciseId, aplica1RM }) {
 }
 
 // ---------------------------------------------------------------------
-// Lista de récords
+// Buscador de ejercicio: cuadro de búsqueda + lista de coincidencias (cada fila muestra su marca)
+// ---------------------------------------------------------------------
+function textoMarca(r) {
+  return r.aplica_1rm ? `1RM ${textoKg(r.e1rm_kg)} kg` : `${textoKg(r.peso_kg)} kg × ${r.repeticiones}`
+}
+
+function BuscadorEjercicio({ records, onElegir }) {
+  const [texto, setTexto] = useState('')
+  const coincidencias = filtrarEjercicios(records, texto)
+  return (
+    <div className="flex flex-col gap-2">
+      <label htmlFor="buscar-ejercicio" className="text-sm font-semibold">Elige un ejercicio</label>
+      <input
+        id="buscar-ejercicio"
+        type="search"
+        value={texto}
+        onChange={(e) => setTexto(e.target.value)}
+        placeholder="Buscar por nombre"
+        autoComplete="off"
+        className={CAMPO}
+      />
+      {coincidencias.length === 0 ? (
+        <p role="status" className="text-sm text-suave">Ningún ejercicio coincide con tu búsqueda.</p>
+      ) : (
+        <ul className="flex max-h-72 flex-col gap-2 overflow-y-auto">
+          {coincidencias.map((r) => (
+            <li key={r.exercise_id}>
+              <button
+                type="button"
+                onClick={() => onElegir(r.exercise_id)}
+                className="flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-borde bg-hundido px-3 py-2 text-left"
+              >
+                <span>
+                  <span className="block font-semibold">{r.ejercicio}</span>
+                  <span className="block text-xs text-suave">{r.grupo_muscular || 'Sin grupo'}</span>
+                </span>
+                <span className="whitespace-nowrap text-sm text-suave">{textoMarca(r)}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------
+// Récords: ranking + buscador; las gráficas solo se piden del ejercicio elegido
 // ---------------------------------------------------------------------
 export default function RecordsAtleta({ userId }) {
   const [records, setRecords] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
-  const [abierto, setAbierto] = useState(null) // id del ejercicio desplegado
+  const [elegido, setElegido] = useState(null) // id del ejercicio elegido (null = ninguno)
 
   useEffect(() => {
     let cancelado = false
@@ -155,7 +203,10 @@ export default function RecordsAtleta({ userId }) {
       .then(({ data, error }) => {
         if (cancelado) return
         if (error) setError('No se pudieron cargar los récords.')
-        else setRecords(data)
+        else {
+          setRecords(data)
+          setElegido(data.length === 1 ? data[0].exercise_id : null) // con un solo ejercicio no hay qué buscar
+        }
         setCargando(false)
       })
     return () => { cancelado = true }
@@ -167,56 +218,60 @@ export default function RecordsAtleta({ userId }) {
     return <p className={`${TARJETA} text-suave`}>Aún no hay series registradas, así que todavía no hay récords.</p>
   }
 
+  const r = records.find((x) => x.exercise_id === elegido) ?? null
+
   return (
     <div className="flex flex-col gap-4">
       <RankingRecords records={records} />
 
-      <ul className="flex flex-col gap-3">
-        {records.map((r) => (
-          <li key={r.exercise_id} className={TARJETA}>
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <p className="font-semibold">{r.ejercicio}</p>
-                <p className="text-sm text-suave">{r.grupo_muscular || 'Sin grupo'}</p>
-              </div>
-              {esRecordReciente(r.fecha_pr) && (
-                <span className="rounded-full border border-borde px-2 py-1 text-xs text-enlace">Nuevo</span>
-              )}
+      {!r && (
+        <section className={TARJETA}>
+          <BuscadorEjercicio records={records} onElegir={setElegido} />
+        </section>
+      )}
+
+      {r && (
+        <section className={TARJETA}>
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="font-semibold">{r.ejercicio}</p>
+              <p className="text-sm text-suave">{r.grupo_muscular || 'Sin grupo'}</p>
             </div>
-
-            {r.aplica_1rm ? (
-              <>
-                <p className="mt-2 text-2xl font-bold">
-                  {textoKg(r.e1rm_kg)} kg <span className="text-sm font-normal text-suave">1RM estimado</span>
-                </p>
-                <p className="text-sm text-suave">
-                  Mejor serie: {textoSerie(r)} · {fechaCortaDeTimestamp(r.fecha_pr)}
-                </p>
-              </>
-            ) : (
-              // Ejercicio aislado: no se estima 1RM, solo se destaca el mayor peso movido
-              <>
-                <p className="mt-2 text-2xl font-bold">
-                  {textoKg(r.peso_kg)} kg × {r.repeticiones} <span className="text-sm font-normal text-suave">mayor peso</span>
-                </p>
-                <p className="text-sm text-suave">
-                  Ejercicio aislado: sin 1RM estimado · {fechaCortaDeTimestamp(r.fecha_pr)}
-                </p>
-              </>
+            {esRecordReciente(r.fecha_pr) && (
+              <span className="rounded-full border border-borde px-2 py-1 text-xs text-enlace">Nuevo</span>
             )}
+          </div>
 
-            <button
-              type="button"
-              onClick={() => setAbierto(abierto === r.exercise_id ? null : r.exercise_id)}
-              aria-expanded={abierto === r.exercise_id}
-              className={`${BOTON_SEC} mt-3`}
-            >
-              {abierto === r.exercise_id ? 'Ocultar gráficas y marcas' : 'Ver gráficas y marcas por peso'}
+          {r.aplica_1rm ? (
+            <>
+              <p className="mt-2 text-2xl font-bold">
+                {textoKg(r.e1rm_kg)} kg <span className="text-sm font-normal text-suave">1RM estimado</span>
+              </p>
+              <p className="text-sm text-suave">
+                Mejor serie: {textoSerie(r)} · {fechaCortaDeTimestamp(r.fecha_pr)}
+              </p>
+            </>
+          ) : (
+            // Ejercicio aislado: no se estima 1RM, solo se destaca el mayor peso movido
+            <>
+              <p className="mt-2 text-2xl font-bold">
+                {textoKg(r.peso_kg)} kg × {r.repeticiones} <span className="text-sm font-normal text-suave">mayor peso</span>
+              </p>
+              <p className="text-sm text-suave">
+                Ejercicio aislado: sin 1RM estimado · {fechaCortaDeTimestamp(r.fecha_pr)}
+              </p>
+            </>
+          )}
+
+          {records.length > 1 && (
+            <button type="button" onClick={() => setElegido(null)} className={`${BOTON_SEC} mt-3`}>
+              Cambiar de ejercicio
             </button>
-            {abierto === r.exercise_id && <DetalleEjercicio userId={userId} exerciseId={r.exercise_id} aplica1RM={r.aplica_1rm} />}
-          </li>
-        ))}
-      </ul>
+          )}
+          {/* key: al cambiar de ejercicio el detalle se vuelve a crear y pide sus propios datos */}
+          <DetalleEjercicio key={r.exercise_id} userId={userId} exerciseId={r.exercise_id} aplica1RM={r.aplica_1rm} />
+        </section>
+      )}
     </div>
   )
 }

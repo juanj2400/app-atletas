@@ -4,6 +4,23 @@
 // =====================================================================
 import { fechaLocalISO, formatearFechaCorta } from './fechas'
 
+// Texto sin tildes ni mayúsculas, para buscar "sentadilla" y encontrar "Sentadilla frontal"
+// o "Peso muerto rumano" al escribir "ROMANO" sin acento.
+export function normalizarBusqueda(texto) {
+  return String(texto ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+}
+
+// Filtra la lista de récords (cada uno con `ejercicio`) por lo que escribió la persona.
+// Cada palabra escrita debe aparecer en el nombre; con el cuadro vacío devuelve todo.
+export function filtrarEjercicios(records, texto) {
+  const palabras = normalizarBusqueda(texto).split(/\s+/).filter(Boolean)
+  if (palabras.length === 0) return records
+  return records.filter((r) => {
+    const nombre = normalizarBusqueda(r.ejercicio)
+    return palabras.every((p) => nombre.includes(p))
+  })
+}
+
 // Un récord se marca como "Nuevo" si se logró en los últimos 14 días.
 export const DIAS_RECORD_NUEVO = 14
 

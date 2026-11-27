@@ -5,6 +5,17 @@ Tipos: `feat`, `fix`, `style`, `refactor`, `docs`, `chore`, `db`.
 
 ---
 
+## 2026-11-26 · Paso 30 — Récords con buscador de ejercicio y 1RM según la fecha
+
+- **feat:** en *Récords* (atleta, en Mis datos, y entrenador, en la ficha) la lista de tarjetas con botón por ejercicio se reemplaza por un **buscador de ejercicio** (cuadro de búsqueda sin importar tildes ni mayúsculas y lista con la marca de cada uno). No se pide ni se dibuja ninguna gráfica hasta elegir un ejercicio; con un solo ejercicio se elige solo, y *Cambiar de ejercicio* vuelve al buscador. El ranking de 1RM de arriba no cambia.
+- **feat:** al elegir un ejercicio, la **gráfica del 1RM estimado según la fecha** pasa a ser la primera (carga perezosa con Recharts y colores de `coloresGrafico.js`, como antes) y se le añade una lista con las 8 fechas más recientes (1RM y mejor serie de cada día). Los aislados siguen sin 1RM (invariante 13): ven sus demás gráficas.
+- **refactor:** `normalizarBusqueda` y `filtrarEjercicios` en `src/lib/records.js` (funciones puras, probadas con datos de ejemplo); `RecordsAtleta.jsx` (nuevo `BuscadorEjercicio`) y `GraficosRecord.jsx` (orden y lista por fecha). Sin cambios de base de datos, de consultas ni dependencias nuevas.
+- **docs:** `REQUERIMIENTOS.md` y `ARQUITECTURA.md`.
+
+**Commit sugerido:** `feat: agregar buscador de ejercicio en récords y gráfica del 1RM estimado por fecha`
+
+---
+
 ## 2026-11-26 · Paso 29 — Historial de periodos de la rutina
 
 - **feat:** el entrenador puede ajustar una rutina activa (cambiar o reemplazar un ejercicio, series, repeticiones, RPE, descanso, progresión, modo híbrido) sin perder cómo estaba prescrita cuando el atleta la entrenó. Antes de cada ajuste, si el atleta registró series desde la última foto, se guarda un **periodo**: foto de la rutina tal como estaba y rango real de sus series (primera a última). Sin series nuevas no se crea nada. Las series del atleta no se tocan.

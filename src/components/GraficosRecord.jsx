@@ -1,6 +1,6 @@
 // =====================================================================
-// GraficosRecord — las dos gráficas de UN ejercicio:
-//   1) Evolución del 1RM estimado a lo largo del tiempo (línea) — solo si el ejercicio
+// GraficosRecord — las gráficas de UN ejercicio (el que se elige en el buscador de RecordsAtleta):
+//   1) 1RM estimado según la fecha (línea y lista de las últimas fechas) — solo si el ejercicio
 //      aplica a 1RM (con1RM); los aislados no la muestran.
 //   2) Repeticiones máximas logradas con cada peso (barras).
 //   3) Peso máximo por entrenamiento y 4) repeticiones con ese peso, a lo largo del tiempo
@@ -63,6 +63,49 @@ export default function GraficosRecord({ progreso, marcas, con1RM = true, evoluc
 
   return (
     <div className="flex flex-col gap-4">
+      {con1RM && (
+      <div>
+        <p className="mb-1 text-sm font-semibold">1RM estimado según la fecha</p>
+        {progreso.length < 2 ? (
+          <p className="text-sm text-suave">
+            Registra al menos 2 entrenamientos de este ejercicio para ver su evolución.
+          </p>
+        ) : (
+          <>
+            <div role="img" aria-label="Gráfico de la evolución del 1RM estimado">
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={progreso} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                  <CartesianGrid stroke={COLOR.rejilla} vertical={false} />
+                  <XAxis dataKey="fecha" tickFormatter={formatearFechaCorta} tick={TICK} stroke={COLOR.rejilla} />
+                  {/* El eje NO empieza en 0: si no, una mejora de 5 kg se vería como una línea plana. */}
+                  <YAxis
+                    width={40} tick={TICK} stroke={COLOR.rejilla}
+                    domain={[(min) => Math.floor(min - 2), (max) => Math.ceil(max + 2)]}
+                  />
+                  <Tooltip content={<TooltipProgreso />} />
+                  <ReferenceLine y={record} stroke={COLOR.alerta} strokeDasharray="4 4" />
+                  <Line dataKey="e1rm" type="monotone" stroke={COLOR.linea} strokeWidth={2} dot={{ r: 3 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            <p className="text-xs text-suave">La línea punteada marca el mejor 1RM estimado.</p>
+            <ul className="mt-2 flex flex-col gap-1">
+              {[...progreso].reverse().slice(0, 8).map((p) => (
+                <li key={p.fecha} className="flex items-baseline justify-between gap-3 text-sm">
+                  <span className="capitalize">{formatearFecha(p.fecha)}</span>
+                  <span>
+                    <span className="font-semibold">{textoKg(p.e1rm)} kg</span>
+                    <span className="text-suave"> · {textoKg(p.peso)} × {p.reps}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {progreso.length > 8 && <p className="text-xs text-suave">Se listan las 8 fechas más recientes.</p>}
+          </>
+        )}
+      </div>
+      )}
+
       <div>
         <p className="mb-1 text-sm font-semibold">¿He mejorado con el tiempo?</p>
         {!mejora ? (
@@ -88,37 +131,6 @@ export default function GraficosRecord({ progreso, marcas, con1RM = true, evoluc
           </>
         )}
       </div>
-
-      {con1RM && (
-      <div>
-        <p className="mb-1 text-sm font-semibold">Evolución del 1RM estimado</p>
-        {progreso.length < 2 ? (
-          <p className="text-sm text-suave">
-            Registra al menos 2 entrenamientos de este ejercicio para ver su evolución.
-          </p>
-        ) : (
-          <>
-            <div role="img" aria-label="Gráfico de la evolución del 1RM estimado">
-              <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={progreso} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                  <CartesianGrid stroke={COLOR.rejilla} vertical={false} />
-                  <XAxis dataKey="fecha" tickFormatter={formatearFechaCorta} tick={TICK} stroke={COLOR.rejilla} />
-                  {/* El eje NO empieza en 0: si no, una mejora de 5 kg se vería como una línea plana. */}
-                  <YAxis
-                    width={40} tick={TICK} stroke={COLOR.rejilla}
-                    domain={[(min) => Math.floor(min - 2), (max) => Math.ceil(max + 2)]}
-                  />
-                  <Tooltip content={<TooltipProgreso />} />
-                  <ReferenceLine y={record} stroke={COLOR.alerta} strokeDasharray="4 4" />
-                  <Line dataKey="e1rm" type="monotone" stroke={COLOR.linea} strokeWidth={2} dot={{ r: 3 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-            <p className="text-xs text-suave">La línea punteada marca tu mejor 1RM estimado.</p>
-          </>
-        )}
-      </div>
-      )}
 
       <div>
         <p className="mb-1 text-sm font-semibold">Repeticiones máximas con cada peso</p>

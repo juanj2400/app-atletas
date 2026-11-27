@@ -5,6 +5,16 @@ Tipos: `feat`, `fix`, `style`, `refactor`, `docs`, `chore`, `db`.
 
 ---
 
+## 2026-11-26 · Paso 25 — Ver en solo lectura lo hecho en un día ya realizado
+
+- **feat:** en *Entrenar*, el día marcado "Realizado ✓" ahora se puede **abrir para ver un resumen corto** de lo que hizo: por ejercicio, ✓ y sus series agrupadas ("2 × 8 con 60 kg · 1 × 6 con 60 kg"); si lo finalizó sin completar, "Finalizado 1 de 3" y su nota; en rutina híbrida, separado por bloques. Sin botones de guardar, borrar ni reabrir: sigue sin poder registrar nada hasta el lunes.
+- **refactor:** `resumenDiaRealizado` y `textoResumenSeries` en `src/lib/cierres.js` (funciones puras, probadas con datos de ejemplo), `inicioDeFechaISO` en `fechas.js` y nuevo componente `ResumenDiaRealizado.jsx`.
+- **docs:** `AGENTS.md` (invariante 12), `REQUERIMIENTOS.md` y `ARQUITECTURA.md` (flujo y deuda). Sin cambios de base de datos y sin dependencias nuevas.
+
+**Commit sugerido:** `feat: mostrar resumen de solo lectura de los días ya realizados en Entrenar`
+
+---
+
 ## 2026-11-26 · Paso 24 — Gestión de usuarios desde la zona del entrenador
 
 - **feat:** nuevo apartado **Usuarios** (`/admin/usuarios`, botón en la lista de atletas). El entrenador **crea atletas** (nombre, correo, contraseña temporal —con generador aleatorio— y fecha de nacimiento opcional) y obtiene un botón *Copiar acceso* con el mensaje listo para WhatsApp. En cada atleta, *Editar* permite cambiar **nombre y fecha de nacimiento**, **desactivar o reactivar el acceso** (con confirmación; el atleta no puede iniciar sesión pero conserva sus datos) y **poner una contraseña nueva**.

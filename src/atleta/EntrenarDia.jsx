@@ -13,12 +13,13 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../auth/AuthProvider'
 import { aNumero } from '../lib/numeros'
-import { fechaLocalISO, formatearFecha, formatearFechaCorta, inicioSemanaISO, inicioSemanaSiguienteISO } from '../lib/fechas'
+import { fechaLocalISO, formatearFecha, formatearFechaCorta, inicioDeFechaISO, inicioSemanaISO, inicioSemanaSiguienteISO } from '../lib/fechas'
 import { calcularUltimaVez, inicioDeHoyISO, textoPrescripcion, textoSerie } from '../lib/rutinas'
 import { calcularMeta, textoMeta } from '../lib/progresion'
 import { agruparPorBloque, textoBloques } from '../lib/bloques'
-import { estadoEjercicio, resumenRutinaDia, seriesObjetivoDe, validarNotaCierre, NOTA_MAX } from '../lib/cierres'
+import { estadoEjercicio, resumenDiaRealizado, resumenRutinaDia, seriesObjetivoDe, validarNotaCierre, NOTA_MAX } from '../lib/cierres'
 import { CAMPO, BOTON, BOTON_SEC, TARJETA } from '../lib/estilos'
+import ResumenDiaRealizado from '../components/ResumenDiaRealizado'
 
 // ---------------------------------------------------------------------
 // Un ejercicio con su lista de series y el formulario de la siguiente
@@ -285,6 +286,8 @@ export default function EntrenarDia() {
   const [dia, setDia] = useState(null)
   // Si ya terminó este día esta semana: { fecha }. Entonces no puede volver a registrarlo.
   const [realizado, setRealizado] = useState(null)
+  // Series y cierres de la semana, solo para el resumen de lectura de un día ya realizado
+  const [datosSemana, setDatosSemana] = useState({ logs: [], cierres: [] })
   const [terminando, setTerminando] = useState(false)
   const [errorTerminar, setErrorTerminar] = useState('')
   const [logsHoy, setLogsHoy] = useState([])
@@ -341,7 +344,28 @@ export default function EntrenarDia() {
       if (cancelado) return
       if (hoy.error || previos.error || cierres.error || completado.error) { setError('No se pudieron cargar tus series.'); setCargando(false); return }
 
+      // Día ya realizado: se traen las series y cierres de la SEMANA (el atleta pudo entrenarlo
+      // en varios días antes de pulsar "Terminar rutina") para mostrar un resumen de lectura.
+      // Es una consulta aparte y solo ocurre en este caso; la base solo le devuelve lo suyo (RLS).
+      let semana = { logs: [], cierres: [] }
+      if (completado.data) {
+        const desde = inicioDeFechaISO(inicioSemanaISO())
+        const hasta = inicioDeFechaISO(inicioSemanaSiguienteISO())
+        const [logsSemana, cierresSemana] = await Promise.all([
+          supabase.from('routine_logs').select(columnas)
+            .eq('user_id', perfil.id).in('routine_exercise_id', idsFilas)
+            .gte('realizado_en', desde).lt('realizado_en', hasta).order('realizado_en').limit(500),
+          supabase.from('exercise_closures').select('id, routine_exercise_id, fecha, nota, series_hechas, series_objetivo')
+            .eq('user_id', perfil.id).in('routine_exercise_id', idsFilas)
+            .gte('fecha', inicioSemanaISO()).lt('fecha', inicioSemanaSiguienteISO()),
+        ])
+        if (cancelado) return
+        if (logsSemana.error || cierresSemana.error) { setError('No se pudo cargar el resumen del día.'); setCargando(false); return }
+        semana = { logs: logsSemana.data, cierres: cierresSemana.data }
+      }
+
       setDia(d)
+      setDatosSemana(semana)
       setLogsHoy(hoy.data)
       setCierresHoy(cierres.data)
       setRealizado(completado.data)
@@ -364,8 +388,10 @@ export default function EntrenarDia() {
     )
   }
 
-  // Día ya realizado esta semana: se muestra el aviso y no se deja registrar nada más.
+  // Día ya realizado esta semana: aviso + resumen corto de solo lectura (no se puede registrar,
+  // borrar ni reabrir nada; el trigger bloquear_dia_realizado también lo impide en la base).
   if (realizado) {
+    const resumenHecho = resumenDiaRealizado(dia.routine_exercises, datosSemana.logs, datosSemana.cierres, Boolean(dia.routines?.modo_hibrido))
     return (
       <div className="flex flex-col gap-4">
         <Link to="/atleta/entrenar" className="text-sm text-enlace">‹ Mi rutina</Link>
@@ -376,6 +402,7 @@ export default function EntrenarDia() {
             Lo completaste el {formatearFecha(realizado.fecha)}. Podrás volver a entrenarlo desde el {formatearFecha(inicioSemanaSiguienteISO())}.
           </p>
         </div>
+        <ResumenDiaRealizado resumen={resumenHecho} />
         <Link to="/atleta/entrenar" className={`${BOTON_SEC} flex items-center justify-center`}>
           Volver a mi rutina
         </Link>

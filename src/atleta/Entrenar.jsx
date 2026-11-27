@@ -96,15 +96,18 @@ export default function Entrenar() {
       <ul className="flex flex-col gap-3">
         {dias.map((d) => {
           const hecho = realizados.find((r) => r.routine_day_id === d.id)
-          // Día ya realizado esta semana: se muestra marcado y no se puede abrir
+          // Día ya realizado esta semana: marcado; se puede abrir SOLO para ver su resumen
+          // (EntrenarDia no deja registrar nada hasta el lunes).
           if (hecho) {
             return (
-              <li key={d.id} className={`${TARJETA} flex items-center justify-between border-primario`}>
-                <div>
-                  <p className="font-semibold">{d.nombre}</p>
-                  <p className="text-sm text-suave">Realizado el {formatearFecha(hecho.fecha)}. Vuelve a estar disponible el lunes.</p>
-                </div>
-                <span className="whitespace-nowrap text-sm font-bold text-enlace">Realizado ✓</span>
+              <li key={d.id}>
+                <Link to={`/atleta/entrenar/${d.id}`} className={`${TARJETA} flex items-center justify-between gap-2 border-primario`}>
+                  <div>
+                    <p className="font-semibold">{d.nombre}</p>
+                    <p className="text-sm text-suave">Realizado el {formatearFecha(hecho.fecha)}. Toca para ver lo que hiciste.</p>
+                  </div>
+                  <span className="whitespace-nowrap text-sm font-bold text-enlace">Realizado ✓</span>
+                </Link>
               </li>
             )
           }

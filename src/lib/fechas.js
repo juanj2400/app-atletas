@@ -60,3 +60,10 @@ export function inicioSemanaSiguienteISO(fecha = new Date()) {
   const [anio, mes, dia] = inicioSemanaISO(fecha).split('-').map(Number)
   return fechaLocalISO(new Date(anio, mes - 1, dia + 7))
 }
+
+// Medianoche LOCAL de una fecha "YYYY-MM-DD" como instante ISO (para filtrar `realizado_en`,
+// que Postgres guarda en UTC). Se construye con partes locales, nunca con new Date("YYYY-MM-DD").
+export function inicioDeFechaISO(iso) {
+  const [anio, mes, dia] = iso.split('-').map(Number)
+  return new Date(anio, mes - 1, dia).toISOString()
+}

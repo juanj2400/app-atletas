@@ -1,6 +1,6 @@
 # ARQUITECTURA
 
-> Última actualización: 2026-11-26 (paso 23) · Mantener al día es obligatorio (ver `AGENTS.md`).
+> Última actualización: 2026-11-26 (paso 25) · Mantener al día es obligatorio (ver `AGENTS.md`).
 
 ## 1. Visión general
 
@@ -61,7 +61,7 @@ Node >= 20.19 (requisito de Vite 8). Gestor: npm; `package-lock.json` versionado
    ├─ index.css                   Tailwind + tema (colores)
    ├─ lib/                        lógica pura y constantes
    │   ├─ supabase.js             cliente único de Supabase
-   │   ├─ fechas.js               fechaLocalISO, formatearFecha, formatearFechaCorta, inicioSemanaISO (lunes local), inicioSemanaSiguienteISO
+   │   ├─ fechas.js               fechaLocalISO, formatearFecha, formatearFechaCorta, inicioSemanaISO (lunes local), inicioSemanaSiguienteISO, inicioDeFechaISO (medianoche local de una fecha, como instante)
    │   ├─ usuarios.js             validar nombre, correo y contraseña de un atleta, generar contraseña temporal aleatoria y texto de acceso para compartir (función pura)
    │   ├─ adminUsuarios.js        llamada a la Edge Function admin-usuarios (devuelve {data} o {error} en español) y copiar al portapapeles
    │   ├─ useHoy.js               hook: fecha de hoy que cambia sola a medianoche
@@ -73,7 +73,7 @@ Node >= 20.19 (requisito de Vite 8). Gestor: npm; `package-lock.json` versionado
    │   ├─ coloresGrafico.js       colores de los gráficos (SVG necesita texto, no clases)
    │   ├─ cumpleanos.js           cumpleaños: validar fecha de nacimiento, edad, próximo cumpleaños (29 feb) y resumen para la lista (función pura)
    │   ├─ mediciones.js           resumirMediciones, textoMedicion
-   │   ├─ cierres.js              estado de cada ejercicio (completo/finalizado/pendiente), rutina del día completa, validar nota, unir cierres al historial
+   │   ├─ cierres.js              estado de cada ejercicio (completo/finalizado/pendiente), rutina del día completa, validar nota, unir cierres al historial, resumen de solo lectura de un día realizado (`resumenDiaRealizado`, `textoResumenSeries`)
 │   ├─ bloques.js              rutina híbrida: agrupar ejercicios por bloque (halterofilia primero), texto "2 de halterofilia + 5 de musculación" y cargas por disciplina
 │   ├─ rutinas.js              textos de prescripción/series, última vez, agrupar historial
    │   ├─ volumen.js              calcularVolumen (series semanales por músculo)
@@ -86,7 +86,7 @@ Node >= 20.19 (requisito de Vite 8). Gestor: npm; `package-lock.json` versionado
    │   ├─ AuthProvider.jsx        sesión + perfil (rol); useAuth()
    │   └─ RutaProtegida.jsx       "portero" por rol
    ├─ pages/                      Login.jsx, RecuperarContrasena.jsx, RestablecerContrasena.jsx, Inicio.jsx (redirige por rol)
-   ├─ components/                 Encabezado, Estados, Selector, ResumenMediciones, GraficoEvolucion, GraficoEvolucionLazy, GraficoTendenciaPeso, GraficoTendenciaPesoLazy, GraficoOscilacionPeso, GraficoOscilacionPesoLazy, LineaTemporal, RecordsAtleta, GraficosRecord, GraficosRecordLazy, PlanNutricionalCard, CicloVigenteCard, AvisoActualizacion
+   ├─ components/                 Encabezado, Estados, Selector, ResumenMediciones, GraficoEvolucion, GraficoEvolucionLazy, GraficoTendenciaPeso, GraficoTendenciaPesoLazy, GraficoOscilacionPeso, GraficoOscilacionPesoLazy, LineaTemporal, RecordsAtleta, GraficosRecord, GraficosRecordLazy, PlanNutricionalCard, CicloVigenteCard, ResumenDiaRealizado, AvisoActualizacion
    ├─ atleta/                     PantallaAtleta (marco), CheckIn, Entrenar, EntrenarDia, MisDatos (marco con secciones), MisMediciones, Records, Nutricion, CicloActual
    └─ admin/                      ListaAtletas, CumpleanosAtletas, DetalleAtleta, FechaNacimientoAtleta, GestionUsuarios, FormNuevoAtleta, EditarAtleta, Mediciones, RutinasAtleta, CargasAtleta, EditorRutina,
                                   SelectorEjercicio, HistorialEntrenamiento, VolumenMuscular, PlanNutricional, CiclosAtleta, ListaNegraAtleta, FormEjercicio, Ejercicios
@@ -181,7 +181,7 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 - **Ciclos:** `CiclosAtleta` (entrenador) valida con `validarCiclo` (fechas, pertenencia al macrociclo, solapes) y guarda en `training_cycles`. `CicloActual` (atleta, en *Entrenar*) lee sus ciclos y `cicloVigente()` decide el mesociclo en curso con la fecha local que entrega `PantallaAtleta`.
 - **Gestión de cargas:** `CargasAtleta` (pestaña Entrenamiento de la ficha) carga la rutina activa con sus ejercicios y hasta 800 series recientes del atleta, separa los ejercicios con `cargasPorDisciplina` (halterofilia / musculación, agrupados por día; sin modo híbrido todo es musculación) y por ejercicio muestra la última vez y la próxima meta (`calcularUltimaVez` + `calcularMeta`). Los ajustes (progresión, incremento, peso inicial) se guardan con la RPC `set_progresion`, igual que el editor.
 - **Rutina híbrida:** `EditorRutina` tiene el interruptor `ModoHibrido` (actualiza `routines.modo_hibrido`) y, con el modo activo, `DiaRutina` muestra dos bloques con su propio botón de agregar y cada fila elige su `bloque`. `EntrenarDia` pide `routines ( modo_hibrido )` y `routine_exercises.bloque`, agrupa con `agruparPorBloque` y etiqueta cada ejercicio; `Entrenar` muestra el resumen de bloques por día. Los triggers de la migración 16 impiden la halterofilia sin modo híbrido y reinician los bloques al desactivarlo.
-- **Día realizado:** *Terminar rutina* inserta en `routine_day_completions` (fecha y lunes locales). `Entrenar` carga los de la semana actual (se recalcula con `useHoy`) y marca esos días; `EntrenarDia` consulta el día y, si ya está realizado, muestra el aviso en vez del formulario. El trigger `bloquear_dia_realizado` rechaza (P0001, mensaje en español) las series de ese día durante la misma semana; calcula la semana con `America/Bogota`.
+- **Día realizado:** *Terminar rutina* inserta en `routine_day_completions` (fecha y lunes locales). `Entrenar` carga los de la semana actual (se recalcula con `useHoy`) y marca esos días; `EntrenarDia` consulta el día y, si ya está realizado, muestra el aviso y un **resumen de solo lectura** (`ResumenDiaRealizado`) en vez del formulario: en ese caso hace una consulta extra con las series (`routine_logs`, hasta 500) y los cierres (`exercise_closures`) de la semana lunes–domingo local, y `resumenDiaRealizado()` los une con lo prescrito. `Entrenar` enlaza el día realizado a esa vista. Sin SQL nuevo: las políticas ya dejan al atleta leer lo suyo. El trigger `bloquear_dia_realizado` rechaza (P0001, mensaje en español) las series de ese día durante la misma semana; calcula la semana con `America/Bogota`.
 - **Cerrar ejercicio y rutina del día:** `EntrenarDia` carga los cierres de hoy (`exercise_closures`, por `fecha` local) junto con las series. Cada ejercicio es `completo`, `cerrado` (con nota) o `pendiente` (`lib/cierres.js`); sin pendientes aparece el indicador de rutina completada (fondo `primario`, el token más fuerte del tema, porque no hay token verde) y *Terminar rutina* navega a `Entrenar` con `state.rutinaCompletada`. `HistorialEntrenamiento` une los cierres a los días con `unirCierres`.
 - **Progresión:** `EditorRutina` guarda primero los datos básicos del ejercicio y luego llama a la RPC `set_progresion` (tipo, escalera, incremento y peso inicial; la función revisa las reps ya guardadas). `EntrenarDia` ya trae las series del entrenamiento anterior (`calcularUltimaVez`) y se las pasa a `calcularMeta()` (función pura de `lib/progresion.js`), que devuelve la meta del día; `textoMeta()` la convierte en el texto de la tarjeta "Meta de hoy". No se guarda la meta: se recalcula siempre desde las series reales.
 - **Cumpleaños:** `ListaAtletas` pide `fecha_nacimiento` junto con nombre y correo (consulta que ya existía) y `CumpleanosAtletas` llama a `resumirCumpleanos(atletas, hoy)` (`lib/cumpleanos.js`) con la fecha local de `useHoy`. La fecha se anota en `FechaNacimientoAtleta` (ficha), que guarda con la RPC `set_fecha_nacimiento` y avisa a `DetalleAtleta` para refrescar el dato sin recargar.
@@ -289,6 +289,7 @@ Todas las llaves foráneas a usuarios son `on delete cascade` sobre `profiles`; 
 - El tope de series se controla por `sesion_id`: quien manipule la app a mano puede mandar otro `sesion_id` y saltárselo (protege de errores, no de un atacante; solo afecta datos propios). En fuerza simple la base usa como tope el paso con más series de la escalera, más permisivo que el tope exacto de cada día, que solo calcula la pantalla.
 - Si el atleta borra una serie intermedia, el número de la siguiente se calcula como el mayor + 1 y puede superar las series prescritas (por ejemplo "Serie 4" de 3); no afecta al tope, que cuenta filas.
 - Cierre de ejercicio: `series_hechas` y `series_objetivo` son una foto; si luego borra o agrega series el historial muestra la foto, no el recuento actual. El indicador de rutina completada se calcula en pantalla (no se guarda): no hay registro de "rutina terminada" por día.
+- Resumen del día realizado: se arma con las series de **toda la semana** de ese día (hasta 500), no solo las de la fecha en que pulsó *Terminar rutina*; si el mismo ejercicio está en dos días de la rutina, sus series se mezclarían en ambos resúmenes (igual que ya pasa con la progresión). Muestra peso y repeticiones, no el RPE.
 - Día realizado: el trigger usa la zona `America/Bogota` y la pantalla la del celular (coinciden en Colombia; fuera de ella podrían diferir cerca de la medianoche del lunes). Nada verifica en la base de datos que el día realmente se completó: *Terminar rutina* lo registra el cliente. La semana es de lunes a domingo, no la "semana del ciclo"; `routines.cycle_id` sigue sin usarse.
 - Rutina híbrida: el bloque no depende del tipo del ejercicio (`tipo_ejercicio`): el entrenador decide en qué bloque va cada uno. El historial del entrenador no indica el bloque de cada serie.
 - `CargasAtleta` calcula la próxima meta con las series de la última sesión registrada (incluida la de hoy) y solo ve las 800 series más recientes: un ejercicio muy antiguo podría aparecer "sin registros". No hay ajuste en bloque por disciplina (cada ejercicio se ajusta aparte).

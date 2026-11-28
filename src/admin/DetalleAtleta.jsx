@@ -20,6 +20,7 @@ import Mediciones from './Mediciones'
 import PlanNutricional from './PlanNutricional'
 import PlanComidas from './PlanComidas'
 import RutinasAtleta from './RutinasAtleta'
+import DescargaAtleta from './DescargaAtleta'
 import CiclosAtleta from './CiclosAtleta'
 import ListaNegraAtleta from './ListaNegraAtleta'
 import VolumenMuscular from './VolumenMuscular'
@@ -43,6 +44,7 @@ const PESTANAS = [
 const INDICE = {
   entrenamiento: [
     { id: 'seccion-rutinas', texto: 'Rutinas' },
+    { id: 'seccion-descarga', texto: 'Descarga' },
     { id: 'seccion-cargas', texto: 'Cargas' },
     { id: 'seccion-ciclos', texto: 'Ciclos' },
     { id: 'seccion-volumen', texto: 'Volumen' },
@@ -215,6 +217,7 @@ export default function DetalleAtleta() {
               <>
                 <IndiceSecciones items={INDICE.entrenamiento} onIr={irA} pestana="entrenamiento" />
                 <div id="seccion-rutinas" className="scroll-mt-20"><RutinasAtleta atletaId={atleta.id} /></div>
+                <div id="seccion-descarga" className="scroll-mt-20"><DescargaAtleta atletaId={atleta.id} /></div>
                 <div id="seccion-cargas" className="scroll-mt-20"><CargasAtleta atletaId={atleta.id} /></div>
                 <div id="seccion-ciclos" className="scroll-mt-20"><CiclosAtleta atletaId={atleta.id} /></div>
                 <div id="seccion-volumen" className="scroll-mt-20">

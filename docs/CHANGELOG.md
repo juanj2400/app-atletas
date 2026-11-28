@@ -4,6 +4,11 @@ Registro cronológico de cambios. Agregar entradas nuevas arriba (`feat`, `fix`,
 
 ---
 
+## 2026-11-27 · Paso 32 — Semana de descarga
+- **feat:** El entrenador activa/cancela una semana de descarga (7 días desde hoy) en la pestaña Entrenamiento (`DescargaAtleta.jsx`). El atleta ve aviso (`AvisoDescarga.jsx`) y una meta liviana por ejercicio (series −40 %, carga −10 % / −20 % en halterofilia, RPE ≤ 7, progresión en pausa) sin tocar su rutina; al terminar vuelve solo a lo anterior.
+- **db:** `migracion_24_semana_descarga.sql` — tabla `deload_weeks` (RLS, solo lectura directa), `routine_logs.en_descarga` + trigger, RPC `activar_descarga` / `cancelar_descarga` y `ultimas_series_por_ejercicio` ignora series de descarga. **Aplicar SQL primero.**
+- **refactor:** `lib/descarga.js`, `lib/cargarDescarga.js`; `seriesObjetivoDe` (`lib/cierres.js`) acepta la descarga.
+
 ## 2026-11-27 · Paso 31 — Nutrición principal y comidas del día
 - **feat:** Pestaña principal **Nutrición** (`/atleta/nutricion`, redirige desde `/atleta/datos/nutricion`) con tarjetas plegables de comidas del día, objetivo diario y promedio 7d. Editor de menú en ficha admin (`PlanComidas.jsx`) con borrador, reordenamiento y alerta sin guardar.
 - **db:** `migracion_23_comidas_del_dia.sql` — tablas `meals`, `meal_foods`, RLS y RPC atómica `set_meal_plan` (desacoplada de `nutrition_plans`). **Aplicar SQL primero.**

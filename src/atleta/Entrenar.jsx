@@ -14,6 +14,8 @@ import { TARJETA } from '../lib/estilos'
 import { formatearFecha, inicioSemanaISO } from '../lib/fechas'
 import { textoBloques } from '../lib/bloques'
 import { useHoy } from '../lib/useHoy'
+import { cargarDescargaVigente } from '../lib/cargarDescarga'
+import AvisoDescarga from '../components/AvisoDescarga'
 import CicloActual from './CicloActual'
 
 export default function Entrenar() {
@@ -22,12 +24,14 @@ export default function Entrenar() {
   const [rutina, setRutina] = useState(null)
   // Días de la rutina que ya terminó ESTA semana (lunes a domingo, fecha local)
   const [realizados, setRealizados] = useState([])
+  // Semana de descarga en curso (null si no hay); el entrenador la activa desde la ficha
+  const [descarga, setDescarga] = useState(null)
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
 
   // useHoy hace que la pantalla se redibuje al cambiar el día; así, al llegar el lunes
   // los días vuelven a quedar disponibles aunque la app haya quedado abierta.
-  useHoy()
+  const hoy = useHoy()
   const semana = inicioSemanaISO()
 
   useEffect(() => {
@@ -44,14 +48,15 @@ export default function Entrenar() {
         .select('routine_day_id, fecha')
         .eq('user_id', perfil.id)
         .eq('semana_inicio', semana),
-    ]).then(([res, comp]) => {
+      cargarDescargaVigente(perfil.id, hoy),
+    ]).then(([res, comp, des]) => {
       if (cancelado) return
-      if (res.error || comp.error) setError('No se pudo cargar tu rutina.')
-      else { setRutina(res.data); setRealizados(comp.data); setError('') }
+      if (res.error || comp.error || des.error) setError('No se pudo cargar tu rutina.')
+      else { setRutina(res.data); setRealizados(comp.data); setDescarga(des.descarga); setError('') }
       setCargando(false)
     })
     return () => { cancelado = true }
-  }, [perfil.id, semana])
+  }, [perfil.id, semana, hoy])
 
   const aviso = state?.rutinaCompletada ? (
     <p role="status" className="rounded-xl bg-primario p-3 font-semibold text-white">
@@ -70,6 +75,7 @@ export default function Entrenar() {
       <div className="flex flex-col gap-4">
         {aviso}
         <CicloActual />
+      <AvisoDescarga descarga={descarga} hoy={hoy} />
         <div className={TARJETA}>
           <h2 className="text-xl font-bold">Entrenar</h2>
           <p className="mt-1 text-suave">Tu entrenador aún no te ha asignado una rutina.</p>
@@ -84,6 +90,7 @@ export default function Entrenar() {
     <div className="flex flex-col gap-4">
       {aviso}
       <CicloActual />
+      <AvisoDescarga descarga={descarga} hoy={hoy} />
       <div>
         <h2 className="text-xl font-bold">{rutina.nombre}</h2>
         {rutina.objetivo && <p className="text-sm text-suave">Objetivo: {rutina.objetivo}</p>}

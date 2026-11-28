@@ -3,7 +3,7 @@
 // "Cerrar" un ejercicio = el atleta lo da por terminado sin completar todas las
 // series, explicando el motivo en una nota (tabla exercise_closures).
 // =====================================================================
-import { calcularMeta } from './progresion'
+import { metaDelDia } from './descarga'
 import { bloqueDe } from './bloques'
 
 export const NOTA_MIN = 3
@@ -11,8 +11,9 @@ export const NOTA_MAX = 500
 
 // Series que tocan hoy en un ejercicio (la meta de la progresión manda sobre lo prescrito).
 // Es la misma cuenta que usa cada tarjeta de ejercicio.
-export function seriesObjetivoDe(fila, ultimaVez) {
-  return calcularMeta(fila, ultimaVez?.series)?.series ?? fila.series
+// `descarga`: la semana de descarga en curso (o null); si hay una, manda su reducción de series.
+export function seriesObjetivoDe(fila, ultimaVez, descarga = null) {
+  return metaDelDia(fila, ultimaVez, descarga)?.series ?? fila.series
 }
 
 // 'completo' (hizo todas las series), 'cerrado' (finalizado con nota) o 'pendiente'.

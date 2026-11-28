@@ -15,7 +15,10 @@ import { useAuth } from '../auth/AuthProvider'
 import { aNumero } from '../lib/numeros'
 import { fechaLocalISO, formatearFecha, formatearFechaCorta, inicioDeFechaISO, inicioSemanaISO, inicioSemanaSiguienteISO } from '../lib/fechas'
 import { calcularUltimaVez, inicioDeHoyISO, textoPrescripcion, textoSerie } from '../lib/rutinas'
-import { calcularMeta, textoMeta } from '../lib/progresion'
+import { textoMeta } from '../lib/progresion'
+import { metaDelDia, prescripcionDescarga, textoMetaDescarga } from '../lib/descarga'
+import { cargarDescargaVigente } from '../lib/cargarDescarga'
+import AvisoDescarga from '../components/AvisoDescarga'
 import { agruparPorBloque, textoBloques } from '../lib/bloques'
 import { estadoEjercicio, resumenDiaRealizado, resumenRutinaDia, seriesObjetivoDe, validarNotaCierre, NOTA_MAX } from '../lib/cierres'
 import { CAMPO, BOTON, BOTON_SEC, TARJETA } from '../lib/estilos'
@@ -24,11 +27,12 @@ import ResumenDiaRealizado from '../components/ResumenDiaRealizado'
 // ---------------------------------------------------------------------
 // Un ejercicio con su lista de series y el formulario de la siguiente
 // ---------------------------------------------------------------------
-function EjercicioEntrenamiento({ fila, bloque, seriesHoy, ultimaVez, cierre, userId, sesionId, onCambio }) {
-  // Meta de hoy si el ejercicio tiene progresión automática (null si no). Sale de las
-  // series del entrenamiento anterior, que no cambian mientras entrenas hoy.
-  const meta = calcularMeta(fila, ultimaVez?.series)
-  const textoDeMeta = meta ? textoMeta(meta) : null
+function EjercicioEntrenamiento({ fila, bloque, seriesHoy, ultimaVez, cierre, descarga, userId, sesionId, onCambio }) {
+  // Meta de hoy: la de la semana de descarga si hay una en curso; si no, la progresión
+  // automática (null si el ejercicio no la tiene). Sale de las series del entrenamiento
+  // anterior NORMAL (la base ignora las de descarga), que no cambian mientras entrenas hoy.
+  const meta = metaDelDia(fila, ultimaVez, descarga)
+  const textoDeMeta = meta ? (descarga ? textoMetaDescarga(meta) : textoMeta(meta)) : null
   const seriesObjetivo = meta?.series ?? fila.series
 
   // Peso sugerido para la próxima serie: la última de hoy, si no la meta, si no la del
@@ -157,10 +161,10 @@ function EjercicioEntrenamiento({ fila, bloque, seriesHoy, ultimaVez, cierre, us
             {seriesHoy.length} de {seriesObjetivo}{completado ? ' ✓' : cerrado ? ' · finalizado' : ''}
           </span>
         </div>
-        <p className="text-sm text-suave">{textoPrescripcion(fila)}</p>
+        <p className="text-sm text-suave">{textoPrescripcion(descarga && meta ? prescripcionDescarga(fila, meta) : fila)}</p>
         {textoDeMeta && (
           <div className="mt-2 rounded-xl border border-borde bg-hundido p-3">
-            <p className="text-xs text-suave">Meta de hoy</p>
+            <p className="text-xs text-suave">{descarga ? 'Meta de hoy · Descarga' : 'Meta de hoy'}</p>
             <p className="font-semibold text-enlace">{textoDeMeta.titulo}</p>
             <p className="text-sm text-suave">{textoDeMeta.nota}</p>
           </div>
@@ -293,6 +297,8 @@ export default function EntrenarDia() {
   const [logsHoy, setLogsHoy] = useState([])
   const [cierresHoy, setCierresHoy] = useState([])
   const [ultimaVez, setUltimaVez] = useState({})
+  // Semana de descarga en curso (null si no hay)
+  const [descarga, setDescarga] = useState(null)
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
   const [version, setVersion] = useState(0)
@@ -311,7 +317,7 @@ export default function EntrenarDia() {
           routine_exercises (
             id, orden, bloque, exercise_id, series, reps_min, reps_max, rpe_objetivo, descanso_seg, peso_sugerido_kg, notas,
             progresion_tipo, escalera, incremento_kg, peso_inicial_kg, pide_rpe,
-            exercises ( nombre, grupo_muscular, descripcion, video_url )
+            exercises ( nombre, grupo_muscular, descripcion, video_url, tipo_ejercicio )
           )
         `)
         .eq('id', diaId)
@@ -327,7 +333,7 @@ export default function EntrenarDia() {
       const inicio = inicioDeHoyISO()
       const columnas = 'id, routine_exercise_id, exercise_id, sesion_id, numero_serie, repeticiones, peso_kg, rpe, realizado_en'
 
-      const [hoy, previos, cierres, completado] = await Promise.all([
+      const [hoy, previos, cierres, completado, des] = await Promise.all([
         supabase.from('routine_logs').select(columnas)
           .eq('user_id', perfil.id).in('routine_exercise_id', idsFilas)
           .gte('realizado_en', inicio).order('numero_serie'),
@@ -342,9 +348,11 @@ export default function EntrenarDia() {
         // ¿Ya terminó este día en la semana actual (lunes a domingo, fecha local)?
         supabase.from('routine_day_completions').select('fecha')
           .eq('user_id', perfil.id).eq('routine_day_id', diaId).eq('semana_inicio', inicioSemanaISO()).maybeSingle(),
+        // ¿Hay una semana de descarga en curso hoy (fecha local)?
+        cargarDescargaVigente(perfil.id, fechaLocalISO()),
       ])
       if (cancelado) return
-      if (hoy.error || previos.error || cierres.error || completado.error) { setError('No se pudieron cargar tus series.'); setCargando(false); return }
+      if (hoy.error || previos.error || cierres.error || completado.error || des.error) { setError('No se pudieron cargar tus series.'); setCargando(false); return }
 
       // Día ya realizado: se traen las series y cierres de la SEMANA (el atleta pudo entrenarlo
       // en varios días antes de pulsar "Terminar rutina") para mostrar un resumen de lectura.
@@ -371,6 +379,7 @@ export default function EntrenarDia() {
       setLogsHoy(hoy.data)
       setCierresHoy(cierres.data)
       setRealizado(completado.data)
+      setDescarga(des.descarga)
       setUltimaVez(calcularUltimaVez(previos.data))
       setError('')
       setCargando(false)
@@ -417,7 +426,7 @@ export default function EntrenarDia() {
   // Estado de cada ejercicio (completo / finalizado con nota / pendiente) y de la rutina del día
   const estados = dia.routine_exercises.map((fila) => {
     const hechas = logsHoy.filter((l) => l.routine_exercise_id === fila.id).length
-    const objetivo = seriesObjetivoDe(fila, ultimaVez[fila.exercise_id])
+    const objetivo = seriesObjetivoDe(fila, ultimaVez[fila.exercise_id], descarga)
     return estadoEjercicio(hechas, objetivo, cierresHoy.find((c) => c.routine_exercise_id === fila.id))
   })
   const resumen = resumenRutinaDia(estados)
@@ -462,6 +471,8 @@ export default function EntrenarDia() {
         </div>
       )}
 
+      <AvisoDescarga descarga={descarga} hoy={fechaLocalISO()} />
+
       {hibrido && (
         <p className={`${TARJETA} text-sm`}>
           <span className="font-semibold">Sesión híbrida:</span> {textoBloques(dia.routine_exercises)}. Primero halterofilia y después musculación.
@@ -487,6 +498,7 @@ export default function EntrenarDia() {
                 seriesHoy={logsHoy.filter((l) => l.routine_exercise_id === fila.id)}
                 ultimaVez={ultimaVez[fila.exercise_id]}
                 cierre={cierresHoy.find((c) => c.routine_exercise_id === fila.id)}
+                descarga={descarga}
                 userId={perfil.id}
                 sesionId={sesionId}
                 onCambio={() => setVersion((v) => v + 1)}

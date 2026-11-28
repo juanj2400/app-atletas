@@ -16,8 +16,9 @@ import {
 import { formatearFecha, formatearFechaCorta } from '../lib/fechas'
 import { COLOR } from '../lib/coloresGrafico'
 import { kcalObjetivoEnFecha } from '../lib/nutricion'
+import { TICK, REJILLA, CAJA_RECHARTS, CURSOR } from '../lib/estiloGrafico'
+import CajaGrafico from './CajaGrafico'
 
-const TICK = { fill: COLOR.texto, fontSize: 12 }
 
 export default function GraficoEvolucion({ mediciones, planes = [] }) {
   // 1) Preparar los datos. Supabase las entrega de la más reciente a la más
@@ -43,7 +44,7 @@ export default function GraficoEvolucion({ mediciones, planes = [] }) {
   if (datos.length < 2) {
     return (
       <div className="rounded-2xl border border-borde bg-superficie p-4">
-        <h4 className="font-semibold">Evolución</h4>
+        <h4 className="text-base font-bold">Evolución</h4>
         <p className="mt-1 text-sm text-suave">
           Se necesitan al menos 2 mediciones para dibujar la evolución.
         </p>
@@ -53,15 +54,15 @@ export default function GraficoEvolucion({ mediciones, planes = [] }) {
 
   return (
     <div className="rounded-2xl border border-borde bg-superficie p-4">
-      <h4 className="font-semibold">Evolución</h4>
+      <h4 className="text-base font-bold">Evolución</h4>
       <p className="mb-3 text-sm text-suave">Peso (línea) y calorías (barras) por fecha de medición.{hayObjetivo && ' La línea punteada es el objetivo de calorías.'}</p>
 
       {/* ResponsiveContainer ocupa el ANCHO del padre y se adapta al celular.
           Necesita una altura fija. */}
-      <div role="img" aria-label="Gráfico de evolución del peso y las calorías">
-        <ResponsiveContainer width="100%" height={260}>
+      <CajaGrafico etiqueta="Gráfico de evolución del peso y las calorías" altura={260}>
+        <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={datos} margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
-            <CartesianGrid stroke={COLOR.rejilla} vertical={false} />
+            <CartesianGrid {...REJILLA} />
             <XAxis dataKey="fecha" tickFormatter={formatearFechaCorta} tick={TICK} stroke={COLOR.rejilla} />
 
             {/* DOS ejes verticales porque kg y kcal tienen escalas muy distintas
@@ -81,7 +82,8 @@ export default function GraficoEvolucion({ mediciones, planes = [] }) {
             )}
 
             <Tooltip
-              contentStyle={{ background: COLOR.fondo, border: `1px solid ${COLOR.rejilla}`, borderRadius: 12 }}
+              contentStyle={CAJA_RECHARTS}
+              cursor={CURSOR}
               labelStyle={{ color: COLOR.titulo }}
               labelFormatter={formatearFecha}
             />
@@ -107,7 +109,7 @@ export default function GraficoEvolucion({ mediciones, planes = [] }) {
             )}
           </ComposedChart>
         </ResponsiveContainer>
-      </div>
+      </CajaGrafico>
     </div>
   )
 }

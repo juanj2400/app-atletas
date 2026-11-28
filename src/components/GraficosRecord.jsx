@@ -18,12 +18,9 @@ import {
   fechaCortaDeTimestamp, textoKg, resumirMejoraEjercicio, textoMejoraPeso, textoMejoraReps,
 } from '../lib/records'
 import LineaTemporal from './LineaTemporal'
+import CajaGrafico from './CajaGrafico'
+import { TICK, REJILLA, CAJA, CURSOR } from '../lib/estiloGrafico'
 
-const TICK = { fill: COLOR.texto, fontSize: 12 }
-const CAJA = {
-  background: COLOR.fondo, border: `1px solid ${COLOR.rejilla}`, borderRadius: 12,
-  padding: '8px 12px', color: COLOR.titulo, fontSize: 13,
-}
 
 // Caja que aparece al tocar un punto de la línea
 function TooltipProgreso({ active, payload }) {
@@ -72,22 +69,22 @@ export default function GraficosRecord({ progreso, marcas, con1RM = true, evoluc
           </p>
         ) : (
           <>
-            <div role="img" aria-label="Gráfico de la evolución del 1RM estimado">
-              <ResponsiveContainer width="100%" height={200}>
+            <CajaGrafico etiqueta="Gráfico de la evolución del 1RM estimado" altura={200}>
+              <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={progreso} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                  <CartesianGrid stroke={COLOR.rejilla} vertical={false} />
+                  <CartesianGrid {...REJILLA} />
                   <XAxis dataKey="fecha" tickFormatter={formatearFechaCorta} tick={TICK} stroke={COLOR.rejilla} />
                   {/* El eje NO empieza en 0: si no, una mejora de 5 kg se vería como una línea plana. */}
                   <YAxis
                     width={40} tick={TICK} stroke={COLOR.rejilla}
                     domain={[(min) => Math.floor(min - 2), (max) => Math.ceil(max + 2)]}
                   />
-                  <Tooltip content={<TooltipProgreso />} />
+                  <Tooltip cursor={CURSOR} content={<TooltipProgreso />} />
                   <ReferenceLine y={record} stroke={COLOR.alerta} strokeDasharray="4 4" />
-                  <Line dataKey="e1rm" type="monotone" stroke={COLOR.linea} strokeWidth={2} dot={{ r: 3 }} />
+                  <Line dataKey="e1rm" type="monotone" stroke={COLOR.linea} strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
                 </LineChart>
               </ResponsiveContainer>
-            </div>
+            </CajaGrafico>
             <p className="text-xs text-suave">La línea punteada marca el mejor 1RM estimado.</p>
             <ul className="mt-2 flex flex-col gap-1">
               {[...progreso].reverse().slice(0, 8).map((p) => (
@@ -137,17 +134,17 @@ export default function GraficosRecord({ progreso, marcas, con1RM = true, evoluc
         {barras.length === 0 ? (
           <p className="text-sm text-suave">Aún no hay series con peso en este ejercicio.</p>
         ) : (
-          <div role="img" aria-label="Gráfico de repeticiones máximas por peso">
-            <ResponsiveContainer width="100%" height={200}>
+          <CajaGrafico etiqueta="Gráfico de repeticiones máximas por peso" altura={200}>
+            <ResponsiveContainer width="100%" height="100%">
               <BarChart data={barras} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                <CartesianGrid stroke={COLOR.rejilla} vertical={false} />
+                <CartesianGrid {...REJILLA} />
                 <XAxis dataKey="peso" tickFormatter={(v) => `${textoKg(v)} kg`} tick={TICK} stroke={COLOR.rejilla} />
                 <YAxis width={32} allowDecimals={false} tick={TICK} stroke={COLOR.rejilla} />
                 <Tooltip content={<TooltipBarras />} cursor={{ fill: COLOR.rejilla, opacity: 0.4 }} />
                 <Bar dataKey="reps" fill={COLOR.kcal} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
-          </div>
+          </CajaGrafico>
         )}
       </div>
     </div>

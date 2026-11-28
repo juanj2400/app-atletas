@@ -18,13 +18,10 @@
 // =====================================================================
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine } from 'recharts'
 import { COLOR } from '../lib/coloresGrafico'
+import { TICK, REJILLA, CAJA, CURSOR } from '../lib/estiloGrafico'
+import CajaGrafico from './CajaGrafico'
 import { formatearFecha, formatearFechaCorta } from '../lib/fechas'
 
-const TICK = { fill: COLOR.texto, fontSize: 12 }
-const CAJA = {
-  background: COLOR.fondo, border: `1px solid ${COLOR.rejilla}`, borderRadius: 12,
-  padding: '8px 12px', color: COLOR.titulo, fontSize: 13,
-}
 const num = (v) => Number(v).toLocaleString('es-CO', { maximumFractionDigits: 2 })
 
 // Caja que aparece al tocar un punto. Vive FUERA del componente para que React no la recree en cada dibujo.
@@ -45,26 +42,26 @@ export default function LineaTemporal({
   referencia = null, etiquetaReferencia = '', margenY = 1, entero = false, extra = null,
 }) {
   return (
-    <div role="img" aria-label={`Gráfico de ${nombre.toLowerCase()} por fecha`}>
-      <ResponsiveContainer width="100%" height={altura}>
+    <CajaGrafico etiqueta={`Gráfico de ${nombre.toLowerCase()} por fecha`} altura={altura}>
+      <ResponsiveContainer width="100%" height="100%">
         <LineChart data={datos} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-          <CartesianGrid stroke={COLOR.rejilla} vertical={false} />
+          <CartesianGrid {...REJILLA} />
           {/* minTickGap evita que las fechas se amontonen cuando hay muchos puntos */}
           <XAxis dataKey="fecha" tickFormatter={formatearFechaCorta} tick={TICK} stroke={COLOR.rejilla} minTickGap={24} />
           <YAxis
             width={40} tick={TICK} stroke={COLOR.rejilla} allowDecimals={!entero}
             domain={[(min) => Math.max(0, Math.floor(min - margenY)), (max) => Math.ceil(max + margenY)]}
           />
-          <Tooltip content={(props) => <Caja {...props} clave={clave} nombre={nombre} unidad={unidad} extra={extra} />} />
+          <Tooltip cursor={CURSOR} content={(props) => <Caja {...props} clave={clave} nombre={nombre} unidad={unidad} extra={extra} />} />
           {referencia !== null && (
             <ReferenceLine
               y={referencia} stroke={COLOR.alerta} strokeDasharray="4 4"
               label={etiquetaReferencia ? { value: etiquetaReferencia, fill: COLOR.alerta, fontSize: 11, position: 'insideTopRight' } : undefined}
             />
           )}
-          <Line dataKey={clave} type="linear" stroke={color} strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} />
+          <Line dataKey={clave} type="linear" stroke={color} strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} isAnimationActive={false} />
         </LineChart>
       </ResponsiveContainer>
-    </div>
+    </CajaGrafico>
   )
 }

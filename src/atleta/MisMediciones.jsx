@@ -78,9 +78,9 @@ export default function MisMediciones() {
   const pesos = combinarPesos(mediciones, checkIns)
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="grid gap-4 lg:grid-cols-2">
       {pesos.length === 0 ? (
-        <p className="rounded-2xl border border-borde bg-superficie p-4 text-suave">
+        <p className="rounded-2xl border border-borde bg-superficie p-4 text-suave lg:col-span-2">
           Aún no tienes mediciones registradas. Cuando tu entrenador las cargue o anotes tu peso en el check-in, las verás aquí.
         </p>
       ) : (
@@ -88,18 +88,20 @@ export default function MisMediciones() {
           {/* Lo primero que ve el atleta: hacia dónde va su peso (tendencia + proyección). */}
           <GraficoTendenciaPeso mediciones={pesos} />
           <GraficoOscilacionPeso mediciones={pesos} />
-          <p className="text-sm text-suave">
+          <p className="text-sm text-suave lg:col-span-2">
             Tu entrenador registra las mediciones oficiales. El peso que anotas en tu check-in diario también cuenta para tu tendencia y tu peso actual; si el mismo día hay medición oficial, manda esa.
           </p>
-          <ResumenMediciones
-            resumen={resumirMediciones(pesos)}
-            objetivoKcal={planes.find((p) => p.vigente_hasta === null)?.calorias_objetivo ?? null}
-          />
-          {mediciones.length > 0 && <GraficoEvolucion mediciones={mediciones} planes={planes} />}
+          <div className="lg:col-span-2">
+            <ResumenMediciones
+              resumen={resumirMediciones(pesos)}
+              objetivoKcal={planes.find((p) => p.vigente_hasta === null)?.calorias_objetivo ?? null}
+            />
+          </div>
+          {mediciones.length > 0 && <div className="lg:col-span-2"><GraficoEvolucion mediciones={mediciones} planes={planes} /></div>}
 
-          {mediciones.length > 0 && <section>
-            <h3 className="mb-2 font-semibold">Historial</h3>
-            <ul className="flex flex-col gap-3">
+          {mediciones.length > 0 && <section className="lg:col-span-2">
+            <h3 className="mb-2 text-lg font-bold">Historial</h3>
+            <ul className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
               {mediciones.map((m) => (
                 <li key={m.id} className="rounded-2xl border border-borde bg-superficie p-4">
                   <p className="font-semibold capitalize">{formatearFecha(m.fecha)}</p>

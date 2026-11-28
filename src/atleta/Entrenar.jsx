@@ -86,7 +86,7 @@ export default function Entrenar() {
   }, [perfil.id, semana, hoy, conectado, subidos])
 
   const aviso = state?.rutinaCompletada ? (
-    <p role="status" className="rounded-xl bg-primario p-3 font-semibold text-white">
+    <p role="status" className="rounded-xl border border-exito/40 bg-exito/10 p-3 font-semibold text-exito">
       ¡Rutina del día completada! ✓ Terminaste «{state.rutinaCompletada}».
     </p>
   ) : state?.checkInGuardado ? (
@@ -113,6 +113,7 @@ export default function Entrenar() {
   }
 
   const dias = [...rutina.routine_days].sort((a, b) => a.orden - b.orden)
+  const hechos = dias.filter((d) => realizados.some((r) => r.routine_day_id === d.id)).length
 
   return (
     <div className="flex flex-col gap-4">
@@ -120,16 +121,26 @@ export default function Entrenar() {
       <CicloActual />
       <AvisoDescarga descarga={descarga} hoy={hoy} />
       <NotaDatosGuardados guardadoEn={guardadoEn} />
-      <div>
-        <h2 className="text-xl font-bold">{rutina.nombre}</h2>
-        {rutina.objetivo && <p className="text-sm text-suave">Objetivo: {rutina.objetivo}</p>}
-        {rutina.notas && <p className="mt-1 text-sm">{rutina.notas}</p>}
+      <div className={`${TARJETA} flex flex-col gap-3`}>
+        <div>
+          <h2 className="text-xl font-bold md:text-2xl">{rutina.nombre}</h2>
+          {rutina.objetivo && <p className="text-sm text-suave">Objetivo: {rutina.objetivo}</p>}
+          {rutina.notas && <p className="mt-1 text-sm">{rutina.notas}</p>}
+        </div>
+        {/* Progreso de la semana: mismos números de antes, ahora con barra. */}
+        <div>
+          <div className="flex items-baseline justify-between text-sm">
+            <span className="text-suave">Esta semana</span>
+            <span className="font-semibold">{hechos} de {dias.length} días realizados</span>
+          </div>
+          <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-hundido" role="progressbar" aria-label="Días realizados esta semana" aria-valuemin={0} aria-valuemax={dias.length} aria-valuenow={hechos}>
+            <div className="h-full rounded-full bg-exito" style={{ width: `${dias.length ? (hechos / dias.length) * 100 : 0}%` }} />
+          </div>
+        </div>
       </div>
 
-      <p className="text-sm text-suave">
-        Elige el día que vas a entrenar hoy · Esta semana: {dias.filter((d) => realizados.some((r) => r.routine_day_id === d.id)).length} de {dias.length} días realizados
-      </p>
-      <ul className="flex flex-col gap-3">
+      <p className="text-sm text-suave">Elige el día que vas a entrenar hoy.</p>
+      <ul className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
         {dias.map((d) => {
           const hecho = realizados.find((r) => r.routine_day_id === d.id)
           // Día ya realizado esta semana: marcado; se puede abrir SOLO para ver su resumen
@@ -137,19 +148,19 @@ export default function Entrenar() {
           if (hecho) {
             return (
               <li key={d.id}>
-                <Link to={`/atleta/entrenar/${d.id}`} className={`${TARJETA} flex items-center justify-between gap-2 border-primario`}>
+                <Link to={`/atleta/entrenar/${d.id}`} className={`${TARJETA} flex h-full items-center justify-between gap-2 border-exito/40 transition-colors hover:bg-elevada`}>
                   <div>
                     <p className="font-semibold">{d.nombre}</p>
                     <p className="text-sm text-suave">Realizado el {formatearFecha(hecho.fecha)}. Toca para ver lo que hiciste.</p>
                   </div>
-                  <span className="whitespace-nowrap text-sm font-bold text-enlace">Realizado ✓</span>
+                  <span className="whitespace-nowrap text-sm font-bold text-exito">Realizado ✓</span>
                 </Link>
               </li>
             )
           }
           return (
           <li key={d.id}>
-            <Link to={`/atleta/entrenar/${d.id}`} className={`${TARJETA} flex items-center justify-between`}>
+            <Link to={`/atleta/entrenar/${d.id}`} className={`${TARJETA} flex h-full items-center justify-between transition-colors hover:bg-elevada`}>
               <div>
                 <p className="font-semibold">{d.nombre}</p>
                 <p className="text-sm text-suave">

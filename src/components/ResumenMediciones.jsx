@@ -6,8 +6,8 @@ import { textoEstadoCalorico } from '../lib/opciones'
 function Tarjeta({ titulo, valor, detalle }) {
   return (
     <div className="rounded-2xl border border-borde bg-superficie p-4">
-      <p className="text-sm text-suave">{titulo}</p>
-      <p className="text-2xl font-bold">{valor}</p>
+      <p className="text-xs font-medium uppercase tracking-wide text-suave">{titulo}</p>
+      <p className="mt-1 text-2xl font-bold">{valor}</p>
       {detalle && <p className="text-sm text-suave">{detalle}</p>}
     </div>
   )
@@ -16,7 +16,7 @@ function Tarjeta({ titulo, valor, detalle }) {
 export default function ResumenMediciones({ resumen, objetivoKcal = null }) {
   const { pesoActual, delta, cinturaActual, estadoActual, promedioKcal7, diasKcal7 } = resumen
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       <Tarjeta
         titulo="Peso actual"
         valor={pesoActual ? `${pesoActual.peso_corporal_kg} kg` : '—'}

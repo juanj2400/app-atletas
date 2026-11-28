@@ -197,7 +197,7 @@ function EjercicioEntrenamiento({ fila, bloque, seriesHoy, ultimaVez, cierre, de
         )}
         <div className="flex items-start justify-between gap-2">
           <h3 className="text-lg font-bold">{ej.nombre}</h3>
-          <span className={`whitespace-nowrap text-sm font-semibold ${completado ? 'text-enlace' : cerrado ? 'text-alerta' : 'text-suave'}`}>
+          <span className={`whitespace-nowrap text-sm font-semibold ${completado ? 'text-exito' : cerrado ? 'text-alerta' : 'text-suave'}`}>
             {seriesHoy.length} de {seriesObjetivo}{completado ? ' ✓' : cerrado ? ' · finalizado' : ''}
           </span>
         </div>
@@ -490,9 +490,9 @@ export default function EntrenarDia() {
     return (
       <div className="flex flex-col gap-4">
         <Link to="/atleta/entrenar" className="text-sm text-enlace">‹ Mi rutina</Link>
-        <div role="status" className={`${TARJETA} border-primario`}>
+        <div role="status" className={`${TARJETA} border-exito/50`}>
           <h2 className="text-xl font-bold">{dia.nombre}</h2>
-          <p className="mt-1 font-semibold text-enlace">Día realizado ✓</p>
+          <p className="mt-1 font-semibold text-exito">Día realizado ✓</p>
           <p className="mt-1 text-sm text-suave">
             Lo completaste el {formatearFecha(realizado.fecha)}. Podrás volver a entrenarlo desde el {formatearFecha(inicioSemanaSiguienteISO())}.
           </p>
@@ -555,7 +555,7 @@ export default function EntrenarDia() {
       </div>
 
       {resumen.terminada && (
-        <div role="status" className="rounded-2xl bg-primario p-4 text-white">
+        <div role="status" className="rounded-2xl border border-exito/40 bg-exito/10 p-4 text-exito">
           <p className="text-lg font-bold">¡Rutina del día completada! ✓</p>
           <p className="text-sm">
             {resumen.completos} {resumen.completos === 1 ? 'ejercicio completo' : 'ejercicios completos'}
@@ -576,14 +576,14 @@ export default function EntrenarDia() {
       {grupos.map((grupo) => (
         <section key={grupo.valor ?? 'unico'} className="flex flex-col gap-3" aria-label={grupo.titulo ?? undefined}>
           {grupo.titulo && (
-            <h3 className={`border-l-4 pl-3 text-lg font-bold ${grupo.valor === 'halterofilia' ? 'border-primario' : 'border-enlace'}`}>
+            <h3 className={`border-l-4 pl-3 text-lg font-bold ${grupo.valor === 'halterofilia' ? 'border-halterofilia' : 'border-musculacion'}`}>
               Bloque de {grupo.titulo.toLowerCase()}
               <span className="ml-2 text-sm font-normal text-suave">
                 {grupo.filas.length} {grupo.filas.length === 1 ? 'ejercicio' : 'ejercicios'}
               </span>
             </h3>
           )}
-          <ul className="flex flex-col gap-4">
+          <ul className="grid items-start gap-4 lg:grid-cols-2">
             {grupo.filas.map((fila) => (
               <EjercicioEntrenamiento
                 key={fila.id}

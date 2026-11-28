@@ -16,9 +16,10 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { formatearFecha, formatearFechaCorta } from '../lib/fechas'
 import { COLOR } from '../lib/coloresGrafico'
+import { TICK, REJILLA, CAJA_RECHARTS, CURSOR } from '../lib/estiloGrafico'
+import CajaGrafico from './CajaGrafico'
 import { calcularTendenciaPeso, textoTendencia, isoDesdeDia } from '../lib/tendenciaPeso'
 
-const TICK = { fill: COLOR.texto, fontSize: 12 }
 // Punto del peso real: relleno = medición oficial del entrenador; hueco = peso de tu check-in.
 // (Recharts no dibuja puntos en las filas sin peso, como la del final de la proyección.)
 function PuntoPeso({ cx, cy, payload }) {
@@ -39,7 +40,7 @@ export default function GraficoTendenciaPeso({ mediciones }) {
   if (!t.suficiente) {
     return (
       <div className="rounded-2xl border border-borde bg-superficie p-4">
-        <h4 className="font-semibold">Tendencia de tu peso</h4>
+        <h4 className="text-base font-bold">Tendencia de tu peso</h4>
         <p className="mt-1 text-sm text-suave" role="status">{textoTendencia(t)}</p>
       </div>
     )
@@ -49,13 +50,13 @@ export default function GraficoTendenciaPeso({ mediciones }) {
 
   return (
     <div className="rounded-2xl border border-borde bg-superficie p-4">
-      <h4 className="font-semibold">Tendencia de tu peso</h4>
+      <h4 className="text-base font-bold">Tendencia de tu peso</h4>
       <p className="mb-3 text-sm text-suave">{resumen}</p>
 
-      <div role="img" aria-label={`Gráfico de tendencia del peso. ${resumen}`}>
-        <ResponsiveContainer width="100%" height={240}>
+      <CajaGrafico etiqueta={`Gráfico de tendencia del peso. ${resumen}`} altura={240}>
+        <ResponsiveContainer width="100%" height="100%">
           <LineChart data={t.filas} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-            <CartesianGrid stroke={COLOR.rejilla} vertical={false} />
+            <CartesianGrid {...REJILLA} />
             <XAxis
               dataKey="dia" type="number" scale="linear"
               domain={[t.ticks[0], t.ticks[3]]} ticks={t.ticks}
@@ -68,7 +69,8 @@ export default function GraficoTendenciaPeso({ mediciones }) {
               domain={[(min) => Math.floor(min - 1), (max) => Math.ceil(max + 1)]}
             />
             <Tooltip
-              contentStyle={{ background: COLOR.fondo, border: `1px solid ${COLOR.rejilla}`, borderRadius: 12 }}
+              contentStyle={CAJA_RECHARTS}
+              cursor={CURSOR}
               labelStyle={{ color: COLOR.titulo }}
               labelFormatter={(d) => formatearFecha(isoDesdeDia(d))}
               formatter={(v, nombre) => [kg(v), nombre]}
@@ -91,7 +93,7 @@ export default function GraficoTendenciaPeso({ mediciones }) {
             />
           </LineChart>
         </ResponsiveContainer>
-      </div>
+      </CajaGrafico>
 
       {/* Leyenda propia en HTML: en celular la de Recharts se ve apretada y esta es más legible */}
       <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-suave">

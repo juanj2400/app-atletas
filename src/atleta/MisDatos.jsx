@@ -16,10 +16,10 @@ const SECCIONES = [
 export default function MisDatos() {
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-xl font-bold">Mis datos</h2>
+      <h2 className="text-xl font-bold md:text-2xl">Mis datos</h2>
 
       {/* Selector de sección: botones tipo "pestañas" */}
-      <nav aria-label="Secciones de mis datos" className="flex gap-1 rounded-2xl border border-borde bg-superficie p-1">
+      <nav aria-label="Secciones de mis datos" className="flex gap-1 rounded-2xl border border-borde bg-superficie p-1 md:w-80">
         {SECCIONES.map((s) => (
           <NavLink
             key={s.a}
@@ -27,7 +27,7 @@ export default function MisDatos() {
             end={s.fin}
             className={({ isActive }) =>
               `flex min-h-11 flex-1 items-center justify-center rounded-xl text-sm font-semibold ${
-                isActive ? 'bg-primario text-white' : 'text-suave'
+                isActive ? 'bg-primario text-white' : 'text-suave hover:bg-elevada hover:text-texto'
               }`
             }
           >

@@ -93,10 +93,11 @@ export default function Nutricion() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-xl font-bold">Nutrición</h2>
+      <h2 className="text-xl font-bold md:text-2xl">Nutrición</h2>
       <NotaDatosGuardados guardadoEn={guardadoEn} />
 
-      <section aria-labelledby="titulo-comidas" className="flex flex-col gap-3">
+      <div className="grid gap-4 lg:grid-cols-3 lg:items-start lg:gap-6">
+      <section aria-labelledby="titulo-comidas" className={`flex flex-col gap-3 ${plan ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
         <div>
           <h3 id="titulo-comidas" className="text-lg font-bold">Tus comidas del día</h3>
           {comidas.length > 0 && (
@@ -129,7 +130,7 @@ export default function Nutricion() {
       </section>
 
       {plan && (
-        <>
+        <div className="flex flex-col gap-4 lg:sticky lg:top-4">
           <PlanNutricionalCard plan={plan} titulo="Tu objetivo diario" />
 
           <div className={TARJETA}>
@@ -148,8 +149,9 @@ export default function Nutricion() {
               </>
             )}
           </div>
-        </>
+        </div>
       )}
+      </div>
     </div>
   )
 }

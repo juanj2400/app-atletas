@@ -9,5 +9,5 @@ export const TARJETA = 'rounded-2xl border border-borde bg-superficie p-4'
 export const ETIQUETA_HALTEROFILIA = 'bg-halterofilia/15 text-halterofilia'
 export const ETIQUETA_MUSCULACION = 'bg-musculacion/15 text-musculacion'
 // Anchos del contenido en escritorio (el celular sigue a todo el ancho de su columna).
-export const CONTENIDO_ATLETA = 'mx-auto w-full max-w-md p-4 md:max-w-3xl md:p-6 lg:p-8'
+export const CONTENIDO_ATLETA = 'mx-auto w-full max-w-md p-4 md:max-w-3xl md:p-6 lg:max-w-5xl lg:p-8'
 export const CONTENIDO_ADMIN = 'mx-auto w-full max-w-3xl p-4 md:max-w-5xl md:p-6 lg:p-8'

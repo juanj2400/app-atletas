@@ -9,11 +9,12 @@
 // =====================================================================
 import { ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine } from 'recharts'
 import { COLOR } from '../lib/coloresGrafico'
+import { TICK, REJILLA, CAJA } from '../lib/estiloGrafico'
+import CajaGrafico from './CajaGrafico'
 import { formatearFecha, formatearFechaCorta } from '../lib/fechas'
 import { calcularOscilacionPeso, textoOscilacion } from '../lib/oscilacionPeso'
 import LineaTemporal from './LineaTemporal'
 
-const TICK = { fill: COLOR.texto, fontSize: 12 }
 const kg = (v) => Number(v).toLocaleString('es-CO', { maximumFractionDigits: 2 })
 const conSigno = (v) => `${v > 0 ? '+' : ''}${kg(v)} kg`
 
@@ -30,7 +31,7 @@ function CajaCambio({ active, payload }) {
   if (!active || !payload?.length) return null
   const p = payload[0].payload
   return (
-    <div style={{ background: COLOR.fondo, border: `1px solid ${COLOR.rejilla}`, borderRadius: 12, padding: '8px 12px', color: COLOR.titulo, fontSize: 13 }}>
+    <div style={CAJA}>
       <p style={{ fontWeight: 600 }}>{formatearFecha(p.fecha)}</p>
       <p>{conSigno(p.cambio)} frente a la medición anterior</p>
     </div>
@@ -43,7 +44,7 @@ export default function GraficoOscilacionPeso({ mediciones }) {
   if (!o.suficiente) {
     return (
       <div className="rounded-2xl border border-borde bg-superficie p-4">
-        <h4 className="font-semibold">Oscilación del peso</h4>
+        <h4 className="text-base font-bold">Oscilación del peso</h4>
         <p className="mt-1 text-sm text-suave" role="status">{textoOscilacion(o)}</p>
       </div>
     )
@@ -53,7 +54,7 @@ export default function GraficoOscilacionPeso({ mediciones }) {
 
   return (
     <div className="rounded-2xl border border-borde bg-superficie p-4">
-      <h4 className="font-semibold">Oscilación del peso</h4>
+      <h4 className="text-base font-bold">Oscilación del peso</h4>
       <p className="mb-3 text-sm text-suave">{textoOscilacion(o)}</p>
 
       <LineaTemporal
@@ -63,10 +64,10 @@ export default function GraficoOscilacionPeso({ mediciones }) {
       />
 
       <p className="mb-1 mt-4 text-sm font-semibold">Cambio entre mediciones</p>
-      <div role="img" aria-label="Gráfico de barras con lo que subió o bajó el peso entre mediciones">
-        <ResponsiveContainer width="100%" height={150}>
+      <CajaGrafico etiqueta="Gráfico de barras con lo que subió o bajó el peso entre mediciones" altura={150}>
+        <ResponsiveContainer width="100%" height="100%">
           <BarChart data={cambios} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-            <CartesianGrid stroke={COLOR.rejilla} vertical={false} />
+            <CartesianGrid {...REJILLA} />
             <XAxis dataKey="fecha" tickFormatter={formatearFechaCorta} tick={TICK} stroke={COLOR.rejilla} minTickGap={24} />
             <YAxis width={40} tick={TICK} stroke={COLOR.rejilla} tickFormatter={kg} />
             <Tooltip content={<CajaCambio />} cursor={{ fill: COLOR.rejilla, opacity: 0.4 }} />
@@ -77,7 +78,7 @@ export default function GraficoOscilacionPeso({ mediciones }) {
             </Bar>
           </BarChart>
         </ResponsiveContainer>
-      </div>
+      </CajaGrafico>
       <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-suave">
         <li className="flex items-center gap-1.5">
           <span aria-hidden="true" className="inline-block h-2 w-3 rounded-sm" style={{ background: COLOR.alerta }} />Subió

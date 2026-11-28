@@ -4,6 +4,10 @@ Registro cronológico de cambios. Agregar entradas nuevas arriba (`feat`, `fix`,
 
 ---
 
+## 2026-11-28 · Pasos 38 y 39 — Interior del atleta y gráficas (solo presentación)
+- **style (paso 38):** `Entrenar` con tarjeta de rutina y barra de progreso semanal (mismos números), días en 2–3 columnas en escritorio; sesión (`EntrenarDia`) con ejercicios en 2 columnas en `lg:` y verde `exito` para lo completado; etiquetas/bloques con `halterofilia`/`musculacion`. `Mis datos`: gráficas de peso lado a lado, 4 tarjetas resumen e historial en rejilla. `Nutrición`: comidas a la izquierda y objetivo/7 días a la derecha. `CONTENIDO_ATLETA` llega a `max-w-5xl` en `lg:`.
+- **style (paso 39):** `lib/estiloGrafico.js` (ejes, rejilla punteada, tooltip y cursor comunes) y `components/CajaGrafico.jsx` (alto propio y ~30 % más alto desde `md:`); las 5 gráficas lo usan. Mismos datos, cálculos y textos. Sin SQL.
+
 ## 2026-11-28 · Paso 37 — Rediseño visual y marco de escritorio
 - **style:** Nuevos tokens en `@theme` (`elevada`, `borde-suave`, `borde-campo`, `primario-fuerte`, `exito`, `halterofilia`, `musculacion`); todos los hex sueltos migrados a tokens (las gráficas usan `var(--color-*)`). Foco visible global, hover en botones y `tabular-nums` en toda la app. Etiquetas de disciplina suaves en `EntrenarDia`.
 - **feat (solo presentación):** Escritorio (`md:`/`lg:`): barra lateral (`MarcoApp`) con logo, usuario/rol, navegación y «Cerrar sesión» para atleta y entrenador; barra inferior del atleta `md:hidden`; contenido más ancho (`CONTENIDO_ATLETA`/`CONTENIDO_ADMIN`). El celular queda igual. Sin cambios de rutas, datos ni lógica.

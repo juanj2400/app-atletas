@@ -31,7 +31,7 @@ export default function Selector({ opciones, valor, onChange, vertical = false }
             className={`min-h-11 flex-1 rounded-xl border px-3 py-2 font-semibold ${
               activo
                 ? 'border-primario bg-primario text-white'
-                : 'border-[#5B6372] bg-superficie text-texto'
+                : 'border-borde-campo bg-superficie text-texto'
             }`}
           >
             {opcion.etiqueta}

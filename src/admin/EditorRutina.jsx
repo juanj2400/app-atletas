@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import Encabezado from '../components/Encabezado'
+import { MarcoAdmin } from '../components/MarcoApp'
 import SelectorEjercicio from './SelectorEjercicio'
 import VolumenMuscular from './VolumenMuscular'
 import { aNumero } from '../lib/numeros'
@@ -431,7 +432,7 @@ function FormDatos({ rutina, aplicar }) {
       <label htmlFor="r-objetivo" className="text-sm text-suave">Objetivo (opcional)</label>
       <input id="r-objetivo" value={objetivo} onChange={(e) => setObjetivo(e.target.value)} placeholder="Ej: fuerza máxima" className={CAMPO} />
       <label htmlFor="r-notas" className="text-sm text-suave">Notas (opcional)</label>
-      <textarea id="r-notas" rows={2} value={notas} onChange={(e) => setNotas(e.target.value)} className="w-full rounded-xl border border-[#5B6372] bg-fondo p-3" />
+      <textarea id="r-notas" rows={2} value={notas} onChange={(e) => setNotas(e.target.value)} className="w-full rounded-xl border border-borde-campo bg-fondo p-3" />
       {error && <p role="alert" className="text-alerta">{error}</p>}
       <button type="submit" className={BOTON_SEC}>Guardar datos</button>
     </form>
@@ -550,23 +551,23 @@ export default function EditorRutina() {
   }
 
   if (cargando) {
-    return <><Encabezado titulo="Rutina" /><main className="p-4 text-suave">Cargando rutina...</main></>
+    return <MarcoAdmin><Encabezado titulo="Rutina" /><main className={`${CONTENIDO_ADMIN} text-suave`}>Cargando rutina...</main></MarcoAdmin>
   }
   if (error || !rutina) {
     return (
-      <>
+      <MarcoAdmin>
         <Encabezado titulo="Rutina" volverA="/admin" textoVolver="Atletas" />
-        <main className="p-4 text-alerta">{error || 'No encontramos esta rutina.'}</main>
-      </>
+        <main className={`${CONTENIDO_ADMIN} text-alerta`}>{error || 'No encontramos esta rutina.'}</main>
+      </MarcoAdmin>
     )
   }
 
   const colorMensaje = mensaje?.tipo === 'error' ? 'text-alerta' : 'text-enlace'
 
   return (
-    <>
+    <MarcoAdmin>
       <Encabezado titulo={rutina.nombre} volverA={`/admin/atletas/${rutina.user_id}`} textoVolver="Atleta" />
-      <main className="mx-auto flex max-w-3xl flex-col gap-4 p-4">
+      <main className={`${CONTENIDO_ADMIN} flex flex-col gap-4`}>
         {/* Aviso fijo arriba: así se ve aunque estés editando más abajo en la página. */}
         {mensaje && (
           <p role={mensaje.tipo === 'error' ? 'alert' : 'status'}
@@ -629,6 +630,6 @@ export default function EditorRutina() {
           <button type="button" onClick={eliminar} className={`${BOTON_SEC} text-alerta`}>Eliminar esta rutina</button>
         </div>
       </main>
-    </>
+    </MarcoAdmin>
   )
 }

@@ -7,6 +7,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import Encabezado from '../components/Encabezado'
+import { MarcoAdmin } from '../components/MarcoApp'
 import { textoTipo } from '../lib/tiposEjercicio'
 import FormEjercicio from './FormEjercicio'
 import { CAMPO, BOTON, BOTON_SEC, TARJETA } from '../lib/estilos'
@@ -124,9 +125,9 @@ export default function Ejercicios() {
   )
 
   return (
-    <>
+    <MarcoAdmin>
       <Encabezado titulo="Biblioteca de ejercicios" volverA="/admin" textoVolver="Atletas" />
-      <main className="mx-auto flex max-w-3xl flex-col gap-4 p-4">
+      <main className={`${CONTENIDO_ADMIN} flex flex-col gap-4`}>
         <p className="text-sm text-suave">
           Crea ejercicios y define los músculos de cada uno para calcular el volumen semanal de las rutinas.
           {sinAsignar > 0 && <span className="text-alerta"> {sinAsignar} sin músculos asignados.</span>}
@@ -205,6 +206,6 @@ export default function Ejercicios() {
           })}
         </ul>
       </main>
-    </>
+    </MarcoAdmin>
   )
 }

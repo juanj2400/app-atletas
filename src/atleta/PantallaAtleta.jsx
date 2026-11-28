@@ -22,6 +22,8 @@ import { cargarConCache } from '../lib/cacheOffline'
 import { leerCola } from '../lib/colaOffline'
 import Encabezado from '../components/Encabezado'
 import IndicadorConexion from '../components/IndicadorConexion'
+import MarcoApp from '../components/MarcoApp'
+import { CONTENIDO_ATLETA } from '../lib/estilos'
 
 export default function PantallaAtleta() {
   const { perfil } = useAuth()
@@ -70,15 +72,16 @@ export default function PantallaAtleta() {
   // Las pestañas solo existen con el check-in hecho: antes no hay a dónde ir.
   // (El check-in no es una pestaña: es la puerta del día y desaparece al completarse.)
   const pestanas = [
-    { a: '/atleta/entrenar', texto: 'Entrenar', fin: false },
-    { a: '/atleta/nutricion', texto: 'Nutrición', fin: false },
-    { a: '/atleta/datos', texto: 'Mis datos', fin: false },
+    { a: '/atleta/entrenar', texto: 'Entrenar', fin: false, icono: 'entrenar' },
+    { a: '/atleta/nutricion', texto: 'Nutrición', fin: false, icono: 'nutricion' },
+    { a: '/atleta/datos', texto: 'Mis datos', fin: false, icono: 'datos' },
   ]
 
   return (
-    <>
+    // Escritorio: barra lateral (MarcoApp). Con el check-in pendiente no hay navegación, solo logo y usuario.
+    <MarcoApp items={hecho === true ? pestanas : []}>
       <Encabezado titulo="Mi entrenamiento" />
-      <main className="mx-auto max-w-md p-4 pb-28">
+      <main className={`${CONTENIDO_ATLETA} pb-28 md:pb-8`}>
         {hecho === false && (
           <p role="status" className="mb-4 rounded-2xl border border-borde bg-superficie p-4 text-sm text-suave">
             Completa el check-in de hoy para entrar a tu entrenamiento, tu nutrición y tus datos.
@@ -97,7 +100,7 @@ export default function PantallaAtleta() {
       {hecho === true && (
         <nav
           aria-label="Secciones"
-          className="fixed inset-x-0 bottom-0 flex border-t border-borde bg-superficie pb-[env(safe-area-inset-bottom)]"
+          className="fixed inset-x-0 bottom-0 flex border-t border-borde bg-superficie pb-[env(safe-area-inset-bottom)] md:hidden"
         >
           {pestanas.map((p) => (
             <NavLink
@@ -115,6 +118,6 @@ export default function PantallaAtleta() {
           ))}
         </nav>
       )}
-    </>
+    </MarcoApp>
   )
 }

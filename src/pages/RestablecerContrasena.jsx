@@ -10,6 +10,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 import { Cargando } from '../components/Estados'
 import { CAMPO, BOTON } from '../lib/estilos'
+import PaginaCentrada from '../components/PaginaCentrada'
 
 // Es la comodidad del navegador: el mínimo real lo fija Supabase en
 // Authentication > Sign In / Providers > Email ("Minimum password length").
@@ -40,7 +41,7 @@ export default function RestablecerContrasena() {
   // Sin sesión: el enlace ya se usó, venció o se abrió sin pasar por el correo.
   if (!session) {
     return (
-      <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-4 p-6">
+      <PaginaCentrada separacion="gap-4">
         <h1 className="text-2xl font-bold">Enlace no válido</h1>
         <p role="alert" className="text-suave">
           Este enlace ya se usó o venció. Pide uno nuevo para crear tu contraseña.
@@ -51,7 +52,7 @@ export default function RestablecerContrasena() {
         <Link to="/login" className="inline-flex min-h-11 items-center justify-center text-sm text-enlace">
           ‹ Volver a iniciar sesión
         </Link>
-      </main>
+      </PaginaCentrada>
     )
   }
 
@@ -69,19 +70,19 @@ export default function RestablecerContrasena() {
 
   if (listo) {
     return (
-      <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-4 p-6">
+      <PaginaCentrada separacion="gap-4">
         <h1 className="text-2xl font-bold">Contraseña actualizada</h1>
         <p role="status" className="text-enlace">Ya puedes usar tu contraseña nueva.</p>
         {/* "/" redirige a la zona que corresponde según el rol. */}
         <button type="button" onClick={() => navigate('/', { replace: true })} className={BOTON}>
           Continuar
         </button>
-      </main>
+      </PaginaCentrada>
     )
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-6 p-6">
+    <PaginaCentrada>
       <div>
         <h1 className="text-2xl font-bold">Contraseña nueva</h1>
         <p className="mt-2 text-suave">Elige una contraseña de al menos {MINIMO} caracteres.</p>
@@ -119,6 +120,6 @@ export default function RestablecerContrasena() {
           {guardando ? 'Guardando...' : 'Guardar contraseña'}
         </button>
       </form>
-    </main>
+    </PaginaCentrada>
   )
 }

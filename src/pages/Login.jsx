@@ -8,6 +8,8 @@
 import { useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
+import PaginaCentrada from '../components/PaginaCentrada'
+import { BOTON, CAMPO, TARJETA } from '../lib/estilos'
 
 // Supabase devuelve errores en inglés; los traducimos para el atleta.
 function traducirError(error) {
@@ -27,6 +29,8 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [enviando, setEnviando] = useState(false)
+  // Solo presentación: mostrar u ocultar lo que se escribe en la contraseña.
+  const [verPassword, setVerPassword] = useState(false)
 
   // Si ya hay sesión, no tiene sentido ver el login: vamos a "/".
   if (!cargando && session) return <Navigate to="/" replace />
@@ -44,19 +48,16 @@ export default function Login() {
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-6 p-6">
-      <div>
-        <h1 className="text-3xl font-bold">MyProgress</h1>
-        <p className="mt-2 text-suave">
-          Inicia sesión para ver tu plan y registrar tu entrenamiento.
+    <PaginaCentrada>
+      <div className="text-center">
+        <h1 className="text-xl font-bold">Inicia sesión</h1>
+        <p className="mt-1 text-sm text-suave">
+          Ve tu plan y registra tu entrenamiento.
         </p>
       </div>
 
-      <form
-        onSubmit={manejarEnvio}
-        className="flex flex-col gap-3 rounded-2xl border border-borde bg-superficie p-4"
-      >
-        <label htmlFor="email" className="text-sm text-suave">Correo</label>
+      <form onSubmit={manejarEnvio} className={`${TARJETA} flex flex-col gap-3 p-5 shadow-lg shadow-black/20`}>
+        <label htmlFor="email" className="text-sm font-medium text-suave">Correo</label>
         <input
           id="email"
           type="email"
@@ -64,31 +65,37 @@ export default function Login() {
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="min-h-11 rounded-xl border border-[#5B6372] bg-fondo px-3"
+          className={CAMPO}
         />
 
-        <label htmlFor="password" className="text-sm text-suave">Contraseña</label>
-        <input
-          id="password"
-          type="password"
-          autoComplete="current-password"
-          required
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="min-h-11 rounded-xl border border-[#5B6372] bg-fondo px-3"
-        />
+        <label htmlFor="password" className="text-sm font-medium text-suave">Contraseña</label>
+        <div className="relative">
+          <input
+            id="password"
+            type={verPassword ? 'text' : 'password'}
+            autoComplete="current-password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className={`${CAMPO} pr-24`}
+          />
+          <button
+            type="button"
+            onClick={() => setVerPassword((v) => !v)}
+            aria-pressed={verPassword}
+            className="absolute inset-y-0 right-1 my-1 rounded-lg px-3 text-sm font-semibold text-enlace transition-colors hover:bg-elevada"
+          >
+            {verPassword ? 'Ocultar' : 'Mostrar'}
+          </button>
+        </div>
 
-        <Link to="/recuperar" className="inline-flex min-h-11 items-center self-start text-sm text-enlace">
+        <Link to="/recuperar" className="inline-flex min-h-11 items-center self-start text-sm text-enlace hover:underline">
           ¿Olvidaste tu contraseña?
         </Link>
 
-        {error && <p role="alert" className="text-sm text-alerta">{error}</p>}
+        {error && <p role="alert" className="rounded-xl border border-alerta/40 bg-alerta/10 px-3 py-2 text-sm text-alerta">{error}</p>}
 
-        <button
-          type="submit"
-          disabled={enviando}
-          className="mt-2 min-h-11 rounded-xl bg-primario px-4 font-semibold text-white disabled:opacity-60"
-        >
+        <button type="submit" disabled={enviando} className={`${BOTON} mt-1`}>
           {enviando ? 'Entrando...' : 'Entrar'}
         </button>
       </form>
@@ -96,6 +103,6 @@ export default function Login() {
       <p className="text-center text-sm text-suave">
         App privada: solo para atletas invitados.
       </p>
-    </main>
+    </PaginaCentrada>
   )
 }

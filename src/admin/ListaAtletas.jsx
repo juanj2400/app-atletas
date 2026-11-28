@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import Encabezado from '../components/Encabezado'
+import { MarcoAdmin } from '../components/MarcoApp'
 import CumpleanosAtletas from './CumpleanosAtletas'
 import { useHoy } from '../lib/useHoy'
 
@@ -31,10 +32,11 @@ export default function ListaAtletas() {
   const activos = atletas.filter((a) => a.activo !== false)
 
   return (
-    <>
+    <MarcoAdmin>
       <Encabezado titulo="Atletas" />
-      <main className="mx-auto max-w-3xl p-4">
-        <div className="mb-4 flex flex-col gap-2">
+      <main className={CONTENIDO_ADMIN}>
+        {/* En escritorio estos accesos están en la barra lateral. */}
+        <div className="mb-4 flex flex-col gap-2 md:hidden">
           <Link to="/admin/usuarios" className="flex min-h-11 items-center justify-center rounded-xl border border-borde bg-superficie px-4 text-sm font-semibold">
             Usuarios: crear y editar atletas
           </Link>
@@ -52,7 +54,7 @@ export default function ListaAtletas() {
         {!cargando && !error && atletas.length === 0 && (
           <p className="text-suave">Aún no hay atletas registrados.</p>
         )}
-        <ul className="flex flex-col gap-3">
+        <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           {atletas.map((a) => (
             <li key={a.id}>
               {/* Las comillas invertidas (`...`) permiten insertar variables con ${...}.
@@ -72,6 +74,6 @@ export default function ListaAtletas() {
           ))}
         </ul>
       </main>
-    </>
+    </MarcoAdmin>
   )
 }

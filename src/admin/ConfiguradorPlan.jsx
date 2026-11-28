@@ -398,7 +398,7 @@ export default function ConfiguradorPlan({ atletaId, fechaNacimiento, activo, pe
       <div>
         <label htmlFor="cfg-notas" className="text-sm text-suave">Notas para el atleta (opcional)</label>
         <textarea id="cfg-notas" rows={2} maxLength={300} value={notas} onChange={(e) => setNotas(e.target.value)}
-          className="w-full rounded-xl border border-[#5B6372] bg-fondo p-3" />
+          className="w-full rounded-xl border border-borde-campo bg-fondo p-3" />
       </div>
 
       {mensaje && (

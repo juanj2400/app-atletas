@@ -28,7 +28,7 @@ import AvisoDescarga from '../components/AvisoDescarga'
 import NotaDatosGuardados from '../components/NotaDatosGuardados'
 import { agruparPorBloque, textoBloques } from '../lib/bloques'
 import { estadoEjercicio, resumenDiaRealizado, resumenRutinaDia, seriesObjetivoDe, validarNotaCierre, NOTA_MAX } from '../lib/cierres'
-import { CAMPO, BOTON, BOTON_SEC, TARJETA } from '../lib/estilos'
+import { CAMPO, BOTON, BOTON_SEC, TARJETA, ETIQUETA_HALTEROFILIA, ETIQUETA_MUSCULACION } from '../lib/estilos'
 import ResumenDiaRealizado from '../components/ResumenDiaRealizado'
 
 const COLUMNAS_LOG = 'id, routine_exercise_id, exercise_id, sesion_id, numero_serie, repeticiones, peso_kg, rpe, realizado_en'
@@ -190,7 +190,7 @@ function EjercicioEntrenamiento({ fila, bloque, seriesHoy, ultimaVez, cierre, de
         {/* Rutina híbrida: etiqueta del bloque en cada ejercicio para no confundirlos al registrar */}
         {bloque && (
           <p className={`mb-1 inline-block rounded-full px-2 py-0.5 text-xs font-bold uppercase tracking-wide ${
-            bloque === 'halterofilia' ? 'bg-primario text-white' : 'border border-enlace text-enlace'
+            bloque === 'halterofilia' ? ETIQUETA_HALTEROFILIA : ETIQUETA_MUSCULACION
           }`}>
             {bloque === 'halterofilia' ? 'Halterofilia' : 'Musculación'}
           </p>

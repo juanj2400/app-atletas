@@ -123,7 +123,7 @@ export default function CheckIn() {
           placeholder="Ej: 7.5"
           value={form.horas}
           onChange={(e) => actualizar('horas', e.target.value)}
-          className="mt-3 min-h-11 w-full rounded-xl border border-[#5B6372] bg-fondo px-3"
+          className="mt-3 min-h-11 w-full rounded-xl border border-borde-campo bg-fondo px-3"
         />
       </div>
 
@@ -138,7 +138,7 @@ export default function CheckIn() {
           placeholder="Ej: 82,4"
           value={form.peso}
           onChange={(e) => actualizar('peso', e.target.value)}
-          className="mt-3 min-h-11 w-full rounded-xl border border-[#5B6372] bg-fondo px-3"
+          className="mt-3 min-h-11 w-full rounded-xl border border-borde-campo bg-fondo px-3"
         />
         <p className="mt-2 text-xs text-suave">
           Tu entrenador lo verá en tu check-in. No reemplaza sus mediciones oficiales y no se puede cambiar después.

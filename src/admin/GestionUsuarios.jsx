@@ -7,6 +7,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import Encabezado from '../components/Encabezado'
+import { MarcoAdmin } from '../components/MarcoApp'
 import FormNuevoAtleta from './FormNuevoAtleta'
 import EditarAtleta from './EditarAtleta'
 import { BOTON, BOTON_SEC, TARJETA } from '../lib/estilos'
@@ -42,9 +43,9 @@ export default function GestionUsuarios() {
   const inactivos = atletas.filter((a) => a.activo === false).length
 
   return (
-    <>
+    <MarcoAdmin>
       <Encabezado titulo="Usuarios" volverA="/admin" textoVolver="Atletas" />
-      <main className="mx-auto max-w-3xl p-4">
+      <main className={CONTENIDO_ADMIN}>
         {!creando && (
           <button type="button" onClick={() => setCreando(true)} className={`${BOTON} mb-4 w-full`}>
             Crear atleta
@@ -89,6 +90,6 @@ export default function GestionUsuarios() {
           })}
         </ul>
       </main>
-    </>
+    </MarcoAdmin>
   )
 }

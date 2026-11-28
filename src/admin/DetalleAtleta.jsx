@@ -16,6 +16,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import Encabezado from '../components/Encabezado'
+import { MarcoAdmin } from '../components/MarcoApp'
 import Mediciones from './Mediciones'
 import PlanNutricional from './PlanNutricional'
 import PlanComidas from './PlanComidas'
@@ -142,9 +143,9 @@ export default function DetalleAtleta() {
   }, [destino])
 
   return (
-    <>
+    <MarcoAdmin>
       <Encabezado titulo="Atleta" volverA="/admin" textoVolver="Atletas" />
-      <main className="mx-auto max-w-3xl p-4">
+      <main className={CONTENIDO_ADMIN}>
         {cargando && <p className="text-suave">Cargando...</p>}
         {error && <p role="alert" className="text-alerta">{error}</p>}
         {!cargando && !error && !atleta && (
@@ -251,6 +252,6 @@ export default function DetalleAtleta() {
           </div>
         )}
       </main>
-    </>
+    </MarcoAdmin>
   )
 }

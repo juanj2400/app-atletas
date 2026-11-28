@@ -4,6 +4,12 @@ Registro cronológico de cambios. Agregar entradas nuevas arriba (`feat`, `fix`,
 
 ---
 
+## 2026-11-28 · Paso 37 — Rediseño visual y marco de escritorio
+- **style:** Nuevos tokens en `@theme` (`elevada`, `borde-suave`, `borde-campo`, `primario-fuerte`, `exito`, `halterofilia`, `musculacion`); todos los hex sueltos migrados a tokens (las gráficas usan `var(--color-*)`). Foco visible global, hover en botones y `tabular-nums` en toda la app. Etiquetas de disciplina suaves en `EntrenarDia`.
+- **feat (solo presentación):** Escritorio (`md:`/`lg:`): barra lateral (`MarcoApp`) con logo, usuario/rol, navegación y «Cerrar sesión» para atleta y entrenador; barra inferior del atleta `md:hidden`; contenido más ancho (`CONTENIDO_ATLETA`/`CONTENIDO_ADMIN`). El celular queda igual. Sin cambios de rutas, datos ni lógica.
+- **style:** Marca nueva (`Logo`, `favicon.svg`, PNG de la PWA regenerados) y login rediseñado (tarjeta centrada, mostrar/ocultar contraseña, aviso de acceso privado); `PaginaCentrada` para recuperar/restablecer/estados.
+- **docs:** `AGENTS.md` §4 actualizado (anchos). Sin SQL.
+
 ## 2026-11-28 · Paso 36 — Plan nutricional inteligente conectado a «Comidas del día»
 - **feat:** «Plan nutricional» es ahora un configurador (`ConfiguradorPlan`): objetivo físico (déficit/recomposición/volumen), intensidad (conservadora/moderada/agresiva) y tipo de dieta; con edad (de la fecha de nacimiento), peso (precargado de la última medición/check-in), estatura, sexo y actividad calcula metabolismo basal (Mifflin-St Jeor), gasto, calorías y macros (`lib/planNutricional.js`, sin IA). Proteína/carbos/grasas en g y % editables; al editar uno los demás se reequilibran (con «Fijar»); gasto editable; estado calórico automático. Un plan manual sigue funcionando.
 - **feat:** «Comidas del día» usa el plan vigente como ÚNICA referencia (`ObjetivoDieta`, `usePlanVigente`, `ajustarAlPlan` en `lib/dieta.js`): ajuste automático de gramos al agregar/quitar/cambiar alimentos y al cambiar el plan; escribir gramos fija ese alimento; «Reajustar al plan», «Soltar gramos fijados», reparto por comida (`peso_reparto`). Al abrir no se modifica el menú guardado.

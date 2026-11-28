@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 import { CAMPO, BOTON } from '../lib/estilos'
+import PaginaCentrada from '../components/PaginaCentrada'
 
 function traducirError(error) {
   if (error.status === 429 || error.code === 'over_email_send_rate_limit') {
@@ -34,7 +35,7 @@ export default function RecuperarContrasena() {
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-6 p-6">
+    <PaginaCentrada>
       <div>
         <h1 className="text-2xl font-bold">Recuperar contraseña</h1>
         <p className="mt-2 text-suave">
@@ -77,6 +78,6 @@ export default function RecuperarContrasena() {
       <Link to="/login" className="inline-flex min-h-11 items-center justify-center text-sm text-enlace">
         ‹ Volver a iniciar sesión
       </Link>
-    </main>
+    </PaginaCentrada>
   )
 }

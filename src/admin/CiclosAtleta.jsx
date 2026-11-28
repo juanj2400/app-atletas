@@ -105,7 +105,7 @@ function FormCiclo({ nivel, ciclo, ciclos, userId, hoy, onGuardado, onCancelar }
 
       <label htmlFor="ciclo-notas" className="text-sm text-suave">Notas (opcional)</label>
       <textarea id="ciclo-notas" rows={2} maxLength={300} value={f.notas} onChange={(e) => cambiar('notas', e.target.value)}
-        className="w-full rounded-xl border border-[#5B6372] bg-fondo p-3" />
+        className="w-full rounded-xl border border-borde-campo bg-fondo p-3" />
 
       {error && <p role="alert" className="text-alerta">{error}</p>}
       <div className="flex gap-2">

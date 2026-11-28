@@ -12,6 +12,7 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import Encabezado from '../components/Encabezado'
+import { MarcoAdmin } from '../components/MarcoApp'
 import { CATEGORIAS, ESTADOS, TEXTO_MACRO, textoCategoria, textoEstado } from '../lib/alimentos'
 import { useBusquedaAlimentos } from '../lib/useBusquedaAlimentos'
 import { CAMPO, BOTON, BOTON_SEC, TARJETA } from '../lib/estilos'
@@ -46,9 +47,9 @@ export default function Alimentos() {
   }
 
   return (
-    <>
+    <MarcoAdmin>
       <Encabezado titulo="Catálogo de alimentos" volverA="/admin" textoVolver="Atletas" />
-      <main className="mx-auto flex max-w-3xl flex-col gap-4 p-4">
+      <main className={`${CONTENIDO_ADMIN} flex flex-col gap-4`}>
         <p className="text-sm text-suave">
           Tus alimentos con sus macros por 100 g, en crudo o cocido. El creador de dieta los usa para calcular los gramos.
         </p>
@@ -137,6 +138,6 @@ export default function Alimentos() {
           <button type="button" onClick={() => setLimite((l) => l + PAGINA)} className={BOTON_SEC}>Ver más alimentos</button>
         )}
       </main>
-    </>
+    </MarcoAdmin>
   )
 }

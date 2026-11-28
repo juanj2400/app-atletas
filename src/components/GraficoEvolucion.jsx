@@ -82,7 +82,7 @@ export default function GraficoEvolucion({ mediciones, planes = [] }) {
 
             <Tooltip
               contentStyle={{ background: COLOR.fondo, border: `1px solid ${COLOR.rejilla}`, borderRadius: 12 }}
-              labelStyle={{ color: '#E8EAEE' }}
+              labelStyle={{ color: COLOR.titulo }}
               labelFormatter={formatearFecha}
             />
             <Legend wrapperStyle={{ fontSize: 12 }} />

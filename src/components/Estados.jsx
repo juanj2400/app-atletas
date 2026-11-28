@@ -1,5 +1,7 @@
 // Pantallas pequeñas de estado reutilizables.
 import { useAuth } from '../auth/AuthProvider'
+import PaginaCentrada from './PaginaCentrada'
+import { BOTON_SEC } from '../lib/estilos'
 
 export function Cargando() {
   return (
@@ -13,16 +15,16 @@ export function Cargando() {
 export function CuentaDesactivada() {
   const { cerrarSesion } = useAuth()
   return (
-    <div className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-4 p-6">
+    <PaginaCentrada separacion="gap-4">
       <h1 className="text-xl font-bold">Tu acceso está desactivado</h1>
       <p className="text-suave">Habla con tu entrenador para volver a entrar.</p>
       <button
         onClick={cerrarSesion}
-        className="min-h-11 rounded-xl border border-borde bg-superficie px-4 font-semibold"
+        className={BOTON_SEC}
       >
         Cerrar sesión
       </button>
-    </div>
+    </PaginaCentrada>
   )
 }
 
@@ -31,17 +33,17 @@ export function CuentaDesactivada() {
 export function SinPerfil() {
   const { cerrarSesion } = useAuth()
   return (
-    <div className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-4 p-6">
+    <PaginaCentrada separacion="gap-4">
       <h1 className="text-xl font-bold">No encontramos tu perfil</h1>
       <p className="text-suave">
         Tu usuario existe, pero aún no tiene perfil asignado. Avisa a tu entrenador.
       </p>
       <button
         onClick={cerrarSesion}
-        className="min-h-11 rounded-xl border border-borde bg-superficie px-4 font-semibold"
+        className={BOTON_SEC}
       >
         Cerrar sesión
       </button>
-    </div>
+    </PaginaCentrada>
   )
 }

@@ -9,6 +9,7 @@ PWA privada, mobile-first y solo oscura para un entrenador (`admin`) y 15–30 a
 ## 2. Funcionalidades Construidas
 
 ### 2.1 Comunes
+- **Interfaz adaptable:** en celular una columna con barra inferior (atleta); desde pantallas medianas/grandes (`md:`) barra lateral con logo, usuario/rol, navegación y «Cerrar sesión», en la zona del atleta y del entrenador. Marca MyProgress y login rediseñado (paso 37).
 - Login con redirección por rol (`/atleta` o `/admin`), recuperación de contraseña (`/recuperar` -> correo -> `/restablecer`, mín. 8 chars), rutas protegidas y PWA con aviso de actualización (`AvisoActualizacion`, `registerType: 'prompt'`).
 - **Uso sin internet (atleta):** la app abre sin señal. Sin conexión puede ver la última rutina, sus metas (se recalculan con las series guardadas), el plan nutricional y comidas, y registrar el check-in, las series, el cierre de ejercicios y *Terminar rutina*. Esos registros quedan en el teléfono con su fecha/hora real, sin duplicarse, y se suben solos en orden al volver el internet (o al reabrir la app). Una franja discreta arriba muestra "Sin conexión" y cuántos registros esperan subir; si la base rechaza alguno se avisa y se puede descartar. Borrar una serie o reabrir un ejercicio ya subido exige internet. Para el entrenador, las acciones de administración y la IA necesitan internet y muestran un aviso claro.
 

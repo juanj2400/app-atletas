@@ -20,7 +20,7 @@ import ResumenMediciones from '../components/ResumenMediciones'
 import GraficoEvolucion from '../components/GraficoEvolucionLazy'
 import GraficoOscilacionPeso from '../components/GraficoOscilacionPesoLazy'
 
-const CAMPO = 'min-h-11 w-full rounded-xl border border-[#5B6372] bg-fondo px-3'
+const CAMPO = 'min-h-11 w-full rounded-xl border border-borde-campo bg-fondo px-3'
 
 // Es una FUNCIÓN (no un objeto fijo) para que la fecha se calcule al momento
 // de usarla: si la app queda abierta pasada la medianoche, "hoy" sigue siendo correcto.
@@ -238,7 +238,7 @@ export default function Mediciones({ atletaId, versionPlan = 0 }) {
         <textarea
           id="med-notas" rows={2} maxLength={300} value={form.notas}
           onChange={(e) => actualizar('notas', e.target.value)}
-          className="w-full rounded-xl border border-[#5B6372] bg-fondo p-3"
+          className="w-full rounded-xl border border-borde-campo bg-fondo p-3"
         />
 
         {mensaje && (

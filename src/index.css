@@ -18,6 +18,15 @@
   --color-primario: #2F5FE3;     /* botones principales (texto blanco encima) */
   --color-enlace: #7AA2FF;       /* enlaces y acentos azules */
   --color-alerta: #F0A040;       /* avisos y pendientes */
+
+  /* --- Tokens nuevos (paso 37) --- */
+  --color-elevada: #1E222B;      /* superficie por encima de las tarjetas (menús, filas activas) */
+  --color-borde-suave: #22262F;  /* separadores sutiles dentro de una tarjeta */
+  --color-borde-campo: #5B6372;  /* borde de campos y selectores: contraste mínimo, no bajarlo */
+  --color-primario-fuerte: #4C7DF0; /* hover/pulsado del botón principal y acentos de marca */
+  --color-exito: #4CC38A;        /* completado / positivo */
+  --color-halterofilia: #B9A4F0; /* etiqueta de disciplina (no compite con el botón azul) */
+  --color-musculacion: #6CC5B8;  /* etiqueta de disciplina */
 }
 
 @layer base {
@@ -26,7 +35,7 @@
   html { color-scheme: dark; }
 
   body {
-    @apply bg-fondo text-texto antialiased;
+    @apply bg-fondo text-texto antialiased tabular-nums; /* números alineados en toda la app */
     min-height: 100dvh; /* dvh = altura real visible en el celular (descuenta la barra del navegador) */
     /* "Safe areas": márgenes para no quedar bajo el notch ni la barra de
        gestos cuando la app está instalada (PWA a pantalla completa). */
@@ -37,4 +46,7 @@
   /* Mobile-first: los controles táctiles deben medir al menos 44 px de alto
      (recomendación de Apple/Google para dedos). min-h-11 de Tailwind = 44 px. */
   button, input { font: inherit; }
+
+  /* Foco visible al navegar con teclado (también en escritorio). */
+  :focus-visible { outline: 2px solid var(--color-enlace); outline-offset: 2px; }
 }

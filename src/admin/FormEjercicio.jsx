@@ -83,7 +83,7 @@ export default function FormEjercicio({ ejercicio, gruposExistentes, onGuardado,
 
       <label htmlFor="ej-desc" className="text-sm text-suave">Cómo se hace (opcional; lo ve el atleta)</label>
       <textarea id="ej-desc" rows={3} maxLength={1000} value={f.descripcion} onChange={(e) => cambiar('descripcion', e.target.value)}
-        className="w-full rounded-xl border border-[#5B6372] bg-fondo p-3" />
+        className="w-full rounded-xl border border-borde-campo bg-fondo p-3" />
 
       <label htmlFor="ej-video" className="text-sm text-suave">Enlace de video (opcional)</label>
       <input id="ej-video" inputMode="url" value={f.video} onChange={(e) => cambiar('video', e.target.value)}

@@ -26,8 +26,8 @@ React 19 + Vite 8 · Tailwind CSS 4 (`src/index.css` con `@theme`) · PWA (`vite
 - **Validación, errores y A11y:** validar en navegador **y** BD (`CHECK`, `UNIQUE`, RLS). Errores en español sin detalles técnicos (salvo mensajes RPC en español). `<label htmlFor>`, `role="alert"`, `role="status"`, `aria-pressed`.
 
 ## 4. Estilo visual
-- Solo modo oscuro (`color-scheme: dark`). Usar tokens de `@theme` (`fondo`, `superficie`, `hundido`, `borde`, `texto`, `suave`, `primario`, `enlace`, `alerta`) y estilos de `src/lib/estilos.js` (`CAMPO`, `BOTON`, `BOTON_SEC`, `TARJETA`). No agregar hex nuevos (deuda existente: `border-[#5B6372]` y `src/lib/coloresGrafico.js`).
-- Mobile-first: controles táctiles `min-h-11`, barra inferior `min-h-14`, atleta `max-w-md`, admin `max-w-3xl`. Sin fuentes externas ni emojis (salvo ánimo del check-in: 😞 😐 😄).
+- Solo modo oscuro (`color-scheme: dark`). Usar tokens de `@theme` (`fondo`, `superficie`, `hundido`, `borde`, `texto`, `suave`, `primario`, `enlace`, `alerta`) y estilos de `src/lib/estilos.js` (`CAMPO`, `BOTON`, `BOTON_SEC`, `TARJETA`). No agregar hex nuevos (solo quedan los de `public/favicon.svg`, que es un archivo de imagen).
+- Mobile-first: controles táctiles `min-h-11`, barra inferior `min-h-14` (solo `< md`). Anchos con `CONTENIDO_ATLETA`/`CONTENIDO_ADMIN` (`lib/estilos.js`) y marco de escritorio `MarcoApp` (barra lateral desde `md:`). Colores nuevos solo como tokens en `@theme`; en SVG usar `var(--color-*)`. Sin fuentes externas ni emojis (salvo ánimo del check-in: 😞 😐 😄).
 
 ## 5. Seguridad (no negociable)
 - Nunca exponer `service_role`, `GEMINI_API_KEY` ni `.env` en frontend o repo (solo `VITE_SUPABASE_URL` y `VITE_SUPABASE_KEY`).

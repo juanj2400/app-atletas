@@ -21,6 +21,7 @@ export default function FormEjercicio({ ejercicio, gruposExistentes, onGuardado,
     video: ejercicio?.video_url ?? '',
     restringido: ejercicio?.restringido ?? false,
   })
+  const pre = ejercicio ? `ej-${ejercicio.id}` : 'ej-nuevo' // ids únicos: puede haber varios formularios a la vez
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
   const cambiar = (campo, valor) => { setF((a) => ({ ...a, [campo]: valor })); setError('') }
@@ -58,35 +59,35 @@ export default function FormEjercicio({ ejercicio, gruposExistentes, onGuardado,
   }
 
   return (
-    <form onSubmit={guardar} className={`${TARJETA} flex flex-col gap-3`}>
-      <h4 className="font-semibold">{ejercicio ? 'Editar ejercicio' : 'Nuevo ejercicio'}</h4>
+    <form onSubmit={guardar} className={`${TARJETA} flex flex-col gap-2`}>
+      <h4 className="font-bold">{ejercicio ? 'Editar ejercicio' : 'Nuevo ejercicio'}</h4>
 
-      <label htmlFor="ej-nombre" className="text-sm text-suave">Nombre</label>
-      <input id="ej-nombre" value={f.nombre} onChange={(e) => cambiar('nombre', e.target.value)}
+      <label htmlFor={`${pre}-nombre`} className="text-sm text-suave">Nombre</label>
+      <input id={`${pre}-nombre`} value={f.nombre} onChange={(e) => cambiar('nombre', e.target.value)}
         placeholder="Ej: Remo con mancuerna" className={CAMPO} />
 
-      <label htmlFor="ej-grupo" className="text-sm text-suave">Grupo muscular (opcional)</label>
-      <input id="ej-grupo" list="grupos-existentes" value={f.grupo} onChange={(e) => cambiar('grupo', e.target.value)}
+      <label htmlFor={`${pre}-grupo`} className="text-sm text-suave">Grupo muscular (opcional)</label>
+      <input id={`${pre}-grupo`} list={`${pre}-grupos`} value={f.grupo} onChange={(e) => cambiar('grupo', e.target.value)}
         placeholder="Ej: Espalda" className={CAMPO} />
-      <datalist id="grupos-existentes">
+      <datalist id={`${pre}-grupos`}>
         {gruposExistentes.map((g) => <option key={g} value={g} />)}
       </datalist>
 
-      <label htmlFor="ej-tipo" className="text-sm text-suave">Tipo de ejercicio</label>
-      <select id="ej-tipo" value={f.tipo} onChange={(e) => cambiar('tipo', e.target.value)} className={CAMPO}>
+      <label htmlFor={`${pre}-tipo`} className="text-sm text-suave">Tipo de ejercicio</label>
+      <select id={`${pre}-tipo`} value={f.tipo} onChange={(e) => cambiar('tipo', e.target.value)} className={CAMPO}>
         <option value="">Elige un tipo...</option>
         {TIPOS_EJERCICIO.map((t) => <option key={t.valor} value={t.valor}>{t.etiqueta}</option>)}
       </select>
-      <p className="-mt-2 text-xs text-suave">
+      <p className="-mt-0.5 text-xs text-suave">
         Compuesto, fuerza y halterofilia muestran 1RM estimado en los récords. Aislado solo guarda las mejores repeticiones con cada peso.
       </p>
 
-      <label htmlFor="ej-desc" className="text-sm text-suave">Cómo se hace (opcional; lo ve el atleta)</label>
-      <textarea id="ej-desc" rows={3} maxLength={1000} value={f.descripcion} onChange={(e) => cambiar('descripcion', e.target.value)}
+      <label htmlFor={`${pre}-desc`} className="text-sm text-suave">Cómo se hace (opcional; lo ve el atleta)</label>
+      <textarea id={`${pre}-desc`} rows={2} maxLength={1000} value={f.descripcion} onChange={(e) => cambiar('descripcion', e.target.value)}
         className="w-full rounded-xl border border-borde-campo bg-fondo p-3" />
 
-      <label htmlFor="ej-video" className="text-sm text-suave">Enlace de video (opcional)</label>
-      <input id="ej-video" inputMode="url" value={f.video} onChange={(e) => cambiar('video', e.target.value)}
+      <label htmlFor={`${pre}-video`} className="text-sm text-suave">Enlace de video (opcional)</label>
+      <input id={`${pre}-video`} inputMode="url" value={f.video} onChange={(e) => cambiar('video', e.target.value)}
         placeholder="https://..." className={CAMPO} />
 
       <label className="flex min-h-11 items-start gap-2 text-sm">

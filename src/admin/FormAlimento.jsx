@@ -58,8 +58,8 @@ export default function FormAlimento({ alimento, onCancelar, onGuardado }) {
   }
 
   return (
-    <form onSubmit={guardar} className={`${TARJETA} flex flex-col gap-3 bg-hundido`} noValidate>
-      <h3 className="font-semibold">{alimento ? 'Editar alimento' : 'Nuevo alimento'}</h3>
+    <form onSubmit={guardar} className={`${TARJETA} flex flex-col gap-2.5 bg-hundido`} noValidate>
+      <h3 className="font-bold">{alimento ? 'Editar alimento' : 'Nuevo alimento'}</h3>
 
       <div>
         <label htmlFor={`${pre}-nombre`} className="text-xs text-suave">Nombre</label>
@@ -67,7 +67,7 @@ export default function FormAlimento({ alimento, onCancelar, onGuardado }) {
           onChange={(e) => cambiar('nombre', e.target.value)}
           placeholder="Ej: Arroz blanco" className={CAMPO} />
         <p className="mt-1 text-xs text-suave">
-          Escribe el nombre sin el estado: «Arroz blanco» y elige crudo o cocido abajo.
+          Sin el estado: «Arroz blanco»; crudo o cocido se elige aparte.
         </p>
       </div>
 

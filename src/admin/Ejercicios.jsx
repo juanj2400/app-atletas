@@ -54,9 +54,9 @@ function EditorMusculos({ ejercicio, asignados, grupos, onGuardado, onCancelar }
   }
 
   return (
-    <div className="mt-3 flex flex-col gap-3 rounded-xl border border-borde bg-hundido p-3">
+    <div className="flex flex-col gap-3 rounded-xl border border-borde bg-hundido p-3">
       <p className="text-sm text-suave">Elige qué músculos trabaja y con qué peso cuenta cada serie.</p>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
         {grupos.map((g) => (
           <div key={g.codigo}>
             <label htmlFor={`m-${ejercicio.id}-${g.codigo}`} className="text-xs text-suave">{g.nombre}</label>
@@ -92,6 +92,7 @@ export default function Ejercicios() {
   const [busqueda, setBusqueda] = useState('')
   const [soloSin, setSoloSin] = useState(false)
   const [editando, setEditando] = useState(null) // id del ejercicio cuyos MÚSCULOS se editan
+  const [claveNuevo, setClaveNuevo] = useState(0) // al cambiar, el formulario de «Nuevo» se vacía
   const [formEj, setFormEj] = useState(null)     // null | 'nuevo' | id del ejercicio cuyos DATOS se editan
 
   useEffect(() => {
@@ -127,84 +128,98 @@ export default function Ejercicios() {
   return (
     <MarcoAdmin>
       <Encabezado titulo="Biblioteca de ejercicios" volverA="/admin" textoVolver="Atletas" />
-      <main className={`${CONTENIDO_ADMIN} flex flex-col gap-4`}>
+      <main className={`${CONTENIDO_ADMIN} flex flex-col gap-3`}>
         <p className="text-sm text-suave">
           Crea ejercicios y define los músculos de cada uno para calcular el volumen semanal de las rutinas.
           {sinAsignar > 0 && <span className="text-alerta"> {sinAsignar} sin músculos asignados.</span>}
         </p>
 
-        {formEj === 'nuevo' ? (
-          <FormEjercicio
-            ejercicio={null} gruposExistentes={gruposExistentes}
-            onCancelar={() => setFormEj(null)}
-            // Al crearlo, se abre de una vez el editor de músculos de ese ejercicio nuevo.
-            onGuardado={(id) => { setFormEj(null); setEditando(id); setBusqueda(''); setSoloSin(false); setVersion((v) => v + 1) }}
-          />
-        ) : (
-          <button type="button" onClick={() => setFormEj('nuevo')} className={BOTON}>Nuevo ejercicio</button>
-        )}
+        {/* Escritorio: «Nuevo ejercicio» siempre a la izquierda (fijo al hacer scroll) y la lista a la derecha. */}
+        <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[21rem_minmax(0,1fr)] lg:items-start lg:gap-6">
+          <aside aria-label="Nuevo ejercicio" className="lg:sticky lg:top-4">
+            {formEj !== 'nuevo' && (
+              <button type="button" onClick={() => setFormEj('nuevo')} className={`${BOTON} w-full lg:hidden`}>Nuevo ejercicio</button>
+            )}
+            <div className={formEj === 'nuevo' ? '' : 'hidden lg:block'}>
+              <FormEjercicio
+                key={claveNuevo}
+                ejercicio={null} gruposExistentes={gruposExistentes}
+                onCancelar={() => { setFormEj(null); setClaveNuevo((k) => k + 1) }}
+                onGuardado={(id) => { setFormEj(null); setClaveNuevo((k) => k + 1); setEditando(id); setBusqueda(''); setSoloSin(false); setVersion((v) => v + 1) }}
+              />
+            </div>
+          </aside>
 
-        <input
-          value={busqueda} onChange={(e) => setBusqueda(e.target.value)}
-          placeholder="Buscar ejercicio..." aria-label="Buscar ejercicio" className={CAMPO}
-        />
-        <label className="flex min-h-11 items-center gap-2 text-sm">
-          <input type="checkbox" checked={soloSin} onChange={(e) => setSoloSin(e.target.checked)} />
-          Mostrar solo los que no tienen músculos asignados
-        </label>
+          <section className="flex min-w-0 flex-col gap-3" aria-label="Lista de ejercicios">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              <input
+                value={busqueda} onChange={(e) => setBusqueda(e.target.value)}
+                placeholder="Buscar ejercicio..." aria-label="Buscar ejercicio" className={`${CAMPO} md:min-w-48 md:flex-1`}
+              />
+              <label className="flex min-h-11 items-center gap-2 text-sm text-suave">
+                <input type="checkbox" checked={soloSin} onChange={(e) => setSoloSin(e.target.checked)} />
+                Solo sin músculos asignados
+              </label>
+            </div>
 
-        {cargando && <p className="text-suave">Cargando...</p>}
-        {error && <p role="alert" className="text-alerta">{error}</p>}
-        {!cargando && !error && visibles.length === 0 && <p className="text-suave">No hay ejercicios que mostrar.</p>}
+            {cargando && <p className="text-suave">Cargando...</p>}
+            {error && <p role="alert" className="text-alerta">{error}</p>}
+            {!cargando && !error && visibles.length === 0 && <p className="text-suave">No hay ejercicios que mostrar.</p>}
 
-        <ul className="flex flex-col gap-3">
-          {visibles.map((e) => {
-            const asignados = asignadosDe(e.id)
-            return (
-              <li key={e.id} className={TARJETA}>
-                <p className="font-semibold">{e.nombre}</p>
-                <p className="text-sm text-suave">{e.grupo_muscular || 'Sin grupo'} · {textoTipo(e.tipo_ejercicio)}</p>
-                {e.restringido && <p className="text-sm text-alerta">Restringido (lista negra global)</p>}
-                {asignados.length === 0 ? (
-                  <p className="mt-1 text-sm text-alerta">Sin músculos asignados</p>
-                ) : (
-                  <ul className="mt-2 flex flex-wrap gap-2">
-                    {asignados.map((a) => (
-                      <li key={a.muscle} className="rounded-full bg-hundido px-3 py-1 text-sm">
-                        {nombreMusculo[a.muscle] ?? a.muscle} · {textoFactor(a.factor)}
-                      </li>
-                    ))}
-                  </ul>
-                )}
+            <ul className="divide-y divide-borde-suave overflow-hidden rounded-2xl border border-borde bg-superficie">
+              {visibles.map((e) => {
+                const asignados = asignadosDe(e.id)
+                return (
+                  <li key={e.id} className="flex flex-wrap items-start gap-x-4 gap-y-2 px-3 py-2.5">
+                    <div className="min-w-0 flex-1 basis-56">
+                      <p className="font-semibold">{e.nombre}</p>
+                      <p className="text-xs text-suave">{e.grupo_muscular || 'Sin grupo'} · {textoTipo(e.tipo_ejercicio)}</p>
+                      {e.restringido && <p className="text-xs text-alerta">Restringido (lista negra global)</p>}
+                      {asignados.length === 0 ? (
+                        <p className="mt-1 text-xs text-alerta">Sin músculos asignados</p>
+                      ) : (
+                        <ul className="mt-1.5 flex flex-wrap gap-1.5">
+                          {asignados.map((a) => (
+                            <li key={a.muscle} className="rounded-full bg-hundido px-2.5 py-0.5 text-xs">
+                              {nombreMusculo[a.muscle] ?? a.muscle} · {textoFactor(a.factor)}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
 
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {editando !== e.id && (
-                    <button type="button" onClick={() => setEditando(e.id)} className={BOTON_SEC}>Editar músculos</button>
-                  )}
-                  {formEj !== e.id && (
-                    <button type="button" onClick={() => setFormEj(e.id)} className={BOTON_SEC}>Editar datos</button>
-                  )}
-                </div>
-                {editando === e.id && (
-                  <EditorMusculos
-                    ejercicio={e} asignados={asignados} grupos={grupos}
-                    onCancelar={() => setEditando(null)}
-                    onGuardado={() => { setEditando(null); setVersion((v) => v + 1) }}
-                  />
-                )}
-                {formEj === e.id && (
-                  <div className="mt-3">
-                    <FormEjercicio
-                      ejercicio={e} gruposExistentes={gruposExistentes}
-                      onCancelar={() => setFormEj(null)}
-                      onGuardado={() => { setFormEj(null); setVersion((v) => v + 1) }}
-                    />
-                  </div>
-                )}
-              </li>
-            )
-          })}
-        </ul>
+                    <div className="flex gap-2">
+                      {editando !== e.id && (
+                        <button type="button" onClick={() => setEditando(e.id)} className={`${BOTON_SEC} md:min-h-9`}>Músculos</button>
+                      )}
+                      {formEj !== e.id && (
+                        <button type="button" onClick={() => setFormEj(e.id)} className={`${BOTON_SEC} md:min-h-9`}>Datos</button>
+                      )}
+                    </div>
+                    {editando === e.id && (
+                      <div className="basis-full">
+                        <EditorMusculos
+                          ejercicio={e} asignados={asignados} grupos={grupos}
+                          onCancelar={() => setEditando(null)}
+                          onGuardado={() => { setEditando(null); setVersion((v) => v + 1) }}
+                        />
+                      </div>
+                    )}
+                    {formEj === e.id && (
+                      <div className="basis-full">
+                        <FormEjercicio
+                          ejercicio={e} gruposExistentes={gruposExistentes}
+                          onCancelar={() => setFormEj(null)}
+                          onGuardado={() => { setFormEj(null); setVersion((v) => v + 1) }}
+                        />
+                      </div>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+          </section>
+        </div>
       </main>
     </MarcoAdmin>
   )

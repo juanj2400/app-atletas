@@ -4,6 +4,9 @@ Registro cronológico de cambios. Agregar entradas nuevas arriba (`feat`, `fix`,
 
 ---
 
+## 2026-11-28 · Paso 40 — Admin compacto (solo presentación)
+- **style:** En escritorio (`lg:`), `Alimentos`, `Ejercicios` y `Usuarios` pasan a dos columnas: formulario de «Nuevo …» fijo a la izquierda (en Alimentos y Ejercicios siempre visible y se vacía tras guardar o cancelar) y lista compacta a la derecha (filas de una línea, filtros en una sola fila, botones más bajos). En celular se conserva el botón que abre el formulario. `FormEjercicio` usa ids únicos por formulario; `EditarAtleta` en 2 columnas; check-ins de la ficha en 2 columnas. Sin SQL ni cambios de lógica.
+
 ## 2026-11-28 · Pasos 38 y 39 — Interior del atleta y gráficas (solo presentación)
 - **style (paso 38):** `Entrenar` con tarjeta de rutina y barra de progreso semanal (mismos números), días en 2–3 columnas en escritorio; sesión (`EntrenarDia`) con ejercicios en 2 columnas en `lg:` y verde `exito` para lo completado; etiquetas/bloques con `halterofilia`/`musculacion`. `Mis datos`: gráficas de peso lado a lado, 4 tarjetas resumen e historial en rejilla. `Nutrición`: comidas a la izquierda y objetivo/7 días a la derecha. `CONTENIDO_ATLETA` llega a `max-w-5xl` en `lg:`.
 - **style (paso 39):** `lib/estiloGrafico.js` (ejes, rejilla punteada, tooltip y cursor comunes) y `components/CajaGrafico.jsx` (alto propio y ~30 % más alto desde `md:`); las 5 gráficas lo usan. Mismos datos, cálculos y textos. Sin SQL.

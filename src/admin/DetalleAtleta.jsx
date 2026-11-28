@@ -191,7 +191,7 @@ export default function DetalleAtleta() {
                   {checkIns.length === 0 ? (
                     <p className="text-suave">Este atleta aún no ha enviado check-ins.</p>
                   ) : (
-                    <ul className="flex flex-col gap-3">
+                    <ul className="grid gap-3 md:grid-cols-2">
                       {checkIns.map((c) => (
                         <li key={c.fecha} className="rounded-2xl border border-borde bg-superficie p-4">
                           <p className="font-semibold capitalize">{formatearFecha(c.fecha)}</p>

@@ -62,7 +62,7 @@ export default function ListaAtletas() {
                   Resultado: /admin/atletas/3f2a-... */}
               <Link
                 to={`/admin/atletas/${a.id}`}
-                className="flex items-center justify-between rounded-2xl border border-borde bg-superficie p-4"
+                className="flex items-center justify-between rounded-2xl border border-borde bg-superficie p-3 transition-colors hover:bg-elevada"
               >
                 <div>
                   <p className="font-semibold">{a.nombre_completo || 'Sin nombre'}</p>

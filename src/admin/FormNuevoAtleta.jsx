@@ -74,7 +74,7 @@ export default function FormNuevoAtleta({ onCreado, onCerrar }) {
   }
 
   return (
-    <form onSubmit={enviar} className={`${TARJETA} mb-4 flex flex-col gap-3`} aria-label="Crear atleta">
+    <form onSubmit={enviar} className={`${TARJETA} flex flex-col gap-2`} aria-label="Crear atleta">
       <h2 className="text-lg font-bold">Crear atleta</h2>
 
       <label htmlFor="nuevo-nombre" className="text-sm text-suave">Nombre completo</label>

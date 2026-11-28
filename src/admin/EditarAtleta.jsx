@@ -182,11 +182,11 @@ function SeccionContrasena({ atleta }) {
 
 export default function EditarAtleta({ atleta, onCambio, onCerrar }) {
   return (
-    <div className="mt-3 flex flex-col gap-5 border-t border-borde pt-4">
+    <div className="mt-3 grid gap-5 border-t border-borde pt-4 md:grid-cols-2">
       <SeccionDatos atleta={atleta} onCambio={onCambio} />
       <SeccionAcceso atleta={atleta} onCambio={onCambio} />
       <SeccionContrasena atleta={atleta} />
-      <button type="button" onClick={onCerrar} className={`${BOTON_SEC} self-start`}>Cerrar</button>
+      <button type="button" onClick={onCerrar} className={`${BOTON_SEC} self-start md:col-span-2`}>Cerrar</button>
     </div>
   )
 }

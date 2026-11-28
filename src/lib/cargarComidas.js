@@ -23,6 +23,7 @@ export async function cargarComidas(userId) {
       .eq('user_id', userId)
       .order('orden', { ascending: true }),
   ])
-  if (c.error || a.error) return { error: 'No se pudieron cargar las comidas.' }
+  // errorBD: el error crudo, para que cargarConCache distinga "sin red" de "la base rechazó algo"
+  if (c.error || a.error) return { error: 'No se pudieron cargar las comidas.', errorBD: c.error ?? a.error }
   return { comidas: armarComidas(c.data, a.data) }
 }

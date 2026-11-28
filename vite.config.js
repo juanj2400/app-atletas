@@ -50,9 +50,18 @@ export default defineConfig({
           { src: 'pwa-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
-      // IMPORTANTE: por defecto el service worker solo guarda los archivos de
-      // la app (HTML/JS/CSS), NO las respuestas de Supabase. Así los datos
-      // siempre son frescos y nunca se mezclan entre usuarios.
+      // Funcionamiento SIN INTERNET: el service worker guarda los archivos de la app (HTML, JS,
+      // CSS, íconos, y también los gráficos de carga perezosa) y, para cualquier dirección de la
+      // app (/atleta/entrenar...), entrega index.html: por eso la app abre aunque no haya señal.
+      // Lo dejamos explícito aquí (son los valores por defecto) para que nadie lo cambie sin querer.
+      workbox: {
+        navigateFallback: 'index.html',
+        cleanupOutdatedCaches: true,
+      },
+      // IMPORTANTE: el service worker NO guarda las respuestas de Supabase (los datos siempre
+      // son frescos y nunca se mezclan entre usuarios). Los datos para usar sin señal (rutina,
+      // plan, check-in del día y la cola de registros pendientes) viven en IndexedDB, separados
+      // por usuario: ver src/lib/almacenLocal.js y docs/ARQUITECTURA.md.
     }),
   ],
 })

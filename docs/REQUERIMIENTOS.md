@@ -1,5 +1,5 @@
 # REQUERIMIENTOS — MyProgress
-> Última actualización: 2026-11-27 (paso 34) · Mantener al día según `AGENTS.md`.
+> Última actualización: 2026-11-27 (paso 35) · Mantener al día según `AGENTS.md`.
 
 ## 1. Producto y Roles
 PWA privada, mobile-first y solo oscura para un entrenador (`admin`) y 15–30 atletas (`client`). Costo cero (Supabase, Netlify, Gemini AI Studio).
@@ -10,6 +10,7 @@ PWA privada, mobile-first y solo oscura para un entrenador (`admin`) y 15–30 a
 
 ### 2.1 Comunes
 - Login con redirección por rol (`/atleta` o `/admin`), recuperación de contraseña (`/recuperar` -> correo -> `/restablecer`, mín. 8 chars), rutas protegidas y PWA con aviso de actualización (`AvisoActualizacion`, `registerType: 'prompt'`).
+- **Uso sin internet (atleta):** la app abre sin señal. Sin conexión puede ver la última rutina, sus metas (se recalculan con las series guardadas), el plan nutricional y comidas, y registrar el check-in, las series, el cierre de ejercicios y *Terminar rutina*. Esos registros quedan en el teléfono con su fecha/hora real, sin duplicarse, y se suben solos en orden al volver el internet (o al reabrir la app). Una franja discreta arriba muestra "Sin conexión" y cuántos registros esperan subir; si la base rechaza alguno se avisa y se puede descartar. Borrar una serie o reabrir un ejercicio ya subido exige internet. Para el entrenador, las acciones de administración y la IA necesitan internet y muestran un aviso claro.
 
 ### 2.2 Zona del Atleta (`/atleta`)
 Barra inferior con 3 pestañas: **Entrenar**, **Nutrición**, **Mis datos**.
@@ -33,6 +34,7 @@ Barra inferior con 3 pestañas: **Entrenar**, **Nutrición**, **Mis datos**.
 
 ## 3. Reglas de Negocio Clave
 - **Progresión:** Evalúa la mejor serie del peso más alto de la última sesión del ejercicio (historial continuo por `exercise_id`, sobrevive cambios de rutina). En `doble`: sube +1 rep hasta `reps_max`, luego sugiere `+incremento_kg` y reinicia a `reps_min`. En `escalera`: avanza pasos ordenados por reps y luego series; al completar el último sube peso y vuelve al primero.
+- **Registros sin conexión:** cada registro nace con `id` y hora del celular; al subir se acepta como ya existente si el servidor lo tenía. Los check-ins guardados sin señal solo se aceptan hasta ayer/hoy/mañana (regla de la base). Lo pendiente cuenta para el estado del día (check-in hecho, día realizado, series de hoy) y para el cálculo de la meta.
 - **Semana de descarga:** 7 días locales desde hoy sobre la rutina activa, sin alterar su configuración. Series −40 % (mín. 1), carga −10 % (musculación) o −20 % (halterofilia) sobre el peso de trabajo de la última sesión normal (redondeo 0,5 kg; peso corporal no cambia), RPE objetivo ≤ 7, progresión en pausa. Las series hechas en descarga se marcan (`en_descarga`) y no cuentan para la progresión posterior. Solo el admin activa/cancela; máx. 1 en curso por atleta.
 - **Récords:** Epley `peso * (1 + reps/30)` con `peso > 0`; excluido si `tipo_ejercicio = 'aislado'`.
 - **Autocálculo de dieta:** determinista (sin IA). Cada alimento cubre un macro (auto = dominante, editable); reparte el objetivo del día entre las comidas con fuente de ese macro, descuenta macros indirectos y respeta los gramos fijados. Los manuales no suman. Al guardar se congela un snapshot (macros base y asignados): cambiar el catálogo después no altera menús ya guardados.

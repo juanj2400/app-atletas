@@ -13,10 +13,13 @@ import { resumirMediciones } from '../lib/mediciones'
 import { textoAdherencia } from '../lib/nutricion'
 import { hayMacros, resumenComidas, totalesAsignados, ultimaActualizacion } from '../lib/comidas'
 import { cargarComidas } from '../lib/cargarComidas'
+import { cargarConCache } from '../lib/cacheOffline'
+import { useConexion } from '../lib/useConexion'
 import { fechaCortaDeTimestamp } from '../lib/records'
 import { TARJETA } from '../lib/estilos'
 import PlanNutricionalCard from '../components/PlanNutricionalCard'
 import ListaComidas from '../components/ListaComidas'
+import NotaDatosGuardados from '../components/NotaDatosGuardados'
 
 export default function Nutricion() {
   const { perfil } = useAuth()
@@ -25,25 +28,40 @@ export default function Nutricion() {
   const [comidas, setComidas] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
+  const [guardadoEn, setGuardadoEn] = useState(null) // si se ve una copia guardada (sin conexión)
+  const conectado = useConexion() // al volver el internet se recarga con datos frescos
 
   useEffect(() => {
     let cancelado = false
-    Promise.all([
-      supabase.from('nutrition_plans')
-        .select('id, calorias_objetivo, proteina_g, carbohidratos_g, grasas_g, objetivo_calorico, vigente_desde, notas')
-        .eq('user_id', perfil.id).is('vigente_hasta', null).maybeSingle(),
-      supabase.from('metrics')
-        .select('id, fecha, peso_corporal_kg, perimetro_cintura_cm, calorias_consumidas, estado_calorico, notas')
-        .eq('user_id', perfil.id).order('fecha', { ascending: false }).limit(30),
-      cargarComidas(perfil.id),
-    ]).then(([p, m, c]) => {
+    // Con internet se lee de Supabase y se guarda copia (plan, comidas y mediciones); sin él se usa la copia.
+    cargarConCache(perfil.id, 'nutricion', async () => {
+      const [p, m, c] = await Promise.all([
+        supabase.from('nutrition_plans')
+          .select('id, calorias_objetivo, proteina_g, carbohidratos_g, grasas_g, objetivo_calorico, vigente_desde, notas')
+          .eq('user_id', perfil.id).is('vigente_hasta', null).maybeSingle(),
+        supabase.from('metrics')
+          .select('id, fecha, peso_corporal_kg, perimetro_cintura_cm, calorias_consumidas, estado_calorico, notas')
+          .eq('user_id', perfil.id).order('fecha', { ascending: false }).limit(30),
+        cargarComidas(perfil.id),
+      ])
+      const errorBD = p.error ?? m.error ?? c.errorBD
+      if (errorBD) return { error: errorBD }
+      return { plan: p.data, mediciones: m.data, comidas: c.comidas }
+    }).then((r) => {
       if (cancelado) return
-      if (p.error || m.error || c.error) setError('No se pudo cargar tu información de nutrición.')
-      else { setPlan(p.data); setMediciones(m.data); setComidas(c.comidas) }
+      if (r.error) {
+        setError(r.error.sinCache
+          ? 'Sin conexión. Abre Nutrición una vez con internet para poder verla sin señal.'
+          : 'No se pudo cargar tu información de nutrición.')
+      } else {
+        setPlan(r.plan); setMediciones(r.mediciones); setComidas(r.comidas)
+        setGuardadoEn(r.desdeCache ? r.guardadoEn : null)
+        setError('')
+      }
       setCargando(false)
     })
     return () => { cancelado = true }
-  }, [perfil.id])
+  }, [perfil.id, conectado])
 
   if (cargando) return <p className="text-suave">Cargando...</p>
   if (error) return <p role="alert" className="text-alerta">{error}</p>
@@ -53,6 +71,7 @@ export default function Nutricion() {
     return (
       <div className="flex flex-col gap-4">
         <h2 className="text-xl font-bold">Nutrición</h2>
+        <NotaDatosGuardados guardadoEn={guardadoEn} />
         <div className={TARJETA}>
           <p className="font-semibold">Aún no hay plan</p>
           <p className="mt-1 text-sm text-suave">
@@ -75,6 +94,7 @@ export default function Nutricion() {
   return (
     <div className="flex flex-col gap-4">
       <h2 className="text-xl font-bold">Nutrición</h2>
+      <NotaDatosGuardados guardadoEn={guardadoEn} />
 
       <section aria-labelledby="titulo-comidas" className="flex flex-col gap-3">
         <div>

@@ -1,0 +1,1850 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index 34ddfe0..0d3ff2c 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -61,6 +61,7 @@ React 19 + Vite 8 · Tailwind CSS 4 (`src/index.css` con `@theme`) · PWA (`vite
+ 17. **Periodos de rutina (`routine_versions`):** triggers `before` en `routine_exercises`/`routine_days`/`routines` llaman a `congelar_version_rutina` para guardar foto (`foto_rutina`) solo si hay series nuevas desde la última foto. Solo lectura admin. Si agregas columnas a `routine_exercises`, inclúyelas en `foto_rutina` y `compararFotos` (`src/lib/versionesRutina.js`).
+ 18. **Comidas del día (`meals`, `meal_foods`):** menú del atleta independiente de `nutrition_plans`. Se reemplaza completo vía RPC `set_meal_plan(p_user_id, p_comidas jsonb)` (cantidad como número JSON, unidades `g`/`ml`/`unidad`/`porcion`). Topes (10 comidas, 30 alimentos, cant. ≤ 10.000, 2 decimales) sincronizados entre `lib/comidas.js` y SQL. Ruta principal atleta: `/atleta/nutricion` (`/atleta/datos/nutricion` redirige).
+ 19. **Catálogo de alimentos (`foods`) y snapshot:** `foods` es global y solo lo lee/escribe el admin (el atleta ve el snapshot de `meal_foods`); no se borra, se desactiva. `set_meal_plan` calcula y valida el snapshot (alimentos del catálogo solo en `g`, macros asignados = base × g / 100); el cliente nunca manda macros asignados. El autocálculo vive en `lib/dieta.js` (puro, sin IA) y `macro_dominante` debe coincidir entre `lib/alimentos.js` y la columna generada. Las búsquedas al catálogo siempre con `limit` y filtros en servidor, nunca se descarga completo.
++20. **Offline (atleta):** el SW no cachea datos; los datos locales van en IndexedDB por usuario (`lib/almacenLocal.js`). Los registros del atleta (check-in, series, cierres, día realizado) se guardan SIEMPRE con `registrar()` (`lib/colaOffline.js`) con `id`, fecha local y `realizado_en` generados en el celular; la subida es idempotente (23505 = subido) y en orden. Las lecturas de pantallas del atleta pasan por `cargarConCache`. Nunca se copia nada a `metrics` ni se escribe en tablas del admin desde la cola. El listener de `AuthProvider` solo guarda estado (la "sesión local" se marca ahí, sin consultas).
+ 
+ ## 8. Verificación y Git
+ - Ejecutar `npm run build` sin errores. Probar lógica pura en `src/lib/` con ejemplos y entregar pasos cortos de prueba al dueño.
+diff --git a/docs/ARQUITECTURA.md b/docs/ARQUITECTURA.md
+index 11d79a4..92f48a3 100644
+--- a/docs/ARQUITECTURA.md
++++ b/docs/ARQUITECTURA.md
+@@ -1,9 +1,9 @@
+ # ARQUITECTURA — MyProgress
+-> Última actualización: 2026-11-27 (paso 34) · Mantener al día según `AGENTS.md`.
++> Última actualización: 2026-11-27 (paso 35) · Mantener al día según `AGENTS.md`.
+ 
+ ## 1. Visión y Stack
+ SPA (sin backend propio). El navegador habla directo con Supabase; la seguridad real reside en **PostgreSQL RLS**. Hosting en Netlify vía `git push`.
+-- **Frontend:** React ^19.3.1, Vite ^8.3.5, Tailwind CSS ^4.3.3 (`@tailwindcss/vite`, tema en `src/index.css` `@theme`, sin `tailwind.config.js`), `react-router-dom` ^7.18.5, `vite-plugin-pwa` ^2.0.0 (`registerType: 'prompt'`, `workbox-window`), `recharts` ^3.11.0 (carga perezosa). Node >= 20.19.
++- **Frontend:** React ^19.3.1, Vite ^8.3.5, Tailwind CSS ^4.3.3 (`@tailwindcss/vite`, tema en `src/index.css` `@theme`, sin `tailwind.config.js`), `react-router-dom` ^7.18.5, `vite-plugin-pwa` ^2.0.0 (`registerType: 'prompt'`, `workbox-window`; el SW precachea la app y usa `index.html` como respaldo de navegación), `recharts` ^3.11.0 (carga perezosa). Node >= 20.19.
+ - **Backend/Cloud:** `@supabase/supabase-js` ^2.118.0 (Auth, PostgREST, Postgres, Edge Functions Deno), Netlify (plan gratuito comercial), Gemini `gemini-3.8-flash` (capa gratuita, solo Edge Function, actualmente en pausa).
+ 
+ ## 2. Estructura de Carpetas (`/`)
+@@ -17,8 +17,8 @@ SPA (sin backend propio). El navegador habla directo con Supabase; la seguridad
+   - `main.jsx`, `App.jsx`, `index.css`
+   - `auth/`: `AuthProvider.jsx` (`useAuth()`), `RutaProtegida.jsx` (incluye `CuentaDesactivada`).
+   - `pages/`: `Login.jsx`, `RecuperarContrasena.jsx`, `RestablecerContrasena.jsx`, `Inicio.jsx`.
+-  - `components/`: `Encabezado`, `Estados` (`Cargando`, `SinPerfil`), `Selector`, `ResumenMediciones`, `GraficoEvolucion` (+`Lazy`), `GraficoTendenciaPeso` (+`Lazy`), `GraficoOscilacionPeso` (+`Lazy`), `LineaTemporal`, `RecordsAtleta`, `GraficosRecord` (+`Lazy`), `PlanNutricionalCard`, `ListaComidas`, `CicloVigenteCard`, `AvisoDescarga`, `ResumenDiaRealizado`, `AvisoActualizacion`.
+-  - `lib/` (lógica pura y helpers): `supabase.js`, `fechas.js`, `useHoy.js`, `numeros.js`, `opciones.js`, `estilos.js` (`CAMPO`, `BOTON`, `BOTON_SEC`, `TARJETA`), `coloresGrafico.js`, `usuarios.js`, `adminUsuarios.js`, `oscilacionPeso.js`, `tendenciaPeso.js`, `panelAtleta.js`, `cumpleanos.js`, `mediciones.js`, `cierres.js`, `bloques.js`, `rutinas.js`, `versionesRutina.js`, `volumen.js`, `nutricion.js`, `comidas.js`, `cargarComidas.js`, `alimentos.js`, `dieta.js` (autocálculo de gramos), `buscarAlimentos.js`, `useBusquedaAlimentos.js`, `ciclos.js`, `descarga.js`, `cargarDescarga.js`, `pesoCombinado.js`, `progresion.js`, `tiposEjercicio.js`, `records.js`.
++  - `components/`: `Encabezado`, `Estados` (`Cargando`, `SinPerfil`), `Selector`, `ResumenMediciones`, `GraficoEvolucion` (+`Lazy`), `GraficoTendenciaPeso` (+`Lazy`), `GraficoOscilacionPeso` (+`Lazy`), `IndicadorConexion` (+`AvisoSoloConConexion`), `NotaDatosGuardados`, `LineaTemporal`, `RecordsAtleta`, `GraficosRecord` (+`Lazy`), `PlanNutricionalCard`, `ListaComidas`, `CicloVigenteCard`, `AvisoDescarga`, `ResumenDiaRealizado`, `AvisoActualizacion`.
++  - `lib/` (lógica pura y helpers): `supabase.js`, `fechas.js`, `useHoy.js`, `numeros.js`, `opciones.js`, `estilos.js` (`CAMPO`, `BOTON`, `BOTON_SEC`, `TARJETA`), `coloresGrafico.js`, `usuarios.js`, `adminUsuarios.js`, `oscilacionPeso.js`, `tendenciaPeso.js`, `panelAtleta.js`, `cumpleanos.js`, `mediciones.js`, `cierres.js`, `bloques.js`, `rutinas.js`, `versionesRutina.js`, `volumen.js`, `nutricion.js`, `comidas.js`, `cargarComidas.js`, `alimentos.js`, `dieta.js` (autocálculo de gramos), `buscarAlimentos.js`, `useBusquedaAlimentos.js`, `ciclos.js`, `descarga.js`, `cargarDescarga.js`, `pesoCombinado.js`, offline: `almacenLocal.js` (IndexedDB), `conexion.js`, `useConexion.js`, `cacheOffline.js`, `colaOffline.js`, `vistaOffline.js`, `useCola.js`, `identidadLocal.js`, `progresion.js`, `tiposEjercicio.js`, `records.js`.
+   - `atleta/`: `PantallaAtleta` (marco + contexto `{ hoy, hecho, marcarHecho }`), `CheckIn`, `Entrenar`, `EntrenarDia`, `MisDatos` (marco), `MisMediciones`, `Records`, `Nutricion`, `CicloActual`.
+   - `admin/`: `ListaAtletas`, `CumpleanosAtletas`, `DetalleAtleta`, `PanelAtleta`, `FechaNacimientoAtleta`, `GestionUsuarios`, `FormNuevoAtleta`, `EditarAtleta`, `Mediciones`, `RutinasAtleta`, `DescargaAtleta`, `CargasAtleta`, `EditorRutina`, `SelectorEjercicio`, `HistorialEntrenamiento`, `HistorialRutina`, `VolumenMuscular`, `PlanNutricional`, `PlanComidas`, `CiclosAtleta`, `ListaNegraAtleta`, `FormEjercicio`, `Ejercicios`, `Alimentos`, `FormAlimento`, `BuscadorAlimentos`, `CalculadoraDieta`.
+ 
+@@ -68,7 +68,8 @@ Migraciones en orden: `schema_supabase.sql`, `02`–`09`, `11`–`25` (10 omitid
+ 6b. **Comidas del día:** Pertenecen al atleta (`meals`), desacopladas de `nutrition_plans` (versionado por calorías/macros) para no duplicar menús al ajustar macros.
+ 7. **Semana de descarga:** no modifica la rutina. `lib/descarga.js` calcula en cliente una prescripción liviana (series −40 %, carga −10 % musculación / −20 % halterofilia, RPE ≤ 7, progresión en pausa) mientras haya una `deload_weeks` vigente (fecha local). `ultimas_series_por_ejercicio` ignora series `en_descarga`, por eso la progresión retoma desde la última sesión normal. Una sola descarga sin cancelar por atleta (validado en la RPC con lock).
+ 8. **Peso del check-in en la vista de peso:** `lib/pesoCombinado.js` suma, solo para mostrar, los pesos de `daily_check_ins` a las mediciones de `metrics` (por día manda la medición oficial con peso). NO se copia nada a `metrics` (invariante 2): el atleta no puede crear/editar/borrar mediciones oficiales. Lo usa `MisMediciones` para tendencia/proyección, oscilación y "peso actual"; la gráfica distingue punto relleno (oficial) y hueco (check-in). Sin cambios de SQL (el atleta ya lee sus check-ins).
+-9. **Diseño UI:** Solo modo oscuro (`fondo: #0F1115`, `superficie: #181B22`, `hundido: #12151B`, `borde: #2A2F3A`, `texto: #E8EAEE`, `suave: #A3A9B5`, `primario: #2F5FE3`, `enlace: #7AA2FF`, `alerta: #F0A040`). Táctil >= 44px (`min-h-11`). Atleta `max-w-md`, Admin `max-w-3xl`.
++9. **Uso sin internet (paso 35):** el SW solo sirve la app (shell); los DATOS viven en IndexedDB (`lib/almacenLocal.js`, BD `myprogress-offline`), separados por usuario: `cache` (`<userId>|<clave>`: rutina, día con series/última vez, plan/comidas/mediciones, ciclos, estado del check-in del día) y `cola` (registros pendientes). Lectura: `cargarConCache` (con internet lee y guarda copia; sin él, la copia; si la BD rechaza algo no se oculta con datos viejos). Escritura: `registrar()` guarda directo si hay internet y cola vacía; si no, encola. Tipos en cola: `checkin` (`daily_check_ins`), `serie` (`routine_logs`), `cierre` (`exercise_closures`), `dia` (`routine_day_completions`). El **id** (series) y `realizado_en`/`fecha` locales los genera el celular al registrar: la subida es idempotente (23505 = ya existía) y el trigger `bloquear_dia_realizado` evalúa la hora REAL. Sin duplicados por `clave` única (`serie:sesión:ejercicio:n°`, `checkin:fecha`...). Subida en orden (`useSincronizacion`: al abrir, evento `online`, al volver a la app, cada 30 s); si se cae la red se corta y conserva el orden; un rechazo de la BD (P0001, RLS, FK) deja el registro en `error` con mensaje en español y no bloquea al resto. Las pantallas reciben lo pendiente mezclado (`lib/vistaOffline.js`, `pendiente: true`) y se recargan al volver el internet o terminar de subir. Borrar/reabrir algo YA subido exige internet (`exigirConexion`); si aún está pendiente, solo se quita de la cola. **Sesión local:** con el token vencido y sin red, `supabase-js` entrega sesión vacía; `AuthProvider` deja entrar con el perfil recordado (`identidadLocal.js`, solo si sigue guardada la sesión de Supabase) y se trata como sin conexión hasta renovar. Al cerrar sesión se borra la copia del usuario pero la cola se conserva (avisa si hay pendientes). Acciones del entrenador: `AvisoSoloConConexion` (en `Encabezado`) y `exigirConexion` en `adminUsuarios.js`.
++10. **Diseño UI:** Solo modo oscuro (`fondo: #0F1115`, `superficie: #181B22`, `hundido: #12151B`, `borde: #2A2F3A`, `texto: #E8EAEE`, `suave: #A3A9B5`, `primario: #2F5FE3`, `enlace: #7AA2FF`, `alerta: #F0A040`). Táctil >= 44px (`min-h-11`). Atleta `max-w-md`, Admin `max-w-3xl`.
+ 
+ ## 6. Despliegue y Configuración Manual
+ - **Env vars frontend (Netlify y `.env`):** `VITE_SUPABASE_URL`, `VITE_SUPABASE_KEY`.
+@@ -82,6 +83,7 @@ Migraciones en orden: `schema_supabase.sql`, `02`–`09`, `11`–`25` (10 omitid
+ - `routines.cycle_id` sin interfaz; pestaña activa en `DetalleAtleta` se pierde al recargar; `PanelAtleta` repite 8 consultas al volver (sin caché).
+ - Peso del check-in: solo se combina en `MisMediciones` (últimos 60 check-ins con peso); `PanelAtleta`, `Mediciones` (admin) y `GraficoEvolucion` siguen usando solo `metrics`.
+ - Descarga: reglas fijas en constantes de `lib/descarga.js` (sin editor por atleta); no hay indicador en `PanelAtleta`/`HistorialEntrenamiento` ni caducidad automática en BD (el fin se deduce de `fecha_fin`).
++- Offline: un check-in guardado sin señal solo se acepta mientras la fecha sea ayer/hoy/mañana en UTC (política `check_ins_insert_own`); pasado eso queda en `error` y se puede descartar. Sin copia offline: `MisMediciones`, `Records`, `PanelAtleta` y todo `/admin` (solo avisa). Safari puede borrar IndexedDB de webs sin instalar tras ~7 días (se pide `navigator.storage.persist()`). Solo se probó la lógica pura con IndexedDB simulado; falta probar en celular real (modo avión).
+ - Check-in obligatorio validado solo en UI (`PantallaAtleta`), sin trigger en `routine_logs`.
+ - Desactivar usuario en Auth tarda hasta 1h en caducar JWT activo (UI bloquea al abrir app).
+ - Comidas del día: sin plantillas ni checklist de consumo. Autocálculo: 1 alimento = 1 rol y solo ajusta gramos (no sugiere alimentos); si los macros indirectos ya superan el objetivo, el alimento queda en 0 g con aviso. Menús guardados antes de la migración 25 no tienen snapshot (se ven sin macros). El seed del catálogo son valores aproximados tipo USDA, a revisar por el entrenador. Sin tests automáticos del motor (se probó con scripts manuales).
+\ No newline at end of file
+diff --git a/docs/CHANGELOG.md b/docs/CHANGELOG.md
+index 2bc0720..1ee7356 100644
+--- a/docs/CHANGELOG.md
++++ b/docs/CHANGELOG.md
+@@ -4,6 +4,11 @@ Registro cronológico de cambios. Agregar entradas nuevas arriba (`feat`, `fix`,
+ 
+ ---
+ 
++## 2026-11-27 · Paso 35 — PWA sin internet (datos locales y cola de sincronización)
++- **feat:** El atleta puede abrir la app, ver su rutina/metas/plan nutricional y registrar check-in, series, cierres y *Terminar rutina* sin señal. Los datos se guardan en IndexedDB por usuario y los registros pendientes suben solos en orden (id y hora generados en el celular, subida idempotente y sin duplicados). `IndicadorConexion` muestra el estado y los pendientes; `NotaDatosGuardados` avisa cuando se ve una copia. Acciones del entrenador/IA sin internet muestran aviso claro (`AvisoSoloConConexion`, `exigirConexion`).
++- **fix:** Con el token vencido y sin red ya no se cae al login: sesión local con perfil recordado (`AuthProvider`, `identidadLocal.js`).
++- **refactor:** `lib/almacenLocal.js`, `cacheOffline.js`, `colaOffline.js`, `vistaOffline.js`, `useCola.js`, `conexion.js`; `cargarComidas`/`cargarDescarga` devuelven también `errorBD`. `vite.config.js` deja explícito `navigateFallback`. Sin cambios de SQL.
++
+ ## 2026-11-27 · Paso 34 — Catálogo de alimentos y autocálculo de gramos
+ - **feat:** Catálogo propio de alimentos (`/admin/alimentos`, `Alimentos`, `FormAlimento`) con crudo/cocido, macros por 100 g y búsqueda ligera (`lib/buscarAlimentos.js`, `useBusquedaAlimentos`). Creador de dieta (`PlanComidas`) con `BuscadorAlimentos` y `CalculadoraDieta`: calcula gramos con `lib/dieta.js` (JS puro, sin IA), edición manual, intercambio de alimentos y totales por comida/día en vivo. `ListaComidas` y `Nutricion` muestran estado crudo/cocido, gramos exactos y macros.
+ - **db:** `migracion_25_catalogo_alimentos.sql` — tabla `foods` (RLS solo admin) + seed, snapshot en `meal_foods` y `set_meal_plan` actualizada. **Aplicar SQL primero** (independiente de la 24).
+diff --git a/docs/REQUERIMIENTOS.md b/docs/REQUERIMIENTOS.md
+index aa0e677..6b98cd5 100644
+--- a/docs/REQUERIMIENTOS.md
++++ b/docs/REQUERIMIENTOS.md
+@@ -1,5 +1,5 @@
+ # REQUERIMIENTOS — MyProgress
+-> Última actualización: 2026-11-27 (paso 34) · Mantener al día según `AGENTS.md`.
++> Última actualización: 2026-11-27 (paso 35) · Mantener al día según `AGENTS.md`.
+ 
+ ## 1. Producto y Roles
+ PWA privada, mobile-first y solo oscura para un entrenador (`admin`) y 15–30 atletas (`client`). Costo cero (Supabase, Netlify, Gemini AI Studio).
+@@ -10,6 +10,7 @@ PWA privada, mobile-first y solo oscura para un entrenador (`admin`) y 15–30 a
+ 
+ ### 2.1 Comunes
+ - Login con redirección por rol (`/atleta` o `/admin`), recuperación de contraseña (`/recuperar` -> correo -> `/restablecer`, mín. 8 chars), rutas protegidas y PWA con aviso de actualización (`AvisoActualizacion`, `registerType: 'prompt'`).
++- **Uso sin internet (atleta):** la app abre sin señal. Sin conexión puede ver la última rutina, sus metas (se recalculan con las series guardadas), el plan nutricional y comidas, y registrar el check-in, las series, el cierre de ejercicios y *Terminar rutina*. Esos registros quedan en el teléfono con su fecha/hora real, sin duplicarse, y se suben solos en orden al volver el internet (o al reabrir la app). Una franja discreta arriba muestra "Sin conexión" y cuántos registros esperan subir; si la base rechaza alguno se avisa y se puede descartar. Borrar una serie o reabrir un ejercicio ya subido exige internet. Para el entrenador, las acciones de administración y la IA necesitan internet y muestran un aviso claro.
+ 
+ ### 2.2 Zona del Atleta (`/atleta`)
+ Barra inferior con 3 pestañas: **Entrenar**, **Nutrición**, **Mis datos**.
+@@ -33,6 +34,7 @@ Barra inferior con 3 pestañas: **Entrenar**, **Nutrición**, **Mis datos**.
+ 
+ ## 3. Reglas de Negocio Clave
+ - **Progresión:** Evalúa la mejor serie del peso más alto de la última sesión del ejercicio (historial continuo por `exercise_id`, sobrevive cambios de rutina). En `doble`: sube +1 rep hasta `reps_max`, luego sugiere `+incremento_kg` y reinicia a `reps_min`. En `escalera`: avanza pasos ordenados por reps y luego series; al completar el último sube peso y vuelve al primero.
++- **Registros sin conexión:** cada registro nace con `id` y hora del celular; al subir se acepta como ya existente si el servidor lo tenía. Los check-ins guardados sin señal solo se aceptan hasta ayer/hoy/mañana (regla de la base). Lo pendiente cuenta para el estado del día (check-in hecho, día realizado, series de hoy) y para el cálculo de la meta.
+ - **Semana de descarga:** 7 días locales desde hoy sobre la rutina activa, sin alterar su configuración. Series −40 % (mín. 1), carga −10 % (musculación) o −20 % (halterofilia) sobre el peso de trabajo de la última sesión normal (redondeo 0,5 kg; peso corporal no cambia), RPE objetivo ≤ 7, progresión en pausa. Las series hechas en descarga se marcan (`en_descarga`) y no cuentan para la progresión posterior. Solo el admin activa/cancela; máx. 1 en curso por atleta.
+ - **Récords:** Epley `peso * (1 + reps/30)` con `peso > 0`; excluido si `tipo_ejercicio = 'aislado'`.
+ - **Autocálculo de dieta:** determinista (sin IA). Cada alimento cubre un macro (auto = dominante, editable); reparte el objetivo del día entre las comidas con fuente de ese macro, descuenta macros indirectos y respeta los gramos fijados. Los manuales no suman. Al guardar se congela un snapshot (macros base y asignados): cambiar el catálogo después no altera menús ya guardados.
+diff --git a/src/atleta/CheckIn.jsx b/src/atleta/CheckIn.jsx
+index 48fb29e..054bd48 100644
+--- a/src/atleta/CheckIn.jsx
++++ b/src/atleta/CheckIn.jsx
+@@ -14,9 +14,10 @@
+ // =====================================================================
+ import { useState } from 'react'
+ import { Navigate, useOutletContext } from 'react-router-dom'
+-import { supabase } from '../lib/supabase'
+ import { useAuth } from '../auth/AuthProvider'
+ import { aNumero } from '../lib/numeros'
++import { registrar } from '../lib/colaOffline'
++import { guardarCache } from '../lib/almacenLocal'
+ import { ANIMOS, CUMPLIMIENTO_CALORIAS } from '../lib/opciones'
+ import Selector from '../components/Selector'
+ 
+@@ -67,25 +68,32 @@ export default function CheckIn() {
+     if (peso !== null && (peso < 20 || peso > 400)) return setError('El peso debe estar entre 20 y 400 kg.')
+ 
+     setGuardando(true)
+-    const { error: errorBD } = await supabase.from('daily_check_ins').insert({
+-      user_id: perfil.id,
++    // Con internet se guarda al instante; sin señal queda en el teléfono (cola) y se sube sola al
++    // volver la conexión. En ambos casos el atleta puede seguir: el check-in ya está registrado.
++    const r = await registrar({
++      userId: perfil.id,
++      tipo: 'checkin',
+       fecha: hoy, // fecha local del celular
+-      // Solo se envía la columna nueva: un trigger de la base de datos mantiene al día el sí/no antiguo.
+-      cumplimiento_calorias: form.caloriasAyer,
+-      horas_sueno: horas,
+-      peso_corporal_kg: peso === null ? null : Math.round(peso * 10) / 10, // 1 decimal, como la columna
+-      estado_animo: form.animo,
+-      se_siente_recuperado: form.recuperado,
++      payload: {
++        user_id: perfil.id,
++        fecha: hoy,
++        // Solo se envía la columna nueva: un trigger de la base de datos mantiene al día el sí/no antiguo.
++        cumplimiento_calorias: form.caloriasAyer,
++        horas_sueno: horas,
++        peso_corporal_kg: peso === null ? null : Math.round(peso * 10) / 10, // 1 decimal, como la columna
++        estado_animo: form.animo,
++        se_siente_recuperado: form.recuperado,
++      },
+     })
+     setGuardando(false)
+ 
+-    if (!errorBD) {
++    // 'subido' incluye el caso "ya existía" (23505: lo llenó desde otro dispositivo): no es un fallo.
++    if (r.estado === 'subido' || r.estado === 'en_cola') {
++      if (r.estado === 'subido') guardarCache(perfil.id, `checkin:${hoy}`, { hecho: true })
+       setRecienGuardado(true)
+       marcarHecho()
+-    } else if (errorBD.code === '23505') {
+-      // 23505 = "ya existe" (restricción unique). Pasa si lo llenó desde otro
+-      // dispositivo. No es un fallo: simplemente ya está hecho.
+-      marcarHecho()
++    } else if (r.estado === 'sin_almacen') {
++      setError('Sin conexión y este navegador no puede guardar el check-in en el teléfono. Conéctate e inténtalo de nuevo.')
+     } else {
+       setError('No se pudo guardar. Revisa tu conexión e inténtalo de nuevo.')
+     }
+diff --git a/src/atleta/CicloActual.jsx b/src/atleta/CicloActual.jsx
+index 773091c..fdd6199 100644
+--- a/src/atleta/CicloActual.jsx
++++ b/src/atleta/CicloActual.jsx
+@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
+ import { useOutletContext } from 'react-router-dom'
+ import { supabase } from '../lib/supabase'
+ import { useAuth } from '../auth/AuthProvider'
++import { cargarConCache } from '../lib/cacheOffline'
+ import CicloVigenteCard from '../components/CicloVigenteCard'
+ 
+ export default function CicloActual() {
+@@ -13,13 +14,15 @@ export default function CicloActual() {
+ 
+   useEffect(() => {
+     let cancelado = false
+-    supabase
+-      .from('training_cycles')
+-      .select('id, parent_id, nivel, nombre, fase, objetivo, fecha_inicio, fecha_fin')
+-      .eq('user_id', perfil.id)
+-      .in('nivel', ['macrociclo', 'mesociclo'])
+-      // Si falla no es grave: simplemente no se muestra la tarjeta.
+-      .then(({ data }) => { if (!cancelado && data) setCiclos(data) })
++    // Con internet se guarda una copia; sin él se muestra la última. Si falla no es grave: no se muestra la tarjeta.
++    cargarConCache(perfil.id, 'ciclos', async () => {
++      const { data, error } = await supabase
++        .from('training_cycles')
++        .select('id, parent_id, nivel, nombre, fase, objetivo, fecha_inicio, fecha_fin')
++        .eq('user_id', perfil.id)
++        .in('nivel', ['macrociclo', 'mesociclo'])
++      return error ? { error } : { ciclos: data }
++    }).then((r) => { if (!cancelado && r.ciclos) setCiclos(r.ciclos) })
+     return () => { cancelado = true }
+   }, [perfil.id])
+ 
+diff --git a/src/atleta/Entrenar.jsx b/src/atleta/Entrenar.jsx
+index e0bcceb..1250113 100644
+--- a/src/atleta/Entrenar.jsx
++++ b/src/atleta/Entrenar.jsx
+@@ -15,7 +15,13 @@ import { formatearFecha, inicioSemanaISO } from '../lib/fechas'
+ import { textoBloques } from '../lib/bloques'
+ import { useHoy } from '../lib/useHoy'
+ import { cargarDescargaVigente } from '../lib/cargarDescarga'
++import { cargarConCache } from '../lib/cacheOffline'
++import { leerCola } from '../lib/colaOffline'
++import { descargaVigenteHoy, unirDiasPendientes } from '../lib/vistaOffline'
++import { useConexion } from '../lib/useConexion'
++import { useCola } from '../lib/useCola'
+ import AvisoDescarga from '../components/AvisoDescarga'
++import NotaDatosGuardados from '../components/NotaDatosGuardados'
+ import CicloActual from './CicloActual'
+ 
+ export default function Entrenar() {
+@@ -28,35 +34,56 @@ export default function Entrenar() {
+   const [descarga, setDescarga] = useState(null)
+   const [cargando, setCargando] = useState(true)
+   const [error, setError] = useState('')
++  const [guardadoEn, setGuardadoEn] = useState(null) // si se ve una copia guardada (sin conexión)
+ 
+   // useHoy hace que la pantalla se redibuje al cambiar el día; así, al llegar el lunes
+   // los días vuelven a quedar disponibles aunque la app haya quedado abierta.
+   const hoy = useHoy()
+   const semana = inicioSemanaISO()
++  // Al volver el internet o terminar de subir registros pendientes, la pantalla se recarga sola.
++  const conectado = useConexion()
++  const { subidos } = useCola(perfil.id)
+ 
+   useEffect(() => {
+     let cancelado = false
+-    Promise.all([
+-      supabase
+-        .from('routines')
+-        .select('id, nombre, objetivo, notas, modo_hibrido, routine_days ( id, orden, nombre, notas, routine_exercises ( id, bloque ) )')
+-        .eq('user_id', perfil.id)
+-        .eq('estado', 'activa')
+-        .maybeSingle(),
+-      supabase
+-        .from('routine_day_completions')
+-        .select('routine_day_id, fecha')
+-        .eq('user_id', perfil.id)
+-        .eq('semana_inicio', semana),
+-      cargarDescargaVigente(perfil.id, hoy),
+-    ]).then(([res, comp, des]) => {
++    // Con internet se lee de Supabase y se guarda copia; sin él se usa la última copia (cargarConCache).
++    cargarConCache(perfil.id, 'entrenar', async () => {
++      const [res, comp, des] = await Promise.all([
++        supabase
++          .from('routines')
++          .select('id, nombre, objetivo, notas, modo_hibrido, routine_days ( id, orden, nombre, notas, routine_exercises ( id, bloque ) )')
++          .eq('user_id', perfil.id)
++          .eq('estado', 'activa')
++          .maybeSingle(),
++        supabase
++          .from('routine_day_completions')
++          .select('routine_day_id, fecha')
++          .eq('user_id', perfil.id)
++          .eq('semana_inicio', semana),
++        cargarDescargaVigente(perfil.id, hoy),
++      ])
++      const errorBD = res.error ?? comp.error ?? des.errorBD
++      if (errorBD) return { error: errorBD }
++      return { rutina: res.data, realizados: comp.data, descarga: des.descarga, semanaCache: semana }
++    }).then(async (r) => {
++      const cola = await leerCola(perfil.id) // días terminados sin señal que aún no suben
+       if (cancelado) return
+-      if (res.error || comp.error || des.error) setError('No se pudo cargar tu rutina.')
+-      else { setRutina(res.data); setRealizados(comp.data); setDescarga(des.descarga); setError('') }
++      if (r.error) {
++        setError(r.error.sinCache
++          ? 'Sin conexión. Abre esta pantalla una vez con internet para poder usarla sin señal.'
++          : 'No se pudo cargar tu rutina.')
++      } else {
++        setRutina(r.rutina)
++        // Los días realizados de una copia vieja solo valen si es la misma semana
++        setRealizados(unirDiasPendientes(r.semanaCache === semana ? r.realizados : [], cola, semana))
++        setDescarga(descargaVigenteHoy(r.descarga, hoy))
++        setGuardadoEn(r.desdeCache ? r.guardadoEn : null)
++        setError('')
++      }
+       setCargando(false)
+     })
+     return () => { cancelado = true }
+-  }, [perfil.id, semana, hoy])
++  }, [perfil.id, semana, hoy, conectado, subidos])
+ 
+   const aviso = state?.rutinaCompletada ? (
+     <p role="status" className="rounded-xl bg-primario p-3 font-semibold text-white">
+@@ -76,6 +103,7 @@ export default function Entrenar() {
+         {aviso}
+         <CicloActual />
+       <AvisoDescarga descarga={descarga} hoy={hoy} />
++      <NotaDatosGuardados guardadoEn={guardadoEn} />
+         <div className={TARJETA}>
+           <h2 className="text-xl font-bold">Entrenar</h2>
+           <p className="mt-1 text-suave">Tu entrenador aún no te ha asignado una rutina.</p>
+@@ -91,6 +119,7 @@ export default function Entrenar() {
+       {aviso}
+       <CicloActual />
+       <AvisoDescarga descarga={descarga} hoy={hoy} />
++      <NotaDatosGuardados guardadoEn={guardadoEn} />
+       <div>
+         <h2 className="text-xl font-bold">{rutina.nombre}</h2>
+         {rutina.objetivo && <p className="text-sm text-suave">Objetivo: {rutina.objetivo}</p>}
+diff --git a/src/atleta/EntrenarDia.jsx b/src/atleta/EntrenarDia.jsx
+index e81ce93..c3405b2 100644
+--- a/src/atleta/EntrenarDia.jsx
++++ b/src/atleta/EntrenarDia.jsx
+@@ -18,12 +18,21 @@ import { calcularUltimaVez, inicioDeHoyISO, textoPrescripcion, textoSerie } from
+ import { textoMeta } from '../lib/progresion'
+ import { metaDelDia, prescripcionDescarga, textoMetaDescarga } from '../lib/descarga'
+ import { cargarDescargaVigente } from '../lib/cargarDescarga'
++import { cargarConCache } from '../lib/cacheOffline'
++import { CLAVES, leerCola, quitarPendiente, registrar } from '../lib/colaOffline'
++import { exigirConexion } from '../lib/conexion'
++import { ajustarCopiaDia, unirPendientesDia } from '../lib/vistaOffline'
++import { useConexion } from '../lib/useConexion'
++import { useCola } from '../lib/useCola'
+ import AvisoDescarga from '../components/AvisoDescarga'
++import NotaDatosGuardados from '../components/NotaDatosGuardados'
+ import { agruparPorBloque, textoBloques } from '../lib/bloques'
+ import { estadoEjercicio, resumenDiaRealizado, resumenRutinaDia, seriesObjetivoDe, validarNotaCierre, NOTA_MAX } from '../lib/cierres'
+ import { CAMPO, BOTON, BOTON_SEC, TARJETA } from '../lib/estilos'
+ import ResumenDiaRealizado from '../components/ResumenDiaRealizado'
+ 
++const COLUMNAS_LOG = 'id, routine_exercise_id, exercise_id, sesion_id, numero_serie, repeticiones, peso_kg, rpe, realizado_en'
++
+ // ---------------------------------------------------------------------
+ // Un ejercicio con su lista de series y el formulario de la siguiente
+ // ---------------------------------------------------------------------
+@@ -74,26 +83,39 @@ function EjercicioEntrenamiento({ fila, bloque, seriesHoy, ultimaVez, cierre, de
+ 
+     setError('')
+     setGuardando(true)
+-    const { error: errorBD } = await supabase.from('routine_logs').insert({
+-      user_id: userId,
+-      exercise_id: fila.exercise_id,
+-      routine_exercise_id: fila.id, // enlaza la serie con lo prescrito
+-      sesion_id: sesionId,          // agrupa las series de este entrenamiento
+-      numero_serie: siguiente,
+-      repeticiones,
+-      peso_kg: pesoKg,
+-      rpe: rpeN, // null si el entrenador no pide RPE en este ejercicio
++    // El id y la hora los pone el celular AHORA: si no hay señal, la serie espera en el teléfono y
++    // al subir conserva su hora real (de eso depende "día realizado" y la semana lunes–domingo).
++    const ahora = new Date()
++    const r = await registrar({
++      userId,
++      tipo: 'serie',
++      fecha: fechaLocalISO(ahora),
++      payload: {
++        id: crypto.randomUUID(),
++        user_id: userId,
++        exercise_id: fila.exercise_id,
++        routine_exercise_id: fila.id, // enlaza la serie con lo prescrito
++        sesion_id: sesionId,          // agrupa las series de este entrenamiento
++        numero_serie: siguiente,
++        repeticiones,
++        peso_kg: pesoKg,
++        rpe: rpeN, // null si el entrenador no pide RPE en este ejercicio
++        realizado_en: ahora.toISOString(),
++      },
+     })
+     setGuardando(false)
+-    if (errorBD?.code === 'P0001') {
++    if (r.estado === 'rechazado' && r.error?.code === 'P0001') {
+       // La base de datos dice que ya están todas las series (pantalla desactualizada o doble
+       // toque). Su mensaje ya viene redactado en español; recargamos para mostrar lo real.
+-      setError(errorBD.message)
++      setError(r.error.message)
+       onCambio()
+-    } else if (errorBD) {
++    } else if (r.estado === 'rechazado') {
+       // Los valores quedan escritos en el formulario para reintentar sin volver a teclear.
+       setError('No se pudo guardar. Revisa tu conexión e inténtalo de nuevo.')
++    } else if (r.estado === 'sin_almacen') {
++      setError('Sin conexión y este navegador no puede guardar en el teléfono. Conéctate e inténtalo de nuevo.')
+     } else {
++      // 'subido' o 'en_cola' (sin señal: queda guardada en el teléfono y se sube sola)
+       setRpe('') // el peso y las reps suelen repetirse; el RPE se anota cada vez
+       onCambio()
+     }
+@@ -101,6 +123,13 @@ function EjercicioEntrenamiento({ fila, bloque, seriesHoy, ultimaVez, cierre, de
+ 
+   async function borrarSerie(serie) {
+     if (!window.confirm(`¿Eliminar la serie ${serie.numero_serie}?`)) return
++    // Una serie que aún no subió solo existe en el teléfono: basta quitarla de la cola (sin internet).
++    if (serie.pendiente) {
++      await quitarPendiente(userId, CLAVES.serie(serie))
++      return onCambio()
++    }
++    const sinRed = exigirConexion('borrar una serie ya guardada')
++    if (sinRed) return setError(sinRed)
+     const { data, error: errorBD } = await supabase.from('routine_logs').delete().eq('id', serie.id).select('id')
+     if (errorBD || !data || data.length === 0) setError('No se pudo eliminar la serie.')
+     else onCambio()
+@@ -113,22 +142,26 @@ function EjercicioEntrenamiento({ fila, bloque, seriesHoy, ultimaVez, cierre, de
+     if (!v.ok) return setError(v.mensaje)
+     setError('')
+     setGuardando(true)
+-    const { error: errorBD } = await supabase.from('exercise_closures').insert({
+-      user_id: userId,
+-      exercise_id: fila.exercise_id,
+-      routine_exercise_id: fila.id,
+-      fecha: fechaLocalISO(), // día local del atleta
+-      nota: v.nota,
+-      series_hechas: seriesHoy.length, // foto del momento del cierre
+-      series_objetivo: seriesObjetivo,
++    const fecha = fechaLocalISO() // día local del atleta
++    const r = await registrar({
++      userId,
++      tipo: 'cierre',
++      fecha,
++      payload: {
++        user_id: userId,
++        exercise_id: fila.exercise_id,
++        routine_exercise_id: fila.id,
++        fecha,
++        nota: v.nota,
++        series_hechas: seriesHoy.length, // foto del momento del cierre
++        series_objetivo: seriesObjetivo,
++      },
+     })
+     setGuardando(false)
+-    if (errorBD?.code === '23505') {
+-      setError('Este ejercicio ya estaba finalizado.') // ya existía un cierre de hoy
+-      onCambio()
+-    } else if (errorBD) {
++    if (r.estado === 'rechazado' || r.estado === 'sin_almacen') {
+       setError('No se pudo finalizar el ejercicio. Revisa tu conexión e inténtalo de nuevo.')
+     } else {
++      // 'subido' (incluye "ya estaba finalizado") o 'en_cola' (sin señal)
+       setAbierto(false)
+       setNota('')
+       onCambio()
+@@ -138,6 +171,13 @@ function EjercicioEntrenamiento({ fila, bloque, seriesHoy, ultimaVez, cierre, de
+   // Reabrir: quita el cierre para poder seguir anotando series.
+   async function reabrir() {
+     setError('')
++    // Un cierre que aún no subió solo existe en el teléfono: se quita de la cola.
++    if (cierre.pendiente) {
++      await quitarPendiente(userId, CLAVES.cierre(cierre))
++      return onCambio()
++    }
++    const sinRed = exigirConexion('reabrir un ejercicio ya finalizado')
++    if (sinRed) return setError(sinRed)
+     const { data, error: errorBD } = await supabase.from('exercise_closures').delete().eq('id', cierre.id).select('id')
+     if (errorBD || !data || data.length === 0) setError('No se pudo reabrir el ejercicio.')
+     else onCambio()
+@@ -192,7 +232,10 @@ function EjercicioEntrenamiento({ fila, bloque, seriesHoy, ultimaVez, cierre, de
+         <ol className="flex flex-col gap-2">
+           {seriesHoy.map((s) => (
+             <li key={s.id} className="flex items-center justify-between rounded-xl border border-borde bg-hundido px-3 py-2">
+-              <span>Serie {s.numero_serie}: <span className="font-semibold">{textoSerie(s)}</span></span>
++              <span>
++                Serie {s.numero_serie}: <span className="font-semibold">{textoSerie(s)}</span>
++                {s.pendiente && <span className="ml-2 text-xs text-suave">sin subir</span>}
++              </span>
+               <button type="button" onClick={() => borrarSerie(s)} className="min-h-11 px-2 text-sm text-alerta">
+                 Borrar
+               </button>
+@@ -306,87 +349,128 @@ export default function EntrenarDia() {
+   // suyo; si no, se usa este nuevo. (La función dentro de useState se ejecuta solo una vez.)
+   const [sesionNueva] = useState(() => crypto.randomUUID())
+ 
++  // Al volver el internet o terminar de subir registros pendientes, la pantalla se recarga sola.
++  const conectado = useConexion()
++  const { subidos } = useCola(perfil.id)
++  const [guardadoEn, setGuardadoEn] = useState(null) // si se ve una copia guardada (sin conexión)
++
+   useEffect(() => {
+     let cancelado = false
+     async function cargar() {
+-      const res = await supabase
+-        .from('routine_days')
+-        .select(`
+-          id, routine_id, nombre, notas,
+-          routines ( modo_hibrido ),
+-          routine_exercises (
+-            id, orden, bloque, exercise_id, series, reps_min, reps_max, rpe_objetivo, descanso_seg, peso_sugerido_kg, notas,
+-            progresion_tipo, escalera, incremento_kg, peso_inicial_kg, pide_rpe,
+-            exercises ( nombre, grupo_muscular, descripcion, video_url, tipo_ejercicio )
+-          )
+-        `)
+-        .eq('id', diaId)
+-        .maybeSingle()
+-      if (cancelado) return
+-      if (res.error) { setError('No se pudo cargar el entrenamiento.'); setCargando(false); return }
+-      if (!res.data) { setDia(null); setError(''); setCargando(false); return }
++      // Con internet se lee de Supabase y se guarda una copia de este día; sin él se usa esa copia
++      // (cargarConCache). La meta de la progresión se calcula acá con esas series guardadas.
++      const r = await cargarConCache(perfil.id, `dia:${diaId}`, async () => {
++        const res = await supabase
++          .from('routine_days')
++          .select(`
++            id, routine_id, nombre, notas,
++            routines ( modo_hibrido ),
++            routine_exercises (
++              id, orden, bloque, exercise_id, series, reps_min, reps_max, rpe_objetivo, descanso_seg, peso_sugerido_kg, notas,
++              progresion_tipo, escalera, incremento_kg, peso_inicial_kg, pide_rpe,
++              exercises ( nombre, grupo_muscular, descripcion, video_url, tipo_ejercicio )
++            )
++          `)
++          .eq('id', diaId)
++          .maybeSingle()
++        if (res.error) return { error: res.error }
++        if (!res.data) return { d: null }
+ 
+-      const d = res.data
+-      d.routine_exercises.sort((a, b) => a.orden - b.orden)
+-      const idsFilas = d.routine_exercises.map((x) => x.id)
+-      const idsEjercicios = d.routine_exercises.map((x) => x.exercise_id)
+-      const inicio = inicioDeHoyISO()
+-      const columnas = 'id, routine_exercise_id, exercise_id, sesion_id, numero_serie, repeticiones, peso_kg, rpe, realizado_en'
+-
+-      const [hoy, previos, cierres, completado, des] = await Promise.all([
+-        supabase.from('routine_logs').select(columnas)
+-          .eq('user_id', perfil.id).in('routine_exercise_id', idsFilas)
+-          .gte('realizado_en', inicio).order('numero_serie'),
+-        // Últimas series de CADA ejercicio por separado (migración 21): así la meta de la
+-        // progresión no se pierde aunque pasen semanas sin entrenar un ejercicio.
+-        supabase.rpc('ultimas_series_por_ejercicio', {
+-          p_user_id: perfil.id, p_exercise_ids: idsEjercicios, p_antes: inicio,
+-        }),
+-        // Ejercicios que el atleta finalizó hoy sin completar las series (con su nota)
+-        supabase.from('exercise_closures').select('id, routine_exercise_id, nota, series_hechas, series_objetivo')
+-          .eq('user_id', perfil.id).eq('fecha', fechaLocalISO()).in('routine_exercise_id', idsFilas),
+-        // ¿Ya terminó este día en la semana actual (lunes a domingo, fecha local)?
+-        supabase.from('routine_day_completions').select('fecha')
+-          .eq('user_id', perfil.id).eq('routine_day_id', diaId).eq('semana_inicio', inicioSemanaISO()).maybeSingle(),
+-        // ¿Hay una semana de descarga en curso hoy (fecha local)?
+-        cargarDescargaVigente(perfil.id, fechaLocalISO()),
+-      ])
+-      if (cancelado) return
+-      if (hoy.error || previos.error || cierres.error || completado.error || des.error) { setError('No se pudieron cargar tus series.'); setCargando(false); return }
+-
+-      // Día ya realizado: se traen las series y cierres de la SEMANA (el atleta pudo entrenarlo
+-      // en varios días antes de pulsar "Terminar rutina") para mostrar un resumen de lectura.
+-      // Es una consulta aparte y solo ocurre en este caso; la base solo le devuelve lo suyo (RLS).
+-      let semana = { logs: [], cierres: [] }
+-      if (completado.data) {
+-        const desde = inicioDeFechaISO(inicioSemanaISO())
+-        const hasta = inicioDeFechaISO(inicioSemanaSiguienteISO())
+-        const [logsSemana, cierresSemana] = await Promise.all([
+-          supabase.from('routine_logs').select(columnas)
+-            .eq('user_id', perfil.id).in('routine_exercise_id', idsFilas)
+-            .gte('realizado_en', desde).lt('realizado_en', hasta).order('realizado_en').limit(500),
+-          supabase.from('exercise_closures').select('id, routine_exercise_id, fecha, nota, series_hechas, series_objetivo')
++        const d = res.data
++        d.routine_exercises.sort((a, b) => a.orden - b.orden)
++        const idsFilas = d.routine_exercises.map((x) => x.id)
++        const idsEjercicios = d.routine_exercises.map((x) => x.exercise_id)
++        const inicio = inicioDeHoyISO()
++
++        const [hoy, previos, cierres, completado, des] = await Promise.all([
++          supabase.from('routine_logs').select(COLUMNAS_LOG)
+             .eq('user_id', perfil.id).in('routine_exercise_id', idsFilas)
+-            .gte('fecha', inicioSemanaISO()).lt('fecha', inicioSemanaSiguienteISO()),
++            .gte('realizado_en', inicio).order('numero_serie'),
++          // Últimas series de CADA ejercicio por separado (migración 21): así la meta de la
++          // progresión no se pierde aunque pasen semanas sin entrenar un ejercicio.
++          supabase.rpc('ultimas_series_por_ejercicio', {
++            p_user_id: perfil.id, p_exercise_ids: idsEjercicios, p_antes: inicio,
++          }),
++          // Ejercicios que el atleta finalizó hoy sin completar las series (con su nota)
++          supabase.from('exercise_closures').select('id, routine_exercise_id, nota, series_hechas, series_objetivo')
++            .eq('user_id', perfil.id).eq('fecha', fechaLocalISO()).in('routine_exercise_id', idsFilas),
++          // ¿Ya terminó este día en la semana actual (lunes a domingo, fecha local)?
++          supabase.from('routine_day_completions').select('fecha')
++            .eq('user_id', perfil.id).eq('routine_day_id', diaId).eq('semana_inicio', inicioSemanaISO()).maybeSingle(),
++          // ¿Hay una semana de descarga en curso hoy (fecha local)?
++          cargarDescargaVigente(perfil.id, fechaLocalISO()),
+         ])
+-        if (cancelado) return
+-        if (logsSemana.error || cierresSemana.error) { setError('No se pudo cargar el resumen del día.'); setCargando(false); return }
+-        semana = { logs: logsSemana.data, cierres: cierresSemana.data }
++        const errorBD = hoy.error ?? previos.error ?? cierres.error ?? completado.error ?? des.errorBD
++        if (errorBD) return { error: errorBD }
++
++        // Día ya realizado: se traen las series y cierres de la SEMANA (el atleta pudo entrenarlo
++        // en varios días antes de pulsar "Terminar rutina") para mostrar un resumen de lectura.
++        // Es una consulta aparte y solo ocurre en este caso; la base solo le devuelve lo suyo (RLS).
++        let semana = { logs: [], cierres: [] }
++        if (completado.data) {
++          const desde = inicioDeFechaISO(inicioSemanaISO())
++          const hasta = inicioDeFechaISO(inicioSemanaSiguienteISO())
++          const [logsSemana, cierresSemana] = await Promise.all([
++            supabase.from('routine_logs').select(COLUMNAS_LOG)
++              .eq('user_id', perfil.id).in('routine_exercise_id', idsFilas)
++              .gte('realizado_en', desde).lt('realizado_en', hasta).order('realizado_en').limit(500),
++            supabase.from('exercise_closures').select('id, routine_exercise_id, fecha, nota, series_hechas, series_objetivo')
++              .eq('user_id', perfil.id).in('routine_exercise_id', idsFilas)
++              .gte('fecha', inicioSemanaISO()).lt('fecha', inicioSemanaSiguienteISO()),
++          ])
++          const errorSemana = logsSemana.error ?? cierresSemana.error
++          if (errorSemana) return { error: errorSemana }
++          semana = { logs: logsSemana.data, cierres: cierresSemana.data }
++        }
++
++        return {
++          d, previos: previos.data, logsHoy: hoy.data, cierresHoy: cierres.data,
++          completado: completado.data, descarga: des.descarga, datosSemana: semana,
++          fechaCache: fechaLocalISO(), semanaCache: inicioSemanaISO(),
++        }
++      })
++      if (cancelado) return
++      if (r.error) {
++        setError(r.error.sinCache
++          ? 'Sin conexión. Abre este día una vez con internet para poder entrenarlo sin señal.'
++          : 'No se pudo cargar el entrenamiento.')
++        setCargando(false)
++        return
+       }
++      if (!r.d) { setDia(null); setError(''); setCargando(false); return }
++
++      const hoyISO = fechaLocalISO()
++      const semanaISO = inicioSemanaISO()
++      const d = r.d
++      const idsFilas = d.routine_exercises.map((x) => x.id)
++      // 1) la copia se ajusta a hoy (si es de otro día, lo de ayer pasa a ser "última vez"); 2) se le
++      // suma lo hecho sin señal que aún no sube (series, ejercicios finalizados, día terminado).
++      const base = ajustarCopiaDia(r, hoyISO, semanaISO)
++      const cola = await leerCola(perfil.id)
++      if (cancelado) return
++      const u = unirPendientesDia(base, cola, { idsFilas, diaId, hoy: hoyISO, semana: semanaISO })
++
++      // Resumen del día realizado: lo guardado de la semana + lo de hoy (puede ser un cierre pendiente)
++      const ids = new Set()
++      const logsSemana = [...r.datosSemana.logs, ...u.logsHoy].filter((l) => !ids.has(l.id) && ids.add(l.id))
++      const vistos = new Set()
++      const cierresSemana = [...r.datosSemana.cierres, ...u.cierresHoy]
++        .filter((c) => !vistos.has(c.routine_exercise_id) && vistos.add(c.routine_exercise_id))
+ 
+       setDia(d)
+-      setDatosSemana(semana)
+-      setLogsHoy(hoy.data)
+-      setCierresHoy(cierres.data)
+-      setRealizado(completado.data)
+-      setDescarga(des.descarga)
+-      setUltimaVez(calcularUltimaVez(previos.data))
++      setDatosSemana({ logs: logsSemana, cierres: cierresSemana })
++      setLogsHoy(u.logsHoy)
++      setCierresHoy(u.cierresHoy)
++      setRealizado(u.completado)
++      setDescarga(base.descarga)
++      setUltimaVez(calcularUltimaVez(u.previos))
++      setGuardadoEn(r.desdeCache ? r.guardadoEn : null)
+       setError('')
+       setCargando(false)
+     }
+     cargar()
+     return () => { cancelado = true }
+-  }, [diaId, perfil.id, version])
++  }, [diaId, perfil.id, version, conectado, subidos])
+ 
+   if (cargando) return <p className="text-suave">Cargando entrenamiento...</p>
+   if (error) return <p role="alert" className="text-alerta">{error}</p>
+@@ -438,15 +522,24 @@ export default function EntrenarDia() {
+   async function terminarRutina() {
+     setTerminando(true)
+     setErrorTerminar('')
+-    const { error: errorBD } = await supabase.from('routine_day_completions').insert({
+-      user_id: perfil.id,
+-      routine_day_id: dia.id,
+-      fecha: fechaLocalISO(),
+-      semana_inicio: inicioSemanaISO(),
+-      ejercicios_completos: resumen.completos,
+-      ejercicios_finalizados: resumen.cerrados,
++    // Sin señal el día queda terminado en el teléfono y se sube solo. La cola respeta el orden: las
++    // series anotadas antes suben ANTES que este cierre (si no, el trigger de la base las rechazaría).
++    const fecha = fechaLocalISO()
++    const r = await registrar({
++      userId: perfil.id,
++      tipo: 'dia',
++      fecha,
++      payload: {
++        user_id: perfil.id,
++        routine_day_id: dia.id,
++        fecha,
++        semana_inicio: inicioSemanaISO(),
++        ejercicios_completos: resumen.completos,
++        ejercicios_finalizados: resumen.cerrados,
++      },
+     })
+-    if (errorBD && errorBD.code !== '23505') { // 23505 = ya estaba registrado: se trata como éxito
++    // 'subido' incluye "ya estaba registrado" (23505): se trata como éxito
++    if (r.estado === 'rechazado' || r.estado === 'sin_almacen') {
+       setTerminando(false)
+       return setErrorTerminar('No se pudo cerrar la rutina. Revisa tu conexión e inténtalo de nuevo.')
+     }
+@@ -472,6 +565,7 @@ export default function EntrenarDia() {
+       )}
+ 
+       <AvisoDescarga descarga={descarga} hoy={fechaLocalISO()} />
++      <NotaDatosGuardados guardadoEn={guardadoEn} />
+ 
+       {hibrido && (
+         <p className={`${TARJETA} text-sm`}>
+diff --git a/src/atleta/Nutricion.jsx b/src/atleta/Nutricion.jsx
+index e8d73e7..c24f224 100644
+--- a/src/atleta/Nutricion.jsx
++++ b/src/atleta/Nutricion.jsx
+@@ -13,10 +13,13 @@ import { resumirMediciones } from '../lib/mediciones'
+ import { textoAdherencia } from '../lib/nutricion'
+ import { hayMacros, resumenComidas, totalesAsignados, ultimaActualizacion } from '../lib/comidas'
+ import { cargarComidas } from '../lib/cargarComidas'
++import { cargarConCache } from '../lib/cacheOffline'
++import { useConexion } from '../lib/useConexion'
+ import { fechaCortaDeTimestamp } from '../lib/records'
+ import { TARJETA } from '../lib/estilos'
+ import PlanNutricionalCard from '../components/PlanNutricionalCard'
+ import ListaComidas from '../components/ListaComidas'
++import NotaDatosGuardados from '../components/NotaDatosGuardados'
+ 
+ export default function Nutricion() {
+   const { perfil } = useAuth()
+@@ -25,25 +28,40 @@ export default function Nutricion() {
+   const [comidas, setComidas] = useState([])
+   const [cargando, setCargando] = useState(true)
+   const [error, setError] = useState('')
++  const [guardadoEn, setGuardadoEn] = useState(null) // si se ve una copia guardada (sin conexión)
++  const conectado = useConexion() // al volver el internet se recarga con datos frescos
+ 
+   useEffect(() => {
+     let cancelado = false
+-    Promise.all([
+-      supabase.from('nutrition_plans')
+-        .select('id, calorias_objetivo, proteina_g, carbohidratos_g, grasas_g, objetivo_calorico, vigente_desde, notas')
+-        .eq('user_id', perfil.id).is('vigente_hasta', null).maybeSingle(),
+-      supabase.from('metrics')
+-        .select('id, fecha, peso_corporal_kg, perimetro_cintura_cm, calorias_consumidas, estado_calorico, notas')
+-        .eq('user_id', perfil.id).order('fecha', { ascending: false }).limit(30),
+-      cargarComidas(perfil.id),
+-    ]).then(([p, m, c]) => {
++    // Con internet se lee de Supabase y se guarda copia (plan, comidas y mediciones); sin él se usa la copia.
++    cargarConCache(perfil.id, 'nutricion', async () => {
++      const [p, m, c] = await Promise.all([
++        supabase.from('nutrition_plans')
++          .select('id, calorias_objetivo, proteina_g, carbohidratos_g, grasas_g, objetivo_calorico, vigente_desde, notas')
++          .eq('user_id', perfil.id).is('vigente_hasta', null).maybeSingle(),
++        supabase.from('metrics')
++          .select('id, fecha, peso_corporal_kg, perimetro_cintura_cm, calorias_consumidas, estado_calorico, notas')
++          .eq('user_id', perfil.id).order('fecha', { ascending: false }).limit(30),
++        cargarComidas(perfil.id),
++      ])
++      const errorBD = p.error ?? m.error ?? c.errorBD
++      if (errorBD) return { error: errorBD }
++      return { plan: p.data, mediciones: m.data, comidas: c.comidas }
++    }).then((r) => {
+       if (cancelado) return
+-      if (p.error || m.error || c.error) setError('No se pudo cargar tu información de nutrición.')
+-      else { setPlan(p.data); setMediciones(m.data); setComidas(c.comidas) }
++      if (r.error) {
++        setError(r.error.sinCache
++          ? 'Sin conexión. Abre Nutrición una vez con internet para poder verla sin señal.'
++          : 'No se pudo cargar tu información de nutrición.')
++      } else {
++        setPlan(r.plan); setMediciones(r.mediciones); setComidas(r.comidas)
++        setGuardadoEn(r.desdeCache ? r.guardadoEn : null)
++        setError('')
++      }
+       setCargando(false)
+     })
+     return () => { cancelado = true }
+-  }, [perfil.id])
++  }, [perfil.id, conectado])
+ 
+   if (cargando) return <p className="text-suave">Cargando...</p>
+   if (error) return <p role="alert" className="text-alerta">{error}</p>
+@@ -53,6 +71,7 @@ export default function Nutricion() {
+     return (
+       <div className="flex flex-col gap-4">
+         <h2 className="text-xl font-bold">Nutrición</h2>
++        <NotaDatosGuardados guardadoEn={guardadoEn} />
+         <div className={TARJETA}>
+           <p className="font-semibold">Aún no hay plan</p>
+           <p className="mt-1 text-sm text-suave">
+@@ -75,6 +94,7 @@ export default function Nutricion() {
+   return (
+     <div className="flex flex-col gap-4">
+       <h2 className="text-xl font-bold">Nutrición</h2>
++      <NotaDatosGuardados guardadoEn={guardadoEn} />
+ 
+       <section aria-labelledby="titulo-comidas" className="flex flex-col gap-3">
+         <div>
+diff --git a/src/atleta/PantallaAtleta.jsx b/src/atleta/PantallaAtleta.jsx
+index 9a4081a..36ac8b8 100644
+--- a/src/atleta/PantallaAtleta.jsx
++++ b/src/atleta/PantallaAtleta.jsx
+@@ -11,12 +11,17 @@
+ // Esta información se comparte con las pantallas hijas mediante el "contexto
+ // del Outlet": <Outlet context={...} /> y, en la hija, useOutletContext().
+ // =====================================================================
+-import { useEffect, useState } from 'react'
++import { useEffect, useRef, useState } from 'react'
+ import { Navigate, NavLink, Outlet, useLocation } from 'react-router-dom'
+ import { supabase } from '../lib/supabase'
+ import { useAuth } from '../auth/AuthProvider'
+ import { useHoy } from '../lib/useHoy'
++import { useConexion } from '../lib/useConexion'
++import { useSincronizacion } from '../lib/useCola'
++import { cargarConCache } from '../lib/cacheOffline'
++import { leerCola } from '../lib/colaOffline'
+ import Encabezado from '../components/Encabezado'
++import IndicadorConexion from '../components/IndicadorConexion'
+ 
+ export default function PantallaAtleta() {
+   const { perfil } = useAuth()
+@@ -24,25 +29,38 @@ export default function PantallaAtleta() {
+   const { pathname } = useLocation()
+   // null = todavía no sabemos | true = ya lo llenó hoy | false = pendiente
+   const [hecho, setHecho] = useState(null)
++  const conectado = useConexion()
++  // Día (y usuario) para el que ya se verificó el check-in: permite re-confirmar en silencio al volver el internet.
++  const verificadoPara = useRef(null)
+ 
+-  // Cada vez que cambia el día (o el usuario), se vuelve a preguntar a la base de datos.
++  // Sube solo los registros hechos sin señal (check-in, series...) al abrir la app y al volver el internet.
++  useSincronizacion(perfil.id)
++
++  // Cada vez que cambia el día (o el usuario, o vuelve el internet), se vuelve a preguntar.
++  // Sin conexión se usa lo último que se supo de HOY (copia guardada) y los check-ins que esperan subir.
+   useEffect(() => {
+     let cancelado = false
+-    setHecho(null)
+-    supabase
+-      .from('daily_check_ins')
+-      .select('id')
+-      .eq('user_id', perfil.id)
+-      .eq('fecha', hoy)
+-      .maybeSingle()
+-      .then(({ data, error }) => {
+-        if (cancelado) return
+-        // Si hubo un error de red, lo tratamos como pendiente: es lo más seguro
+-        // (si en realidad ya existía, la base de datos rechazará el duplicado).
+-        setHecho(error ? false : Boolean(data))
++    // Al cambiar de día (o de usuario) se vuelve a "Cargando": invariante 4, nada se muestra sin verificar.
++    // Si solo cambió la conexión, se confirma en silencio sin desmontar lo que el atleta esté llenando.
++    if (verificadoPara.current !== `${perfil.id}|${hoy}`) setHecho(null)
++    async function averiguar() {
++      // La cola se lee ANTES de preguntar al servidor: si justo termina de subir en medio, la
++      // pregunta al servidor ya lo incluye (al revés, el check-in parecería pendiente por un instante).
++      // Un check-in guardado en el teléfono que aún no sube cuenta como hecho (el atleta ya lo llenó).
++      const enCola = (await leerCola(perfil.id)).some((i) => i.tipo === 'checkin' && i.payload.fecha === hoy)
++      const r = await cargarConCache(perfil.id, `checkin:${hoy}`, async () => {
++        const { data, error } = await supabase
++          .from('daily_check_ins').select('id').eq('user_id', perfil.id).eq('fecha', hoy).maybeSingle()
++        return error ? { error } : { hecho: Boolean(data) }
+       })
++      if (cancelado) return
++      // Error o sin copia: se trata como pendiente (lo más seguro; si ya existía, la base rechaza el duplicado).
++      verificadoPara.current = `${perfil.id}|${hoy}`
++      setHecho(Boolean(r.hecho) || enCola)
++    }
++    averiguar()
+     return () => { cancelado = true }
+-  }, [perfil.id, hoy])
++  }, [perfil.id, hoy, conectado])
+ 
+   // Pendiente y fuera del check-in: se manda al check-in. Se quitan las barras finales
+   // ("/atleta/") para que la comparación no falle por un detalle de la dirección.
+@@ -66,6 +84,7 @@ export default function PantallaAtleta() {
+             Completa el check-in de hoy para entrar a tu entrenamiento, tu nutrición y tus datos.
+           </p>
+         )}
++        <IndicadorConexion userId={perfil.id} />
+         {/* Mientras no sepamos si hay check-in (hecho === null) no se dibuja ninguna pantalla:
+             así no se alcanzan a pedir datos de otras secciones antes de tiempo. */}
+         {hecho === null ? (
+diff --git a/src/auth/AuthProvider.jsx b/src/auth/AuthProvider.jsx
+index fdd7db7..f3f25cd 100644
+--- a/src/auth/AuthProvider.jsx
++++ b/src/auth/AuthProvider.jsx
+@@ -11,8 +11,12 @@
+ //   - session: viene de Supabase Auth (tabla interna auth.users). Dice QUIÉN eres.
+ //   - perfil:  viene de NUESTRA tabla public.profiles. Dice tu ROL y tu nombre.
+ // =====================================================================
+-import { createContext, useContext, useEffect, useState } from 'react'
++import { createContext, useContext, useEffect, useRef, useState } from 'react'
+ import { supabase } from '../lib/supabase'
++import { esErrorDeRed, marcarSesionLocal } from '../lib/conexion'
++import { borrarIdentidad, guardarIdentidad, hayTokenGuardado, leerIdentidad } from '../lib/identidadLocal'
++import { pedirPersistencia, limpiarCache } from '../lib/almacenLocal'
++import { resumenCola } from '../lib/colaOffline'
+ 
+ const AuthContext = createContext(null)
+ 
+@@ -29,6 +33,7 @@ export function AuthProvider({ children }) {
+   const [perfil, setPerfil] = useState(null)
+   const [perfilListo, setPerfilListo] = useState(false)
+   const [recuperando, setRecuperando] = useState(ABIERTA_POR_ENLACE_DE_RECUPERACION)
++  const usuarioCargado = useRef(null) // a qué usuario pertenece el perfil que ya cargamos
+ 
+   // 1) Escuchar los cambios de sesión (entrar, salir, token renovado).
+   //    Supabase guarda la sesión (un JWT) en el almacenamiento del navegador
+@@ -38,6 +43,20 @@ export function AuthProvider({ children }) {
+   //    (puede bloquearse). Solo guardamos la sesión; la consulta va en el paso 2.
+   useEffect(() => {
+     const { data } = supabase.auth.onAuthStateChange((evento, nuevaSesion) => {
++      // Abrir la app SIN red con el token vencido (dura ~1 h): Supabase no puede renovarlo y
++      // entrega sesión vacía, aunque el usuario nunca cerró sesión. Si recordamos quién es y su
++      // sesión sigue guardada en el teléfono, lo dejamos entrar en "sesión local" (usa los datos
++      // guardados y la cola). En cuanto vuelva el internet, Supabase renueva y llega la sesión real.
++      // (Esto solo guarda estado: ninguna consulta dentro del callback.)
++      if (evento === 'INITIAL_SESSION' && !nuevaSesion) {
++        const identidad = leerIdentidad()
++        if (identidad && hayTokenGuardado()) {
++          setSession({ user: { id: identidad.perfil.id }, local: true })
++          setSesionLista(true)
++          return
++        }
++      }
++      if (evento === 'SIGNED_OUT') borrarIdentidad()
+       setSession(nuevaSesion)
+       setSesionLista(true)
+       // También solo guarda estado (sin consultas): App.jsx lleva a /restablecer.
+@@ -47,6 +66,19 @@ export function AuthProvider({ children }) {
+     return () => data.subscription.unsubscribe()
+   }, [])
+ 
++  // La sesión local no es una sesión real: mientras dure, la app se comporta como "sin conexión".
++  const sesionLocal = Boolean(session?.local)
++  useEffect(() => {
++    marcarSesionLocal(sesionLocal)
++    if (!sesionLocal) return
++    // Intentar renovar la sesión real cuando haya red (al volver el internet o a los pocos segundos).
++    const renovar = () => { if (navigator.onLine) supabase.auth.getSession() }
++    window.addEventListener('online', renovar)
++    const intervalo = setInterval(renovar, 15000)
++    return () => { window.removeEventListener('online', renovar); clearInterval(intervalo) }
++  }, [sesionLocal])
++  useEffect(() => { pedirPersistencia() }, []) // que el navegador no borre los datos guardados
++
+   // 2) Cuando cambia el usuario, cargar su perfil (rol y nombre).
+   //    Dependemos del ID (un texto) y no del objeto session entero, para no
+   //    repetir la consulta cada vez que el token se renueva.
+@@ -54,12 +86,19 @@ export function AuthProvider({ children }) {
+   useEffect(() => {
+     if (!sesionLista) return
+     if (!userId) {
++      usuarioCargado.current = null
+       setPerfil(null)
+       setPerfilListo(true)
+       return
+     }
+     let cancelado = false // evita guardar un resultado "viejo" si el usuario cambió
+-    setPerfilListo(false)
++    // Solo se muestra "Cargando" cuando CAMBIA el usuario. Si es el mismo (la sesión local pasó a
++    // ser real al volver el internet), el perfil se refresca sin desmontar la pantalla: así no se
++    // pierde lo que el atleta esté escribiendo.
++    if (usuarioCargado.current !== userId) {
++      usuarioCargado.current = userId
++      setPerfilListo(false)
++    }
+     supabase
+       .from('profiles')
+       .select('id, rol, nombre_completo, email, activo')
+@@ -67,11 +106,19 @@ export function AuthProvider({ children }) {
+       .single()
+       .then(({ data, error }) => {
+         if (cancelado) return
+-        setPerfil(error ? null : data)
++        if (!error) {
++          setPerfil(data)
++          guardarIdentidad(data) // para poder abrir la app sin internet la próxima vez
++        } else {
++          // Sin red (o en sesión local) se usa el perfil recordado en vez de mostrar "sin perfil".
++          const identidad = leerIdentidad()
++          const sirveRecordado = identidad?.perfil?.id === userId && (sesionLocal || esErrorDeRed(error))
++          setPerfil(sirveRecordado ? identidad.perfil : null)
++        }
+         setPerfilListo(true)
+       })
+     return () => { cancelado = true }
+-  }, [sesionLista, userId])
++  }, [sesionLista, userId, sesionLocal])
+ 
+   const valor = {
+     session,
+@@ -80,7 +127,17 @@ export function AuthProvider({ children }) {
+     recuperando, // true mientras falta elegir la contraseña nueva tras abrir el enlace del correo
+     iniciarSesion: (email, password) =>
+       supabase.auth.signInWithPassword({ email, password }),
+-    cerrarSesion: () => supabase.auth.signOut(),
++    cerrarSesion: async () => {
++      // Los registros hechos sin señal que aún no subieron se CONSERVAN en el teléfono (se suben
++      // cuando esta persona vuelva a entrar), pero conviene avisar antes de salir.
++      const { pendientes } = userId ? await resumenCola(userId) : { pendientes: 0 }
++      if (pendientes > 0 && !window.confirm(
++        `Tienes ${pendientes} ${pendientes === 1 ? 'registro' : 'registros'} sin subir. Si sales ahora se subirán cuando vuelvas a entrar con tu cuenta y tengas internet. ¿Salir de todos modos?`
++      )) return
++      borrarIdentidad()
++      if (userId) await limpiarCache(userId) // datos guardados de esta persona: fuera del teléfono
++      return supabase.auth.signOut()
++    },
+     // El enlace del correo regresa a /restablecer. Esa dirección debe estar permitida en
+     // Supabase (Authentication > URL Configuration > Redirect URLs).
+     recuperarContrasena: (email) =>
+diff --git a/src/components/Encabezado.jsx b/src/components/Encabezado.jsx
+index 6b90b07..789ff7e 100644
+--- a/src/components/Encabezado.jsx
++++ b/src/components/Encabezado.jsx
+@@ -2,27 +2,32 @@
+ // para regresar a la pantalla anterior (prop opcional).
+ import { Link } from 'react-router-dom'
+ import { useAuth } from '../auth/AuthProvider'
++import { AvisoSoloConConexion } from './IndicadorConexion'
+ 
+ export default function Encabezado({ titulo, volverA, textoVolver = 'Volver' }) {
+   const { perfil, cerrarSesion } = useAuth()
+   return (
+-    <header className="flex items-center justify-between gap-3 border-b border-borde px-4 py-3">
+-      <div>
+-        {/* <Link> navega sin recargar la página (a diferencia de <a href>). */}
+-        {volverA && (
+-          <Link to={volverA} className="text-sm text-enlace">
+-            ‹ {textoVolver}
+-          </Link>
+-        )}
+-        <h1 className="text-lg font-bold">{titulo}</h1>
+-        <p className="text-sm text-suave">{perfil?.nombre_completo || perfil?.email}</p>
+-      </div>
+-      <button
+-        onClick={cerrarSesion}
+-        className="min-h-11 rounded-xl border border-borde bg-superficie px-4 text-sm font-semibold"
+-      >
+-        Salir
+-      </button>
+-    </header>
++    <>
++      <header className="flex items-center justify-between gap-3 border-b border-borde px-4 py-3">
++        <div>
++          {/* <Link> navega sin recargar la página (a diferencia de <a href>). */}
++          {volverA && (
++            <Link to={volverA} className="text-sm text-enlace">
++              ‹ {textoVolver}
++            </Link>
++          )}
++          <h1 className="text-lg font-bold">{titulo}</h1>
++          <p className="text-sm text-suave">{perfil?.nombre_completo || perfil?.email}</p>
++        </div>
++        <button
++          onClick={cerrarSesion}
++          className="min-h-11 rounded-xl border border-borde bg-superficie px-4 text-sm font-semibold"
++        >
++          Salir
++        </button>
++      </header>
++      {/* El atleta tiene su propio indicador (IndicadorConexion); esto es solo para el entrenador */}
++      {perfil?.rol === 'admin' && <AvisoSoloConConexion />}
++    </>
+   )
+ }
+diff --git a/src/components/IndicadorConexion.jsx b/src/components/IndicadorConexion.jsx
+new file mode 100644
+index 0000000..4919ade
+--- /dev/null
++++ b/src/components/IndicadorConexion.jsx
+@@ -0,0 +1,69 @@
++// =====================================================================
++// IndicadorConexion — franja discreta con el estado de la conexión y los registros que esperan
++// subir. Va arriba de la zona del atleta (PantallaAtleta). Sin conexión y sin pendientes sale una
++// línea corta; con internet y sin pendientes no sale nada.
++//
++// AvisoSoloConConexion — para el ENTRENADOR: sus acciones (guardar rutinas, usuarios, IA...)
++// necesitan internet. Se avisa arriba, sin tocar el resto de la pantalla.
++// =====================================================================
++import { useConexion } from '../lib/useConexion'
++import { useCola } from '../lib/useCola'
++import { descartarConError } from '../lib/colaOffline'
++
++const FRANJA = 'mb-3 flex items-center justify-between gap-2 rounded-xl border px-3 py-2 text-xs'
++
++export default function IndicadorConexion({ userId }) {
++  const conectado = useConexion()
++  const { pendientes, errores, primerError, sincronizando } = useCola(userId)
++
++  if (errores > 0) {
++    return (
++      <div role="alert" className={`${FRANJA} border-alerta text-alerta`}>
++        <span>
++          {errores === 1 ? '1 registro no se pudo subir' : `${errores} registros no se pudieron subir`}
++          {primerError ? `: ${primerError}` : '.'}
++        </span>
++        <button type="button" onClick={() => descartarConError(userId)} className="min-h-11 shrink-0 px-2 font-semibold underline">
++          Descartar
++        </button>
++      </div>
++    )
++  }
++
++  if (!conectado) {
++    return (
++      <p role="status" className={`${FRANJA} border-borde bg-superficie text-suave`}>
++        <span>
++          Sin conexión.{' '}
++          {pendientes > 0
++            ? `${pendientes} ${pendientes === 1 ? 'registro' : 'registros'} por subir.`
++            : 'Lo que anotes se guardará en tu teléfono.'}
++        </span>
++      </p>
++    )
++  }
++
++  if (pendientes > 0) {
++    return (
++      <p role="status" className={`${FRANJA} border-borde bg-superficie text-suave`}>
++        <span>
++          {sincronizando ? 'Subiendo' : 'Por subir:'} {pendientes} {pendientes === 1 ? 'registro' : 'registros'}
++          {sincronizando ? '...' : '.'}
++        </span>
++      </p>
++    )
++  }
++
++  return null
++}
++
++export function AvisoSoloConConexion() {
++  const conectado = useConexion()
++  if (conectado) return null
++  return (
++    <p role="status" className="border-b border-alerta bg-superficie px-4 py-2 text-sm text-alerta">
++      Sin conexión. Las acciones del entrenador (guardar, crear, cambiar planes) necesitan internet: vuelve a
++      intentarlo cuando tengas señal.
++    </p>
++  )
++}
+diff --git a/src/components/NotaDatosGuardados.jsx b/src/components/NotaDatosGuardados.jsx
+new file mode 100644
+index 0000000..6721780
+--- /dev/null
++++ b/src/components/NotaDatosGuardados.jsx
+@@ -0,0 +1,15 @@
++// =====================================================================
++// NotaDatosGuardados — avisa que lo que se ve es la última copia guardada en el teléfono
++// (no hay internet). No muestra nada si los datos vienen en vivo (guardadoEn = null).
++// =====================================================================
++export default function NotaDatosGuardados({ guardadoEn }) {
++  if (!guardadoEn) return null
++  const cuando = new Date(guardadoEn).toLocaleString('es-CO', {
++    day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit',
++  })
++  return (
++    <p role="status" className="text-xs text-suave">
++      Sin conexión: estás viendo lo último que se guardó en tu teléfono ({cuando}).
++    </p>
++  )
++}
+diff --git a/src/lib/adminUsuarios.js b/src/lib/adminUsuarios.js
+index 9f38044..245457b 100644
+--- a/src/lib/adminUsuarios.js
++++ b/src/lib/adminUsuarios.js
+@@ -7,6 +7,7 @@
+ // Devuelve siempre { data } o { error } (texto en español, nunca el error crudo de Supabase).
+ // =====================================================================
+ import { supabase } from './supabase'
++import { exigirConexion } from './conexion'
+ 
+ async function mensajeDeError(error) {
+   const respuesta = error?.context
+@@ -26,6 +27,9 @@ async function mensajeDeError(error) {
+ }
+ 
+ export async function llamarAdminUsuarios(cuerpo) {
++  // Crear cuentas y cambiar contraseñas SIEMPRE necesitan internet: aviso claro en vez de un error técnico.
++  const sinRed = exigirConexion('esta acción de usuarios')
++  if (sinRed) return { error: sinRed }
+   const { data, error } = await supabase.functions.invoke('admin-usuarios', { body: cuerpo })
+   if (error) return { error: await mensajeDeError(error) }
+   if (data?.error) return { error: data.error }
+diff --git a/src/lib/almacenLocal.js b/src/lib/almacenLocal.js
+new file mode 100644
+index 0000000..0bd5c44
+--- /dev/null
++++ b/src/lib/almacenLocal.js
+@@ -0,0 +1,112 @@
++// =====================================================================
++// src/lib/almacenLocal.js — almacenamiento local del celular (IndexedDB), sin dependencias.
++//
++// Dos "cajones" en una sola base (`myprogress-offline`):
++//   - cache: lo último que se vio con internet (rutina, plan nutricional...). Una fila por
++//            usuario y clave: "<userId>|<clave>". Así los datos de un atleta nunca se mezclan
++//            con los de otro que use el mismo celular.
++//   - cola:  registros hechos SIN señal que esperan subir a Supabase (check-in, series...).
++//            `seq` se autonumera: es el ORDEN de subida. El índice único (userId, clave)
++//            impide guardar dos veces el mismo registro (prevención de duplicados).
++//
++// Todo es "mejor esfuerzo": si el navegador no ofrece IndexedDB (modo privado, por ejemplo),
++// el caché simplemente no guarda nada y la cola avisa con un error en vez de romper la app.
++// =====================================================================
++const NOMBRE_BD = 'myprogress-offline'
++const VERSION = 1
++let promesaBD = null
++
++function abrir() {
++  if (!promesaBD) {
++    promesaBD = new Promise((resolve, reject) => {
++      if (typeof indexedDB === 'undefined') return reject(new Error('sin_indexeddb'))
++      const peticion = indexedDB.open(NOMBRE_BD, VERSION)
++      peticion.onupgradeneeded = () => {
++        const bd = peticion.result
++        bd.createObjectStore('cache', { keyPath: 'k' })
++        const cola = bd.createObjectStore('cola', { keyPath: 'seq', autoIncrement: true })
++        cola.createIndex('porUsuario', 'userId')
++        cola.createIndex('porClave', ['userId', 'clave'], { unique: true })
++      }
++      peticion.onsuccess = () => resolve(peticion.result)
++      peticion.onerror = () => reject(peticion.error)
++    }).catch((e) => { promesaBD = null; throw e })
++  }
++  return promesaBD
++}
++
++// Ejecuta una operación en una transacción y devuelve el resultado de la petición.
++function operar(almacen, modo, accion) {
++  return abrir().then((bd) => new Promise((resolve, reject) => {
++    const tx = bd.transaction(almacen, modo)
++    let peticion
++    try { peticion = accion(tx.objectStore(almacen)) } catch (e) { return reject(e) }
++    tx.oncomplete = () => resolve(peticion ? peticion.result : undefined)
++    tx.onerror = () => reject(tx.error ?? peticion?.error)
++    tx.onabort = () => reject(tx.error)
++  }))
++}
++
++// Pide al navegador que no borre estos datos por falta de espacio (en iPhone, Safari puede
++// limpiar el almacenamiento de webs que no se usan en una semana; instalada como app, no).
++export function pedirPersistencia() {
++  try { navigator.storage?.persist?.().catch(() => {}) } catch { /* sin soporte: no pasa nada */ }
++}
++
++// ---------------------------------------------------------------------
++// Caché de lectura
++// ---------------------------------------------------------------------
++export async function guardarCache(userId, clave, valor) {
++  try {
++    await operar('cache', 'readwrite', (a) => a.put({ k: `${userId}|${clave}`, valor, guardadoEn: Date.now() }))
++    return true
++  } catch { return false }
++}
++
++// { valor, guardadoEn } o null
++export async function leerCache(userId, clave) {
++  try {
++    const fila = await operar('cache', 'readonly', (a) => a.get(`${userId}|${clave}`))
++    return fila ? { valor: fila.valor, guardadoEn: fila.guardadoEn } : null
++  } catch { return null }
++}
++
++// Borra TODO el caché de un usuario (al cerrar sesión). La cola NO se toca.
++export async function limpiarCache(userId) {
++  try {
++    await operar('cache', 'readwrite', (a) => a.delete(IDBKeyRange.bound(`${userId}|`, `${userId}|\uffff`)))
++  } catch { /* nada que limpiar */ }
++}
++
++// ---------------------------------------------------------------------
++// Cola de registros pendientes
++// ---------------------------------------------------------------------
++
++// Guarda un registro. Si ya había uno con la misma clave devuelve { duplicado: true } y no
++// agrega nada. Lanza error si no hay almacenamiento disponible.
++export async function agregarACola(item) {
++  try {
++    const seq = await operar('cola', 'readwrite', (a) => a.add(item))
++    return { duplicado: false, seq }
++  } catch (e) {
++    if (e?.name === 'ConstraintError') return { duplicado: true }
++    throw e
++  }
++}
++
++// Registros de un usuario en orden de creación (seq ascendente).
++export async function listarCola(userId) {
++  const filas = await operar('cola', 'readonly', (a) => a.index('porUsuario').getAll(userId))
++  return [...filas].sort((x, y) => x.seq - y.seq)
++}
++
++export const actualizarEnCola = (item) => operar('cola', 'readwrite', (a) => a.put(item))
++export const quitarDeCola = (seq) => operar('cola', 'readwrite', (a) => a.delete(seq))
++
++// Quita el registro con esa clave (true si existía).
++export async function quitarPorClave(userId, clave) {
++  const fila = await operar('cola', 'readonly', (a) => a.index('porClave').get([userId, clave]))
++  if (!fila) return false
++  await quitarDeCola(fila.seq)
++  return true
++}
+diff --git a/src/lib/cacheOffline.js b/src/lib/cacheOffline.js
+new file mode 100644
+index 0000000..d085ec2
+--- /dev/null
++++ b/src/lib/cacheOffline.js
+@@ -0,0 +1,30 @@
++// =====================================================================
++// src/lib/cacheOffline.js — "lee de internet y, si no hay, de lo último que guardé".
++//
++//   const r = await cargarConCache(userId, 'nutricion', async () => {
++//     ...consultas a Supabase...
++//     return hayError ? { error } : { plan, comidas }      // los datos o { error }
++//   })
++//   r.error                -> falló y no hay nada guardado (r.error.sinCache = no hay copia)
++//   r.desdeCache / r.guardadoEn -> son datos guardados (sin conexión)
++//
++// Solo se guardan respuestas EXITOSAS. Sin conexión (o en "sesión local") ni siquiera se
++// intenta la consulta. Los datos viajan por clave de usuario: nunca se cruzan entre atletas.
++// =====================================================================
++import { guardarCache, leerCache } from './almacenLocal'
++import { enLinea, esErrorDeRed } from './conexion'
++
++export async function cargarConCache(userId, clave, cargar) {
++  let res
++  if (enLinea()) {
++    try { res = await cargar() } catch (e) { res = { error: e } }
++    if (!res.error) {
++      await guardarCache(userId, clave, res)
++      return { ...res, desdeCache: false }
++    }
++    if (!esErrorDeRed(res.error)) return res // la base rechazó algo: no se oculta con datos viejos
++  }
++  const guardado = await leerCache(userId, clave)
++  if (guardado) return { ...guardado.valor, desdeCache: true, guardadoEn: guardado.guardadoEn }
++  return { error: { message: 'Sin conexión y sin datos guardados', sinCache: true } }
++}
+diff --git a/src/lib/cargarComidas.js b/src/lib/cargarComidas.js
+index 0e5cb38..90f76c6 100644
+--- a/src/lib/cargarComidas.js
++++ b/src/lib/cargarComidas.js
+@@ -23,6 +23,7 @@ export async function cargarComidas(userId) {
+       .eq('user_id', userId)
+       .order('orden', { ascending: true }),
+   ])
+-  if (c.error || a.error) return { error: 'No se pudieron cargar las comidas.' }
++  // errorBD: el error crudo, para que cargarConCache distinga "sin red" de "la base rechazó algo"
++  if (c.error || a.error) return { error: 'No se pudieron cargar las comidas.', errorBD: c.error ?? a.error }
+   return { comidas: armarComidas(c.data, a.data) }
+ }
+diff --git a/src/lib/cargarDescarga.js b/src/lib/cargarDescarga.js
+index 271d216..a27d0ae 100644
+--- a/src/lib/cargarDescarga.js
++++ b/src/lib/cargarDescarga.js
+@@ -17,6 +17,7 @@ export async function cargarDescargaVigente(userId, hoy) {
+     .gte('fecha_fin', hoy)
+     .order('fecha_inicio', { ascending: false })
+     .limit(1)
+-  if (error) return { error: 'No se pudo cargar la semana de descarga.' }
++  // errorBD: el error crudo, para que cargarConCache distinga "sin red" de "la base rechazó algo"
++  if (error) return { error: 'No se pudo cargar la semana de descarga.', errorBD: error }
+   return { descarga: data[0] ?? null }
+ }
+diff --git a/src/lib/colaOffline.js b/src/lib/colaOffline.js
+new file mode 100644
+index 0000000..62d3eac
+--- /dev/null
++++ b/src/lib/colaOffline.js
+@@ -0,0 +1,209 @@
++// =====================================================================
++// src/lib/colaOffline.js — cola de registros del atleta que se hacen SIN señal.
++//
++// Qué se encola (cada tipo = una tabla de Supabase):
++//   checkin -> daily_check_ins        serie  -> routine_logs
++//   cierre  -> exercise_closures      dia    -> routine_day_completions
++//
++// Reglas que hacen segura la subida diferida:
++//   - El registro se guarda con TODOS sus datos finales: el `id` (series) y la fecha/hora
++//     (`fecha` local YYYY-MM-DD, `realizado_en`) los genera el celular al registrar. Así, al
++//     subir horas después, la base de datos los ve con su hora REAL (el trigger
++//     `bloquear_dia_realizado` y la semana lunes–domingo usan `realizado_en`, no la de subida).
++//   - Es IDEMPOTENTE: si el registro ya existía (error 23505 "ya existe": por un reintento o
++//     porque se hizo desde otro dispositivo), se da por subido. Nunca se duplica.
++//   - Sin duplicados en la cola: la `clave` de cada registro es única (almacenLocal.js).
++//   - Se sube EN ORDEN. Si se cae la red a mitad, se detiene y conserva el resto en su sitio.
++//   - Si la base de datos RECHAZA un registro (por una regla, no por red), queda marcado
++//     `error` con un mensaje en español y no bloquea a los demás.
++// =====================================================================
++import { supabase } from './supabase'
++import {
++  actualizarEnCola, agregarACola, guardarCache, listarCola, quitarDeCola, quitarPorClave,
++} from './almacenLocal'
++import { enLinea, esErrorDeRed } from './conexion'
++import { formatearFechaCorta } from './fechas'
++
++export const TABLAS = {
++  checkin: 'daily_check_ins',
++  serie: 'routine_logs',
++  cierre: 'exercise_closures',
++  dia: 'routine_day_completions',
++}
++
++// Clave única de cada registro: dos registros con la misma clave son "el mismo".
++export const CLAVES = {
++  checkin: (p) => `checkin:${p.fecha}`,
++  serie: (p) => `serie:${p.sesion_id}:${p.routine_exercise_id}:${p.numero_serie}`,
++  cierre: (p) => `cierre:${p.routine_exercise_id}:${p.fecha}`,
++  dia: (p) => `dia:${p.routine_day_id}:${p.semana_inicio}`,
++}
++
++// ---------------------------------------------------------------------
++// Avisos a la pantalla (useCola.js se suscribe)
++// ---------------------------------------------------------------------
++const oyentes = new Set()
++export function suscribirCola(funcion) {
++  oyentes.add(funcion)
++  return () => oyentes.delete(funcion)
++}
++const avisar = (evento) => oyentes.forEach((f) => { try { f(evento) } catch { /* un oyente roto no frena a los demás */ } })
++
++let sincronizando = false
++export const estaSincronizando = () => sincronizando
++
++// ---------------------------------------------------------------------
++// Subir UN registro
++// ---------------------------------------------------------------------
++// 'ok' (subido o ya existía) | 'reintentar' (sin red / servidor caído) | 'rechazado' (regla de la BD)
++export function clasificarRespuesta({ error, status }) {
++  if (!error) return 'ok'
++  if (error.code === '23505') return 'ok'
++  if (esErrorDeRed(error) || status === 0) return 'reintentar'
++  if (status === 401 || status === 408 || status === 429 || status >= 500) return 'reintentar'
++  return 'rechazado'
++}
++
++export async function ejecutarItem(item, cliente = supabase) {
++  const respuesta = await cliente.from(TABLAS[item.tipo]).insert(item.payload)
++  return { resultado: clasificarRespuesta(respuesta), error: respuesta.error }
++}
++
++// Mensaje en español para el atleta cuando la base de datos rechaza un registro guardado.
++export function mensajeRechazo(item, error) {
++  if (error?.code === 'P0001' && error.message) return error.message // ya viene redactado en español
++  if (item.tipo === 'checkin') {
++    return `El check-in del ${formatearFechaCorta(item.fecha)} ya no se pudo subir: solo se aceptan check-ins de ayer, hoy o mañana.`
++  }
++  if (error?.code === '42501' || error?.code === '23503') {
++    return 'Tu entrenador cambió o desactivó la rutina, y este registro ya no aplica.'
++  }
++  return 'El servidor no aceptó este registro.'
++}
++
++// ---------------------------------------------------------------------
++// Registrar: guardar YA si hay internet, o dejar en la cola
++// ---------------------------------------------------------------------
++// item: { userId, tipo, fecha, payload }.  Devuelve { estado, ... }:
++//   'subido'    se guardó en Supabase ahora mismo
++//   'en_cola'   quedó en el teléfono; se subirá solo al volver la señal (duplicado: true si ya estaba)
++//   'rechazado' la base de datos lo rechazó (error)
++//   'sin_almacen' no hay dónde guardar sin conexión (error)
++export async function registrar({ userId, tipo, fecha, payload }) {
++  const item = {
++    userId, tipo, fecha, payload,
++    clave: CLAVES[tipo](payload),
++    creadoEn: Date.now(),
++    estado: 'pendiente', intentos: 0, error: null,
++  }
++
++  let hayPendientes = false
++  try {
++    hayPendientes = (await listarCola(userId)).some((i) => i.estado === 'pendiente')
++  } catch { /* sin almacenamiento local: solo se puede guardar directo */ }
++
++  // Con internet y la cola vacía se guarda directo (como siempre). Si ya hay algo esperando,
++  // este va DETRÁS para respetar el orden (p. ej. no subir la serie 3 antes que la 2).
++  if (enLinea() && !hayPendientes) {
++    const r = await ejecutarItem(item)
++    if (r.resultado === 'ok') return { estado: 'subido' }
++    if (r.resultado === 'rechazado') return { estado: 'rechazado', error: r.error }
++    // 'reintentar' (la señal se cayó justo ahora): sigue a la cola
++  }
++
++  try {
++    const { duplicado } = await agregarACola(item)
++    avisar({ tipo: 'cola' })
++    if (enLinea()) sincronizarCola(userId) // en segundo plano, sin esperar
++    return { estado: 'en_cola', duplicado }
++  } catch (e) {
++    return { estado: 'sin_almacen', error: e }
++  }
++}
++
++// ---------------------------------------------------------------------
++// Sincronizar toda la cola de un usuario
++// ---------------------------------------------------------------------
++async function correr(userId, cliente) {
++  let subidos = 0
++  const pendientes = (await listarCola(userId)).filter((i) => i.estado === 'pendiente')
++  for (const item of pendientes) {
++    const r = await ejecutarItem(item, cliente)
++    if (r.resultado === 'ok') {
++      await quitarDeCola(item.seq)
++      subidos += 1
++      // Que la copia guardada del día sepa que el check-in ya está hecho (si luego se abre sin red).
++      if (item.tipo === 'checkin') await guardarCache(userId, `checkin:${item.payload.fecha}`, { hecho: true })
++    } else if (r.resultado === 'rechazado') {
++      await actualizarEnCola({ ...item, estado: 'error', error: mensajeRechazo(item, r.error), intentos: item.intentos + 1 })
++    } else {
++      await actualizarEnCola({ ...item, intentos: item.intentos + 1 })
++      break // sin red: se conserva el orden y se reintenta más tarde
++    }
++  }
++  return subidos
++}
++
++// Sube lo pendiente en orden. Seguro de llamar muchas veces: si ya hay una subida en curso (en
++// esta pestaña o en otra, vía navigator.locks) no hace nada. Devuelve { subidos }.
++export async function sincronizarCola(userId, cliente = supabase) {
++  if (sincronizando || !enLinea()) return { subidos: 0 }
++  sincronizando = true
++  avisar({ tipo: 'inicio' })
++  let subidos = 0
++  try {
++    if (typeof navigator !== 'undefined' && navigator.locks) {
++      subidos = await navigator.locks.request('myprogress-sync', { ifAvailable: true }, (candado) =>
++        candado ? correr(userId, cliente) : 0)
++    } else {
++      subidos = await correr(userId, cliente)
++    }
++  } catch {
++    // IndexedDB no disponible o caído: no hay nada que subir ahora
++  } finally {
++    sincronizando = false
++    avisar({ tipo: 'fin', subidos })
++  }
++  return { subidos }
++}
++
++// ---------------------------------------------------------------------
++// Consultas y limpieza
++// ---------------------------------------------------------------------
++// { pendientes, errores, primerError } — lo que muestra el indicador.
++export async function resumenCola(userId) {
++  try {
++    const cola = await listarCola(userId)
++    const conError = cola.filter((i) => i.estado === 'error')
++    return {
++      pendientes: cola.filter((i) => i.estado === 'pendiente').length,
++      errores: conError.length,
++      primerError: conError[0]?.error ?? null,
++    }
++  } catch {
++    return { pendientes: 0, errores: 0, primerError: null }
++  }
++}
++
++// Registros pendientes (y con error) de un usuario, en orden. [] si no hay almacenamiento.
++export async function leerCola(userId) {
++  try { return await listarCola(userId) } catch { return [] }
++}
++
++// El atleta borra una serie/cierre que aún NO se subió: basta quitarla de la cola.
++export async function quitarPendiente(userId, clave) {
++  try {
++    const quitado = await quitarPorClave(userId, clave)
++    if (quitado) avisar({ tipo: 'cola' })
++    return quitado
++  } catch { return false }
++}
++
++// Descarta los registros que la base de datos rechazó (el atleta los vio y decidió soltarlos).
++export async function descartarConError(userId) {
++  try {
++    const cola = await listarCola(userId)
++    for (const i of cola.filter((x) => x.estado === 'error')) await quitarDeCola(i.seq)
++    avisar({ tipo: 'cola' })
++  } catch { /* nada que descartar */ }
++}
+diff --git a/src/lib/conexion.js b/src/lib/conexion.js
+new file mode 100644
+index 0000000..0364035
+--- /dev/null
++++ b/src/lib/conexion.js
+@@ -0,0 +1,56 @@
++// =====================================================================
++// src/lib/conexion.js — "¿hay internet?" y "¿este error es de red?".
++//
++// navigator.onLine solo dice si el teléfono tiene una red conectada, NO si hay internet de
++// verdad (una señal débil o un wifi sin salida dan onLine = true). Por eso, además, los
++// errores de fetch se reconocen por su mensaje (esErrorDeRed) y se tratan igual que estar
++// sin conexión.
++//
++// "Sesión local": si el atleta abre la app sin red con el token vencido, AuthProvider lo deja
++// entrar con su perfil guardado, pero Supabase aún no lo reconoce (cualquier consulta iría
++// sin permiso y devolvería listas vacías). Mientras dure, se trata como SIN conexión.
++// =====================================================================
++let sesionLocal = false
++const oyentes = new Set()
++const avisar = () => oyentes.forEach((f) => f())
++
++export function marcarSesionLocal(valor) {
++  if (sesionLocal === valor) return
++  sesionLocal = valor
++  avisar()
++}
++
++// true si se puede hablar con Supabase ahora mismo (a lo mejor).
++export function enLinea() {
++  if (sesionLocal) return false
++  return typeof navigator === 'undefined' ? true : navigator.onLine !== false
++}
++
++// Para useSyncExternalStore (useConexion.js): se avisa al cambiar la red o la sesión local.
++export function suscribirConexion(callback) {
++  oyentes.add(callback)
++  window.addEventListener('online', callback)
++  window.addEventListener('offline', callback)
++  return () => {
++    oyentes.delete(callback)
++    window.removeEventListener('online', callback)
++    window.removeEventListener('offline', callback)
++  }
++}
++
++const PATRON_DE_RED = /failed to fetch|networkerror|network request failed|load failed|fetch failed|internet connection|timed? ?out|aborted/i
++
++// ¿Falló por falta de conexión (y no porque la base de datos rechazó algo)? Los errores de
++// Postgres/PostgREST traen `code`; los de fetch no.
++export function esErrorDeRed(error) {
++  if (!error) return false
++  if (error.name === 'FunctionsFetchError' || error.name === 'AuthRetryableFetchError') return true
++  if (error.code) return false
++  return !enLinea() || PATRON_DE_RED.test(String(error.message ?? error))
++}
++
++// Para acciones que SIEMPRE necesitan internet (administración, IA): devuelve el aviso en
++// español si no hay conexión, o null si se puede continuar.
++export function exigirConexion(accion = 'esta acción') {
++  return enLinea() ? null : `Sin conexión: ${accion} necesita internet. Vuelve a intentarlo cuando tengas señal.`
++}
+diff --git a/src/lib/identidadLocal.js b/src/lib/identidadLocal.js
+new file mode 100644
+index 0000000..d2caa04
+--- /dev/null
++++ b/src/lib/identidadLocal.js
+@@ -0,0 +1,34 @@
++// =====================================================================
++// src/lib/identidadLocal.js — recuerda QUIÉN es el usuario (perfil mínimo) para poder abrir la
++// app sin internet. Es un dato chico y sincrónico, por eso va en localStorage (el resto del
++// offline vive en IndexedDB, ver almacenLocal.js).
++//
++// No es una credencial: no guarda contraseñas ni tokens. Solo se usa si el navegador conserva
++// además la sesión de Supabase (hayTokenGuardado), y se borra al cerrar sesión.
++// =====================================================================
++const CLAVE = 'myprogress:identidad'
++
++export function guardarIdentidad(perfil) {
++  try { localStorage.setItem(CLAVE, JSON.stringify({ perfil, guardadoEn: Date.now() })) } catch { /* lleno o bloqueado */ }
++}
++
++export function leerIdentidad() {
++  try {
++    const crudo = localStorage.getItem(CLAVE)
++    const dato = crudo ? JSON.parse(crudo) : null
++    return dato?.perfil?.id ? dato : null
++  } catch { return null }
++}
++
++export function borrarIdentidad() {
++  try { localStorage.removeItem(CLAVE) } catch { /* nada */ }
++}
++
++// supabase-js guarda su sesión en localStorage como "sb-<proyecto>-auth-token". Si sigue ahí
++// es que el usuario NO cerró sesión y el servidor no la invalidó (un error de red no la borra).
++export function hayTokenGuardado() {
++  try {
++    const proyecto = new URL(import.meta.env.VITE_SUPABASE_URL).hostname.split('.')[0]
++    return Boolean(localStorage.getItem(`sb-${proyecto}-auth-token`))
++  } catch { return false }
++}
+diff --git a/src/lib/useCola.js b/src/lib/useCola.js
+new file mode 100644
+index 0000000..659c06a
+--- /dev/null
++++ b/src/lib/useCola.js
+@@ -0,0 +1,56 @@
++// =====================================================================
++// src/lib/useCola.js — hooks de la cola offline.
++//
++//   useCola(userId)          -> { pendientes, errores, primerError, sincronizando, subidos }
++//                               `subidos` sube de número cada vez que se sube algo: úsalo como
++//                               dependencia de un useEffect para recargar la pantalla.
++//   useSincronizacion(userId)-> arranca la subida automática (al abrir la app, al volver el
++//                               internet, al volver a la app y cada 30 s mientras haya pendientes).
++// =====================================================================
++import { useCallback, useEffect, useState } from 'react'
++import { enLinea } from './conexion'
++import { estaSincronizando, resumenCola, sincronizarCola, suscribirCola } from './colaOffline'
++
++const VACIO = { pendientes: 0, errores: 0, primerError: null }
++
++export function useCola(userId) {
++  const [resumen, setResumen] = useState(VACIO)
++  const [sincronizando, setSincronizando] = useState(estaSincronizando())
++  const [subidos, setSubidos] = useState(0)
++
++  const refrescar = useCallback(() => {
++    resumenCola(userId).then(setResumen)
++  }, [userId])
++
++  useEffect(() => {
++    refrescar()
++    return suscribirCola((evento) => {
++      if (evento.tipo === 'inicio') setSincronizando(true)
++      if (evento.tipo === 'fin') {
++        setSincronizando(false)
++        if (evento.subidos > 0) setSubidos((n) => n + 1)
++      }
++      refrescar()
++    })
++  }, [refrescar])
++
++  return { ...resumen, sincronizando, subidos }
++}
++
++const CADA_CUANTO_MS = 30 * 1000
++
++export function useSincronizacion(userId) {
++  useEffect(() => {
++    const intentar = () => { if (enLinea()) sincronizarCola(userId) }
++    intentar() // al abrir la app: lo que quedó pendiente de la vez anterior
++    window.addEventListener('online', intentar)
++    const alVolver = () => { if (document.visibilityState === 'visible') intentar() }
++    document.addEventListener('visibilitychange', alVolver)
++    const intervalo = setInterval(intentar, CADA_CUANTO_MS) // reintento si la señal volvió sin avisar
++    return () => {
++      window.removeEventListener('online', intentar)
++      document.removeEventListener('visibilitychange', alVolver)
++      clearInterval(intervalo)
++    }
++  }, [userId])
++}
+diff --git a/src/lib/useConexion.js b/src/lib/useConexion.js
+new file mode 100644
+index 0000000..73831c8
+--- /dev/null
++++ b/src/lib/useConexion.js
+@@ -0,0 +1,7 @@
++// useConexion — hook que devuelve true/false según haya conexión y redibuja al cambiar.
++import { useSyncExternalStore } from 'react'
++import { enLinea, suscribirConexion } from './conexion'
++
++export function useConexion() {
++  return useSyncExternalStore(suscribirConexion, enLinea, () => true)
++}
+diff --git a/src/lib/vistaOffline.js b/src/lib/vistaOffline.js
+new file mode 100644
+index 0000000..8745a11
+--- /dev/null
++++ b/src/lib/vistaOffline.js
+@@ -0,0 +1,73 @@
++// =====================================================================
++// src/lib/vistaOffline.js — funciones PURAS que arman lo que ve el atleta cuando parte de los
++// datos está solo en el teléfono: (1) ajustar una copia guardada a "hoy" y (2) sumar encima los
++// registros pendientes de subir. Sin acceso a red ni a IndexedDB: se prueban con ejemplos.
++//
++// Fechas: "YYYY-MM-DD" locales; las horas de series se pasan a fecha local con fechaLocalISO.
++// =====================================================================
++import { fechaLocalISO } from './fechas'
++
++const ms = (iso) => Date.parse(iso)
++// Más reciente primero (orden que espera calcularUltimaVez); a igual hora, número de serie mayor primero.
++const masRecientePrimero = (a, b) => ms(b.realizado_en) - ms(a.realizado_en) || (b.numero_serie ?? 0) - (a.numero_serie ?? 0)
++const fechaDeSerie = (s) => fechaLocalISO(new Date(s.realizado_en))
++
++// La semana de descarga solo vale si hoy cae dentro de ella.
++export const descargaVigenteHoy = (d, hoy) => (d && d.fecha_inicio <= hoy && hoy <= d.fecha_fin ? d : null)
++
++// Copia guardada de UN día de entrenamiento -> lo que sigue siendo válido HOY.
++// c: { d, previos, logsHoy, cierresHoy, completado, descarga, fechaCache, semanaCache }
++//   - Mismo día: todo vale tal cual.
++//   - Otro día: las series que eran "de hoy" cuando se guardó pasan a ser "la última vez"; los
++//     cierres vuelven a vacío; "día realizado" solo vale si sigue siendo la misma semana.
++export function ajustarCopiaDia(c, hoy, semana) {
++  const descarga = descargaVigenteHoy(c.descarga, hoy)
++  if (c.fechaCache === hoy) {
++    return { previos: c.previos, logsHoy: c.logsHoy, cierresHoy: c.cierresHoy, completado: c.completado, descarga }
++  }
++  return {
++    previos: [...c.logsHoy, ...c.previos].sort(masRecientePrimero),
++    logsHoy: [],
++    cierresHoy: [],
++    completado: c.semanaCache === semana ? c.completado : null,
++    descarga,
++  }
++}
++
++// Suma los registros pendientes (cola) a lo que vino del servidor o de la copia guardada.
++// base: { previos, logsHoy, cierresHoy, completado }; cola: items de leerCola(); ctx: { idsFilas, diaId, hoy, semana }.
++// Lo pendiente lleva `pendiente: true`. Si algo ya aparece en el servidor (se acaba de subir), no se repite.
++export function unirPendientesDia(base, cola, { idsFilas, diaId, hoy, semana }) {
++  const vivos = cola.filter((i) => i.estado === 'pendiente')
++
++  const series = vivos
++    .filter((i) => i.tipo === 'serie' && idsFilas.includes(i.payload.routine_exercise_id))
++    .map((i) => ({ ...i.payload, pendiente: true }))
++    .filter((s) => !base.logsHoy.some((x) => x.id === s.id) && !base.previos.some((x) => x.id === s.id))
++  const deHoy = series.filter((s) => fechaDeSerie(s) === hoy)
++  const anteriores = series.filter((s) => fechaDeSerie(s) !== hoy)
++
++  const cierres = vivos
++    .filter((i) => i.tipo === 'cierre' && idsFilas.includes(i.payload.routine_exercise_id) && i.payload.fecha === hoy)
++    .map((i) => ({ ...i.payload, pendiente: true }))
++    .filter((c) => !base.cierresHoy.some((x) => x.routine_exercise_id === c.routine_exercise_id))
++
++  const dia = vivos.find((i) => i.tipo === 'dia' && i.payload.routine_day_id === diaId && i.payload.semana_inicio === semana)
++
++  return {
++    previos: anteriores.length ? [...anteriores, ...base.previos].sort(masRecientePrimero) : base.previos,
++    logsHoy: [...base.logsHoy, ...deHoy].sort((a, b) => (a.numero_serie ?? 0) - (b.numero_serie ?? 0)),
++    cierresHoy: [...base.cierresHoy, ...cierres],
++    completado: base.completado ?? (dia ? { ...dia.payload, pendiente: true } : null),
++  }
++}
++
++// Lista de días ya realizados esta semana (pantalla Entrenar) + los pendientes de subir.
++// realizados: filas { routine_day_id, fecha }.
++export function unirDiasPendientes(realizados, cola, semana) {
++  const extra = cola
++    .filter((i) => i.estado === 'pendiente' && i.tipo === 'dia' && i.payload.semana_inicio === semana)
++    .map((i) => ({ routine_day_id: i.payload.routine_day_id, fecha: i.payload.fecha, pendiente: true }))
++    .filter((d) => !realizados.some((r) => r.routine_day_id === d.routine_day_id))
++  return [...realizados, ...extra]
++}
+diff --git a/vite.config.js b/vite.config.js
+index 06df13d..3219c29 100644
+--- a/vite.config.js
++++ b/vite.config.js
+@@ -50,9 +50,18 @@ export default defineConfig({
+           { src: 'pwa-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+         ],
+       },
+-      // IMPORTANTE: por defecto el service worker solo guarda los archivos de
+-      // la app (HTML/JS/CSS), NO las respuestas de Supabase. Así los datos
+-      // siempre son frescos y nunca se mezclan entre usuarios.
++      // Funcionamiento SIN INTERNET: el service worker guarda los archivos de la app (HTML, JS,
++      // CSS, íconos, y también los gráficos de carga perezosa) y, para cualquier dirección de la
++      // app (/atleta/entrenar...), entrega index.html: por eso la app abre aunque no haya señal.
++      // Lo dejamos explícito aquí (son los valores por defecto) para que nadie lo cambie sin querer.
++      workbox: {
++        navigateFallback: 'index.html',
++        cleanupOutdatedCaches: true,
++      },
++      // IMPORTANTE: el service worker NO guarda las respuestas de Supabase (los datos siempre
++      // son frescos y nunca se mezclan entre usuarios). Los datos para usar sin señal (rutina,
++      // plan, check-in del día y la cola de registros pendientes) viven en IndexedDB, separados
++      // por usuario: ver src/lib/almacenLocal.js y docs/ARQUITECTURA.md.
+     }),
+   ],
+ })

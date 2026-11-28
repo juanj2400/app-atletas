@@ -7,6 +7,7 @@
 // Devuelve siempre { data } o { error } (texto en español, nunca el error crudo de Supabase).
 // =====================================================================
 import { supabase } from './supabase'
+import { exigirConexion } from './conexion'
 
 async function mensajeDeError(error) {
   const respuesta = error?.context
@@ -26,6 +27,9 @@ async function mensajeDeError(error) {
 }
 
 export async function llamarAdminUsuarios(cuerpo) {
+  // Crear cuentas y cambiar contraseñas SIEMPRE necesitan internet: aviso claro en vez de un error técnico.
+  const sinRed = exigirConexion('esta acción de usuarios')
+  if (sinRed) return { error: sinRed }
   const { data, error } = await supabase.functions.invoke('admin-usuarios', { body: cuerpo })
   if (error) return { error: await mensajeDeError(error) }
   if (data?.error) return { error: data.error }

@@ -4,6 +4,11 @@ Registro cronológico de cambios. Agregar entradas nuevas arriba (`feat`, `fix`,
 
 ---
 
+## 2026-11-27 · Paso 35 — PWA sin internet (datos locales y cola de sincronización)
+- **feat:** El atleta puede abrir la app, ver su rutina/metas/plan nutricional y registrar check-in, series, cierres y *Terminar rutina* sin señal. Los datos se guardan en IndexedDB por usuario y los registros pendientes suben solos en orden (id y hora generados en el celular, subida idempotente y sin duplicados). `IndicadorConexion` muestra el estado y los pendientes; `NotaDatosGuardados` avisa cuando se ve una copia. Acciones del entrenador/IA sin internet muestran aviso claro (`AvisoSoloConConexion`, `exigirConexion`).
+- **fix:** Con el token vencido y sin red ya no se cae al login: sesión local con perfil recordado (`AuthProvider`, `identidadLocal.js`).
+- **refactor:** `lib/almacenLocal.js`, `cacheOffline.js`, `colaOffline.js`, `vistaOffline.js`, `useCola.js`, `conexion.js`; `cargarComidas`/`cargarDescarga` devuelven también `errorBD`. `vite.config.js` deja explícito `navigateFallback`. Sin cambios de SQL.
+
 ## 2026-11-27 · Paso 34 — Catálogo de alimentos y autocálculo de gramos
 - **feat:** Catálogo propio de alimentos (`/admin/alimentos`, `Alimentos`, `FormAlimento`) con crudo/cocido, macros por 100 g y búsqueda ligera (`lib/buscarAlimentos.js`, `useBusquedaAlimentos`). Creador de dieta (`PlanComidas`) con `BuscadorAlimentos` y `CalculadoraDieta`: calcula gramos con `lib/dieta.js` (JS puro, sin IA), edición manual, intercambio de alimentos y totales por comida/día en vivo. `ListaComidas` y `Nutricion` muestran estado crudo/cocido, gramos exactos y macros.
 - **db:** `migracion_25_catalogo_alimentos.sql` — tabla `foods` (RLS solo admin) + seed, snapshot en `meal_foods` y `set_meal_plan` actualizada. **Aplicar SQL primero** (independiente de la 24).

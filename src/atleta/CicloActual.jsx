@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../auth/AuthProvider'
+import { cargarConCache } from '../lib/cacheOffline'
 import CicloVigenteCard from '../components/CicloVigenteCard'
 
 export default function CicloActual() {
@@ -13,13 +14,15 @@ export default function CicloActual() {
 
   useEffect(() => {
     let cancelado = false
-    supabase
-      .from('training_cycles')
-      .select('id, parent_id, nivel, nombre, fase, objetivo, fecha_inicio, fecha_fin')
-      .eq('user_id', perfil.id)
-      .in('nivel', ['macrociclo', 'mesociclo'])
-      // Si falla no es grave: simplemente no se muestra la tarjeta.
-      .then(({ data }) => { if (!cancelado && data) setCiclos(data) })
+    // Con internet se guarda una copia; sin él se muestra la última. Si falla no es grave: no se muestra la tarjeta.
+    cargarConCache(perfil.id, 'ciclos', async () => {
+      const { data, error } = await supabase
+        .from('training_cycles')
+        .select('id, parent_id, nivel, nombre, fase, objetivo, fecha_inicio, fecha_fin')
+        .eq('user_id', perfil.id)
+        .in('nivel', ['macrociclo', 'mesociclo'])
+      return error ? { error } : { ciclos: data }
+    }).then((r) => { if (!cancelado && r.ciclos) setCiclos(r.ciclos) })
     return () => { cancelado = true }
   }, [perfil.id])
 

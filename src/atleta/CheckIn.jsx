@@ -14,9 +14,10 @@
 // =====================================================================
 import { useState } from 'react'
 import { Navigate, useOutletContext } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
 import { useAuth } from '../auth/AuthProvider'
 import { aNumero } from '../lib/numeros'
+import { registrar } from '../lib/colaOffline'
+import { guardarCache } from '../lib/almacenLocal'
 import { ANIMOS, CUMPLIMIENTO_CALORIAS } from '../lib/opciones'
 import Selector from '../components/Selector'
 
@@ -67,25 +68,32 @@ export default function CheckIn() {
     if (peso !== null && (peso < 20 || peso > 400)) return setError('El peso debe estar entre 20 y 400 kg.')
 
     setGuardando(true)
-    const { error: errorBD } = await supabase.from('daily_check_ins').insert({
-      user_id: perfil.id,
+    // Con internet se guarda al instante; sin señal queda en el teléfono (cola) y se sube sola al
+    // volver la conexión. En ambos casos el atleta puede seguir: el check-in ya está registrado.
+    const r = await registrar({
+      userId: perfil.id,
+      tipo: 'checkin',
       fecha: hoy, // fecha local del celular
-      // Solo se envía la columna nueva: un trigger de la base de datos mantiene al día el sí/no antiguo.
-      cumplimiento_calorias: form.caloriasAyer,
-      horas_sueno: horas,
-      peso_corporal_kg: peso === null ? null : Math.round(peso * 10) / 10, // 1 decimal, como la columna
-      estado_animo: form.animo,
-      se_siente_recuperado: form.recuperado,
+      payload: {
+        user_id: perfil.id,
+        fecha: hoy,
+        // Solo se envía la columna nueva: un trigger de la base de datos mantiene al día el sí/no antiguo.
+        cumplimiento_calorias: form.caloriasAyer,
+        horas_sueno: horas,
+        peso_corporal_kg: peso === null ? null : Math.round(peso * 10) / 10, // 1 decimal, como la columna
+        estado_animo: form.animo,
+        se_siente_recuperado: form.recuperado,
+      },
     })
     setGuardando(false)
 
-    if (!errorBD) {
+    // 'subido' incluye el caso "ya existía" (23505: lo llenó desde otro dispositivo): no es un fallo.
+    if (r.estado === 'subido' || r.estado === 'en_cola') {
+      if (r.estado === 'subido') guardarCache(perfil.id, `checkin:${hoy}`, { hecho: true })
       setRecienGuardado(true)
       marcarHecho()
-    } else if (errorBD.code === '23505') {
-      // 23505 = "ya existe" (restricción unique). Pasa si lo llenó desde otro
-      // dispositivo. No es un fallo: simplemente ya está hecho.
-      marcarHecho()
+    } else if (r.estado === 'sin_almacen') {
+      setError('Sin conexión y este navegador no puede guardar el check-in en el teléfono. Conéctate e inténtalo de nuevo.')
     } else {
       setError('No se pudo guardar. Revisa tu conexión e inténtalo de nuevo.')
     }

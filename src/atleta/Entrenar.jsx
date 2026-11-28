@@ -15,7 +15,13 @@ import { formatearFecha, inicioSemanaISO } from '../lib/fechas'
 import { textoBloques } from '../lib/bloques'
 import { useHoy } from '../lib/useHoy'
 import { cargarDescargaVigente } from '../lib/cargarDescarga'
+import { cargarConCache } from '../lib/cacheOffline'
+import { leerCola } from '../lib/colaOffline'
+import { descargaVigenteHoy, unirDiasPendientes } from '../lib/vistaOffline'
+import { useConexion } from '../lib/useConexion'
+import { useCola } from '../lib/useCola'
 import AvisoDescarga from '../components/AvisoDescarga'
+import NotaDatosGuardados from '../components/NotaDatosGuardados'
 import CicloActual from './CicloActual'
 
 export default function Entrenar() {
@@ -28,35 +34,56 @@ export default function Entrenar() {
   const [descarga, setDescarga] = useState(null)
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
+  const [guardadoEn, setGuardadoEn] = useState(null) // si se ve una copia guardada (sin conexión)
 
   // useHoy hace que la pantalla se redibuje al cambiar el día; así, al llegar el lunes
   // los días vuelven a quedar disponibles aunque la app haya quedado abierta.
   const hoy = useHoy()
   const semana = inicioSemanaISO()
+  // Al volver el internet o terminar de subir registros pendientes, la pantalla se recarga sola.
+  const conectado = useConexion()
+  const { subidos } = useCola(perfil.id)
 
   useEffect(() => {
     let cancelado = false
-    Promise.all([
-      supabase
-        .from('routines')
-        .select('id, nombre, objetivo, notas, modo_hibrido, routine_days ( id, orden, nombre, notas, routine_exercises ( id, bloque ) )')
-        .eq('user_id', perfil.id)
-        .eq('estado', 'activa')
-        .maybeSingle(),
-      supabase
-        .from('routine_day_completions')
-        .select('routine_day_id, fecha')
-        .eq('user_id', perfil.id)
-        .eq('semana_inicio', semana),
-      cargarDescargaVigente(perfil.id, hoy),
-    ]).then(([res, comp, des]) => {
+    // Con internet se lee de Supabase y se guarda copia; sin él se usa la última copia (cargarConCache).
+    cargarConCache(perfil.id, 'entrenar', async () => {
+      const [res, comp, des] = await Promise.all([
+        supabase
+          .from('routines')
+          .select('id, nombre, objetivo, notas, modo_hibrido, routine_days ( id, orden, nombre, notas, routine_exercises ( id, bloque ) )')
+          .eq('user_id', perfil.id)
+          .eq('estado', 'activa')
+          .maybeSingle(),
+        supabase
+          .from('routine_day_completions')
+          .select('routine_day_id, fecha')
+          .eq('user_id', perfil.id)
+          .eq('semana_inicio', semana),
+        cargarDescargaVigente(perfil.id, hoy),
+      ])
+      const errorBD = res.error ?? comp.error ?? des.errorBD
+      if (errorBD) return { error: errorBD }
+      return { rutina: res.data, realizados: comp.data, descarga: des.descarga, semanaCache: semana }
+    }).then(async (r) => {
+      const cola = await leerCola(perfil.id) // días terminados sin señal que aún no suben
       if (cancelado) return
-      if (res.error || comp.error || des.error) setError('No se pudo cargar tu rutina.')
-      else { setRutina(res.data); setRealizados(comp.data); setDescarga(des.descarga); setError('') }
+      if (r.error) {
+        setError(r.error.sinCache
+          ? 'Sin conexión. Abre esta pantalla una vez con internet para poder usarla sin señal.'
+          : 'No se pudo cargar tu rutina.')
+      } else {
+        setRutina(r.rutina)
+        // Los días realizados de una copia vieja solo valen si es la misma semana
+        setRealizados(unirDiasPendientes(r.semanaCache === semana ? r.realizados : [], cola, semana))
+        setDescarga(descargaVigenteHoy(r.descarga, hoy))
+        setGuardadoEn(r.desdeCache ? r.guardadoEn : null)
+        setError('')
+      }
       setCargando(false)
     })
     return () => { cancelado = true }
-  }, [perfil.id, semana, hoy])
+  }, [perfil.id, semana, hoy, conectado, subidos])
 
   const aviso = state?.rutinaCompletada ? (
     <p role="status" className="rounded-xl bg-primario p-3 font-semibold text-white">
@@ -76,6 +103,7 @@ export default function Entrenar() {
         {aviso}
         <CicloActual />
       <AvisoDescarga descarga={descarga} hoy={hoy} />
+      <NotaDatosGuardados guardadoEn={guardadoEn} />
         <div className={TARJETA}>
           <h2 className="text-xl font-bold">Entrenar</h2>
           <p className="mt-1 text-suave">Tu entrenador aún no te ha asignado una rutina.</p>
@@ -91,6 +119,7 @@ export default function Entrenar() {
       {aviso}
       <CicloActual />
       <AvisoDescarga descarga={descarga} hoy={hoy} />
+      <NotaDatosGuardados guardadoEn={guardadoEn} />
       <div>
         <h2 className="text-xl font-bold">{rutina.nombre}</h2>
         {rutina.objetivo && <p className="text-sm text-suave">Objetivo: {rutina.objetivo}</p>}

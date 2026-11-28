@@ -17,6 +17,7 @@ export async function cargarDescargaVigente(userId, hoy) {
     .gte('fecha_fin', hoy)
     .order('fecha_inicio', { ascending: false })
     .limit(1)
-  if (error) return { error: 'No se pudo cargar la semana de descarga.' }
+  // errorBD: el error crudo, para que cargarConCache distinga "sin red" de "la base rechazó algo"
+  if (error) return { error: 'No se pudo cargar la semana de descarga.', errorBD: error }
   return { descarga: data[0] ?? null }
 }

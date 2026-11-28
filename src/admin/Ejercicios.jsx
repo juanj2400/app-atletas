@@ -10,7 +10,7 @@ import Encabezado from '../components/Encabezado'
 import { MarcoAdmin } from '../components/MarcoApp'
 import { textoTipo } from '../lib/tiposEjercicio'
 import FormEjercicio from './FormEjercicio'
-import { CAMPO, BOTON, BOTON_SEC, TARJETA } from '../lib/estilos'
+import { CAMPO, BOTON, BOTON_SEC, TARJETA, CONTENIDO_ADMIN } from '../lib/estilos'
 
 const normalizar = (t) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 

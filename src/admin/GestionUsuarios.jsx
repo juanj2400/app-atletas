@@ -10,7 +10,7 @@ import Encabezado from '../components/Encabezado'
 import { MarcoAdmin } from '../components/MarcoApp'
 import FormNuevoAtleta from './FormNuevoAtleta'
 import EditarAtleta from './EditarAtleta'
-import { BOTON, BOTON_SEC, TARJETA } from '../lib/estilos'
+import { BOTON, BOTON_SEC, TARJETA, CONTENIDO_ADMIN } from '../lib/estilos'
 
 export default function GestionUsuarios() {
   const [atletas, setAtletas] = useState([])

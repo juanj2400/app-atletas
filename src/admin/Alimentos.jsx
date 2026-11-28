@@ -15,7 +15,7 @@ import Encabezado from '../components/Encabezado'
 import { MarcoAdmin } from '../components/MarcoApp'
 import { CATEGORIAS, ESTADOS, TEXTO_MACRO, textoCategoria, textoEstado } from '../lib/alimentos'
 import { useBusquedaAlimentos } from '../lib/useBusquedaAlimentos'
-import { CAMPO, BOTON, BOTON_SEC, TARJETA } from '../lib/estilos'
+import { CAMPO, BOTON, BOTON_SEC, TARJETA, CONTENIDO_ADMIN } from '../lib/estilos'
 import FormAlimento from './FormAlimento'
 
 const PAGINA = 30

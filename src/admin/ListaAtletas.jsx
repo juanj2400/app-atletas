@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import Encabezado from '../components/Encabezado'
 import { MarcoAdmin } from '../components/MarcoApp'
+import { CONTENIDO_ADMIN } from '../lib/estilos'
 import CumpleanosAtletas from './CumpleanosAtletas'
 import { useHoy } from '../lib/useHoy'
 

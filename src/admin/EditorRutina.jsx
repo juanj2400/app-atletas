@@ -20,7 +20,7 @@ import {
   SISTEMAS_PROGRESION, SALTOS_PESO, SERIES_ESQUEMA, REPS_ESQUEMA,
   alternarEsquema, tieneEsquema, normalizarEscalera, formatearKg,
 } from '../lib/progresion'
-import { CAMPO, BOTON, BOTON_SEC, TARJETA } from '../lib/estilos'
+import { CAMPO, BOTON, BOTON_SEC, TARJETA, CONTENIDO_ADMIN } from '../lib/estilos'
 import { DESCANSOS_RAPIDOS, textoDescanso } from '../lib/rutinas'
 
 const porOrden = (a, b) => a.orden - b.orden

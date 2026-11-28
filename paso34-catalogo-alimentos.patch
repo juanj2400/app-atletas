@@ -1,0 +1,2392 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index 1fb8e08..34ddfe0 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -60,6 +60,7 @@ React 19 + Vite 8 · Tailwind CSS 4 (`src/index.css` con `@theme`) · PWA (`vite
+ 16. **Progresión por ejercicio:** pedir "última vez" con RPC `ultimas_series_por_ejercicio` (por ejercicio), nunca con un límite global de filas.
+ 17. **Periodos de rutina (`routine_versions`):** triggers `before` en `routine_exercises`/`routine_days`/`routines` llaman a `congelar_version_rutina` para guardar foto (`foto_rutina`) solo si hay series nuevas desde la última foto. Solo lectura admin. Si agregas columnas a `routine_exercises`, inclúyelas en `foto_rutina` y `compararFotos` (`src/lib/versionesRutina.js`).
+ 18. **Comidas del día (`meals`, `meal_foods`):** menú del atleta independiente de `nutrition_plans`. Se reemplaza completo vía RPC `set_meal_plan(p_user_id, p_comidas jsonb)` (cantidad como número JSON, unidades `g`/`ml`/`unidad`/`porcion`). Topes (10 comidas, 30 alimentos, cant. ≤ 10.000, 2 decimales) sincronizados entre `lib/comidas.js` y SQL. Ruta principal atleta: `/atleta/nutricion` (`/atleta/datos/nutricion` redirige).
++19. **Catálogo de alimentos (`foods`) y snapshot:** `foods` es global y solo lo lee/escribe el admin (el atleta ve el snapshot de `meal_foods`); no se borra, se desactiva. `set_meal_plan` calcula y valida el snapshot (alimentos del catálogo solo en `g`, macros asignados = base × g / 100); el cliente nunca manda macros asignados. El autocálculo vive en `lib/dieta.js` (puro, sin IA) y `macro_dominante` debe coincidir entre `lib/alimentos.js` y la columna generada. Las búsquedas al catálogo siempre con `limit` y filtros en servidor, nunca se descarga completo.
+ 
+ ## 8. Verificación y Git
+ - Ejecutar `npm run build` sin errores. Probar lógica pura en `src/lib/` con ejemplos y entregar pasos cortos de prueba al dueño.
+diff --git a/docs/ARQUITECTURA.md b/docs/ARQUITECTURA.md
+index 448ffd4..11d79a4 100644
+--- a/docs/ARQUITECTURA.md
++++ b/docs/ARQUITECTURA.md
+@@ -1,5 +1,5 @@
+ # ARQUITECTURA — MyProgress
+-> Última actualización: 2026-11-27 (paso 33) · Mantener al día según `AGENTS.md`.
++> Última actualización: 2026-11-27 (paso 34) · Mantener al día según `AGENTS.md`.
+ 
+ ## 1. Visión y Stack
+ SPA (sin backend propio). El navegador habla directo con Supabase; la seguridad real reside en **PostgreSQL RLS**. Hosting en Netlify vía `git push`.
+@@ -9,7 +9,7 @@ SPA (sin backend propio). El navegador habla directo con Supabase; la seguridad
+ ## 2. Estructura de Carpetas (`/`)
+ - `AGENTS.md`, `README.md`, `index.html`, `vite.config.js`, `package.json`, `.env.example`, `public/_redirects` (`/* /index.html 200`).
+ - `docs/`: `REQUERIMIENTOS.md`, `ARQUITECTURA.md`, `CHANGELOG.md`.
+-- `supabase/sql/`: `README.md`, `schema_supabase.sql`, `migracion_02` a `24` (la `10` de IA no está aplicada).
++- `supabase/sql/`: `README.md`, `schema_supabase.sql`, `migracion_02` a `25` (la `10` de IA no está aplicada).
+ - `supabase/functions/`:
+   - `admin-usuarios/index.ts`: Edge Function (crear atletas, cambiar contraseñas, activar/desactivar acceso; usa `service_role`, valida JWT + rol admin).
+   - `generate-weekly-proposals/index.ts`: Edge Function IA (pendiente de desplegar).
+@@ -18,9 +18,9 @@ SPA (sin backend propio). El navegador habla directo con Supabase; la seguridad
+   - `auth/`: `AuthProvider.jsx` (`useAuth()`), `RutaProtegida.jsx` (incluye `CuentaDesactivada`).
+   - `pages/`: `Login.jsx`, `RecuperarContrasena.jsx`, `RestablecerContrasena.jsx`, `Inicio.jsx`.
+   - `components/`: `Encabezado`, `Estados` (`Cargando`, `SinPerfil`), `Selector`, `ResumenMediciones`, `GraficoEvolucion` (+`Lazy`), `GraficoTendenciaPeso` (+`Lazy`), `GraficoOscilacionPeso` (+`Lazy`), `LineaTemporal`, `RecordsAtleta`, `GraficosRecord` (+`Lazy`), `PlanNutricionalCard`, `ListaComidas`, `CicloVigenteCard`, `AvisoDescarga`, `ResumenDiaRealizado`, `AvisoActualizacion`.
+-  - `lib/` (lógica pura y helpers): `supabase.js`, `fechas.js`, `useHoy.js`, `numeros.js`, `opciones.js`, `estilos.js` (`CAMPO`, `BOTON`, `BOTON_SEC`, `TARJETA`), `coloresGrafico.js`, `usuarios.js`, `adminUsuarios.js`, `oscilacionPeso.js`, `tendenciaPeso.js`, `panelAtleta.js`, `cumpleanos.js`, `mediciones.js`, `cierres.js`, `bloques.js`, `rutinas.js`, `versionesRutina.js`, `volumen.js`, `nutricion.js`, `comidas.js`, `cargarComidas.js`, `ciclos.js`, `descarga.js`, `cargarDescarga.js`, `pesoCombinado.js`, `progresion.js`, `tiposEjercicio.js`, `records.js`.
++  - `lib/` (lógica pura y helpers): `supabase.js`, `fechas.js`, `useHoy.js`, `numeros.js`, `opciones.js`, `estilos.js` (`CAMPO`, `BOTON`, `BOTON_SEC`, `TARJETA`), `coloresGrafico.js`, `usuarios.js`, `adminUsuarios.js`, `oscilacionPeso.js`, `tendenciaPeso.js`, `panelAtleta.js`, `cumpleanos.js`, `mediciones.js`, `cierres.js`, `bloques.js`, `rutinas.js`, `versionesRutina.js`, `volumen.js`, `nutricion.js`, `comidas.js`, `cargarComidas.js`, `alimentos.js`, `dieta.js` (autocálculo de gramos), `buscarAlimentos.js`, `useBusquedaAlimentos.js`, `ciclos.js`, `descarga.js`, `cargarDescarga.js`, `pesoCombinado.js`, `progresion.js`, `tiposEjercicio.js`, `records.js`.
+   - `atleta/`: `PantallaAtleta` (marco + contexto `{ hoy, hecho, marcarHecho }`), `CheckIn`, `Entrenar`, `EntrenarDia`, `MisDatos` (marco), `MisMediciones`, `Records`, `Nutricion`, `CicloActual`.
+-  - `admin/`: `ListaAtletas`, `CumpleanosAtletas`, `DetalleAtleta`, `PanelAtleta`, `FechaNacimientoAtleta`, `GestionUsuarios`, `FormNuevoAtleta`, `EditarAtleta`, `Mediciones`, `RutinasAtleta`, `DescargaAtleta`, `CargasAtleta`, `EditorRutina`, `SelectorEjercicio`, `HistorialEntrenamiento`, `HistorialRutina`, `VolumenMuscular`, `PlanNutricional`, `PlanComidas`, `CiclosAtleta`, `ListaNegraAtleta`, `FormEjercicio`, `Ejercicios`.
++  - `admin/`: `ListaAtletas`, `CumpleanosAtletas`, `DetalleAtleta`, `PanelAtleta`, `FechaNacimientoAtleta`, `GestionUsuarios`, `FormNuevoAtleta`, `EditarAtleta`, `Mediciones`, `RutinasAtleta`, `DescargaAtleta`, `CargasAtleta`, `EditorRutina`, `SelectorEjercicio`, `HistorialEntrenamiento`, `HistorialRutina`, `VolumenMuscular`, `PlanNutricional`, `PlanComidas`, `CiclosAtleta`, `ListaNegraAtleta`, `FormEjercicio`, `Ejercicios`, `Alimentos`, `FormAlimento`, `BuscadorAlimentos`, `CalculadoraDieta`.
+ 
+ ## 3. Rutas
+ - Públicas: `/login` (`Login`), `/recuperar` (`RecuperarContrasena`).
+@@ -30,11 +30,11 @@ SPA (sin backend propio). El navegador habla directo con Supabase; la seguridad
+   - `/atleta/entrenar` (`Entrenar`), `/atleta/entrenar/:diaId` (`EntrenarDia`).
+   - `/atleta/nutricion` (`Nutricion`), `/atleta/datos/nutricion` (redirige a `/atleta/nutricion`).
+   - `/atleta/datos` (`MisDatos` -> índice `MisMediciones`), `/atleta/datos/records` (`Records`).
+-- Admin (`admin`): `/admin` (`ListaAtletas`), `/admin/atletas/:id` (`DetalleAtleta`), `/admin/rutinas/:rutinaId` (`EditorRutina`), `/admin/ejercicios` (`Ejercicios`), `/admin/usuarios` (`GestionUsuarios`).
++- Admin (`admin`): `/admin` (`ListaAtletas`), `/admin/atletas/:id` (`DetalleAtleta`), `/admin/rutinas/:rutinaId` (`EditorRutina`), `/admin/ejercicios` (`Ejercicios`), `/admin/alimentos` (`Alimentos`), `/admin/usuarios` (`GestionUsuarios`).
+ - Fallback: `*` -> `/`.
+ 
+ ## 4. Base de Datos (Supabase / PostgreSQL)
+-Migraciones en orden: `schema_supabase.sql`, `02`–`09`, `11`–`24` (10 omitida; la `24` está pendiente de aplicar).
++Migraciones en orden: `schema_supabase.sql`, `02`–`09`, `11`–`25` (10 omitida; la `24` y la `25` están pendientes de aplicar).
+ 
+ ### Tablas y Permisos (RLS)
+ - `profiles`: `rol` (`admin`/`client`), `nombre_completo`, `fecha_nacimiento` (CHECK >= 1900, trigger no futura), `activo` (bool, default true). Atleta lee la suya y edita solo `nombre_completo`. Admin lee todas; escribe nombre/fecha vía RPC; `activo` solo Edge Function.
+@@ -48,7 +48,8 @@ Migraciones en orden: `schema_supabase.sql`, `02`–`09`, `11`–`24` (10 omitid
+ - `routine_day_completions`: único `(user_id, routine_day_id, semana_inicio)`. Atleta ve y crea en su rutina activa (sin update/delete); admin todo.
+ - `exercise_closures`: único `(user_id, routine_exercise_id, fecha)`, `nota` (3–500), `series_hechas < series_objetivo`. Atleta ve, crea y borra las suyas; admin todo.
+ - `routine_versions`: snapshots automáticos por trigger (`routine_id` set null, `numero`, `desde`/`hasta`, `series_registradas`, `foto` jsonb). Atleta sin acceso; admin solo lectura.
+-- `meals` (orden 1–10) y `meal_foods` (orden 1–30, `cantidad` >0..10000, `unidad`: `g`/`ml`/`unidad`/`porcion`, FK compuesta `(meal_id, user_id)`). Atleta lee; solo RPC `set_meal_plan` escribe.
++- `meals` (orden 1–10) y `meal_foods` (orden 1–30, `cantidad` >0..10000, `unidad`: `g`/`ml`/`unidad`/`porcion`, FK compuesta `(meal_id, user_id)`). Atleta lee; solo RPC `set_meal_plan` escribe. Desde la `25`, `meal_foods` guarda un **snapshot** opcional (todo o nada por CHECK): `food_id` (set null), `estado`, macros base por 100 g (`base_*`) y macros asignados a los gramos exactos (`calorias`, `proteina_g`, `carbohidratos_g`, `grasas_g`), calculados por la RPC (base × g / 100, 1 decimal); solo con `unidad = 'g'`.
++- `foods` (catálogo global, migración 25): `nombre`, `categoria` (`proteina`/`carbohidrato`/`grasa`/`lacteo`/`fruta`/`verdura`/`legumbre`/`otro`), `estado` (`crudo`/`cocido`/`n/a`), macros por 100 g, `macro_dominante` y `nombre_busqueda` (generadas), `activo`. Único `(lower(nombre), estado)`. **Solo admin** lee y escribe (el atleta usa el snapshot de `meal_foods`). No se borra: se desactiva.
+ - `nutrition_plans` (1 vigente `vigente_hasta is null`), `training_cycles` (macro/meso): atleta lee; admin escribe vía RPC/tabla.
+ - `ai_load_suggestions` (atleta lee `aceptadas`), `ai_nutrition_suggestions`, `athlete_exercise_blacklist` (solo admin).
+ 
+@@ -63,7 +64,8 @@ Migraciones en orden: `schema_supabase.sql`, `02`–`09`, `11`–`24` (10 omitid
+ 3. **RLS silencioso:** Encadenar `.select('id')` en `update`/`delete` para confirmar filas afectadas.
+ 4. **Progresión y Cargas:** Calculadas en cliente (`lib/progresion.js`) sobre las últimas series de **cada ejercicio por separado** (`ultimas_series_por_ejercicio`), sin guardar la meta en BD. Permite rutinas de larga duración sin pérdida de historial.
+ 5. **Versionado perezoso de rutinas:** Triggers `before` congelan foto en `routine_versions` solo si existen series nuevas desde la última foto.
+-6. **Comidas del día:** Pertenecen al atleta (`meals`), desacopladas de `nutrition_plans` (versionado por calorías/macros) para no duplicar menús al ajustar macros.
++6. **Catálogo y autocálculo (paso 34):** búsqueda ligera en servidor (`ilike` sobre `nombre_busqueda`, `limit`, columnas mínimas, *debounce* 300 ms; el buscador del creador de dieta no consulta hasta 2 letras o un filtro; nunca se descarga el catálogo completo). El cálculo de gramos es JS puro y determinista (`lib/dieta.js`): cada alimento cubre un macro (`rol`, por defecto su macro dominante), el objetivo se reparte entre comidas por peso y se resuelve por rondas descontando macros indirectos; respeta alimentos con gramos fijos; los manuales no entran. Los macros asignados se recalculan en vivo en cliente y la BD los vuelve a calcular al guardar (mismo redondeo, mitad hacia arriba).
++6b. **Comidas del día:** Pertenecen al atleta (`meals`), desacopladas de `nutrition_plans` (versionado por calorías/macros) para no duplicar menús al ajustar macros.
+ 7. **Semana de descarga:** no modifica la rutina. `lib/descarga.js` calcula en cliente una prescripción liviana (series −40 %, carga −10 % musculación / −20 % halterofilia, RPE ≤ 7, progresión en pausa) mientras haya una `deload_weeks` vigente (fecha local). `ultimas_series_por_ejercicio` ignora series `en_descarga`, por eso la progresión retoma desde la última sesión normal. Una sola descarga sin cancelar por atleta (validado en la RPC con lock).
+ 8. **Peso del check-in en la vista de peso:** `lib/pesoCombinado.js` suma, solo para mostrar, los pesos de `daily_check_ins` a las mediciones de `metrics` (por día manda la medición oficial con peso). NO se copia nada a `metrics` (invariante 2): el atleta no puede crear/editar/borrar mediciones oficiales. Lo usa `MisMediciones` para tendencia/proyección, oscilación y "peso actual"; la gráfica distingue punto relleno (oficial) y hueco (check-in). Sin cambios de SQL (el atleta ya lee sus check-ins).
+ 9. **Diseño UI:** Solo modo oscuro (`fondo: #0F1115`, `superficie: #181B22`, `hundido: #12151B`, `borde: #2A2F3A`, `texto: #E8EAEE`, `suave: #A3A9B5`, `primario: #2F5FE3`, `enlace: #7AA2FF`, `alerta: #F0A040`). Táctil >= 44px (`min-h-11`). Atleta `max-w-md`, Admin `max-w-3xl`.
+@@ -82,4 +84,4 @@ Migraciones en orden: `schema_supabase.sql`, `02`–`09`, `11`–`24` (10 omitid
+ - Descarga: reglas fijas en constantes de `lib/descarga.js` (sin editor por atleta); no hay indicador en `PanelAtleta`/`HistorialEntrenamiento` ni caducidad automática en BD (el fin se deduce de `fecha_fin`).
+ - Check-in obligatorio validado solo en UI (`PantallaAtleta`), sin trigger en `routine_logs`.
+ - Desactivar usuario en Auth tarda hasta 1h en caducar JWT activo (UI bloquea al abrir app).
+-- Comidas del día: sin cálculo automático de kcal/macros, catálogo, plantillas ni checklist de consumo.
+\ No newline at end of file
++- Comidas del día: sin plantillas ni checklist de consumo. Autocálculo: 1 alimento = 1 rol y solo ajusta gramos (no sugiere alimentos); si los macros indirectos ya superan el objetivo, el alimento queda en 0 g con aviso. Menús guardados antes de la migración 25 no tienen snapshot (se ven sin macros). El seed del catálogo son valores aproximados tipo USDA, a revisar por el entrenador. Sin tests automáticos del motor (se probó con scripts manuales).
+\ No newline at end of file
+diff --git a/docs/CHANGELOG.md b/docs/CHANGELOG.md
+index 1e0f230..2bc0720 100644
+--- a/docs/CHANGELOG.md
++++ b/docs/CHANGELOG.md
+@@ -4,6 +4,11 @@ Registro cronológico de cambios. Agregar entradas nuevas arriba (`feat`, `fix`,
+ 
+ ---
+ 
++## 2026-11-27 · Paso 34 — Catálogo de alimentos y autocálculo de gramos
++- **feat:** Catálogo propio de alimentos (`/admin/alimentos`, `Alimentos`, `FormAlimento`) con crudo/cocido, macros por 100 g y búsqueda ligera (`lib/buscarAlimentos.js`, `useBusquedaAlimentos`). Creador de dieta (`PlanComidas`) con `BuscadorAlimentos` y `CalculadoraDieta`: calcula gramos con `lib/dieta.js` (JS puro, sin IA), edición manual, intercambio de alimentos y totales por comida/día en vivo. `ListaComidas` y `Nutricion` muestran estado crudo/cocido, gramos exactos y macros.
++- **db:** `migracion_25_catalogo_alimentos.sql` — tabla `foods` (RLS solo admin) + seed, snapshot en `meal_foods` y `set_meal_plan` actualizada. **Aplicar SQL primero** (independiente de la 24).
++- **refactor:** `lib/comidas.js` (snapshot, intercambio), `lib/cargarComidas.js`, `lib/alimentos.js`.
++
+ ## 2026-11-27 · Paso 33 — Peso del check-in en tendencia y peso actual
+ - **feat:** El peso del check-in diario se suma, solo en la vista del atleta (`MisMediciones`), a la tendencia/proyección, la oscilación y "Peso actual". La gráfica marca con punto hueco los pesos de check-in y con relleno los oficiales; si el mismo día hay medición oficial, manda esa.
+ - **refactor:** `lib/pesoCombinado.js` (`combinarPesos`). No copia nada a `metrics` (invariante 2) ni requiere SQL.
+diff --git a/docs/REQUERIMIENTOS.md b/docs/REQUERIMIENTOS.md
+index 0805a66..aa0e677 100644
+--- a/docs/REQUERIMIENTOS.md
++++ b/docs/REQUERIMIENTOS.md
+@@ -1,10 +1,10 @@
+ # REQUERIMIENTOS — MyProgress
+-> Última actualización: 2026-11-27 (paso 33) · Mantener al día según `AGENTS.md`.
++> Última actualización: 2026-11-27 (paso 34) · Mantener al día según `AGENTS.md`.
+ 
+ ## 1. Producto y Roles
+ PWA privada, mobile-first y solo oscura para un entrenador (`admin`) y 15–30 atletas (`client`). Costo cero (Supabase, Netlify, Gemini AI Studio).
+ - **Atleta (`client`):** ve su perfil (edita solo nombre), crea 1 check-in diario (inmutable), lee sus mediciones, ve solo su rutina activa, gestiona sus series/cierres/días realizados, lee su plan nutricional, comidas y ciclos.
+-- **Entrenador (`admin`):** gestión total de atletas (alta, edición, desactivación, contraseñas, fecha nacimiento), mediciones, rutinas, cargas, ciclos, lista negra, plan nutricional, comidas del día y biblioteca de ejercicios.
++- **Entrenador (`admin`):** gestión total de atletas (alta, edición, desactivación, contraseñas, fecha nacimiento), mediciones, rutinas, cargas, ciclos, lista negra, plan nutricional, comidas del día biblioteca de ejercicios y catálogo de alimentos.
+ 
+ ## 2. Funcionalidades Construidas
+ 
+@@ -15,7 +15,7 @@ PWA privada, mobile-first y solo oscura para un entrenador (`admin`) y 15–30 a
+ Barra inferior con 3 pestañas: **Entrenar**, **Nutrición**, **Mis datos**.
+ - **Check-in diario (`/atleta`):** obligatorio cada día (bloquea navegación hija y oculta barra hasta completarse; reinicia a las 00:00 local). Campos: calorías de ayer (`cumplio`/`menos`/`mas`), horas sueño, peso corporal opcional (20–400 kg, no afecta `metrics`), ánimo, recuperado. Inmutable tras guardar.
+ - **Entrenar (`/atleta/entrenar` y `:diaId`):** muestra ciclo vigente (`CicloActual`), lista de días con contador semanal (lunes–domingo) y estado "Realizado ✓" (días realizados se ven en solo lectura con `ResumenDiaRealizado` y se bloquean hasta el lunes). Soporta **rutina híbrida** (bloques halterofilia y musculación). En cada ejercicio: prescripción, "última vez", tarjeta **"Meta de hoy"** si tiene progresión, registro de series con tope estricto (RPE solo si `pide_rpe = true`) y opción de finalizar ejercicio incompleto con nota obligatoria (3–500 chars). Al completar/finalizar todo, *Terminar rutina* marca el día realizado. Durante una **semana de descarga** muestra un aviso y la prescripción reducida ("Meta de hoy · Descarga").
+-- **Nutrición (`/atleta/nutricion`):** muestra (1) "Tus comidas del día" (tarjetas plegables con alimentos, cantidades exactas y notas), (2) objetivo diario vigente (kcal, macros, estado calórico) y (3) promedio de calorías de últimos 7 días vs objetivo.
++- **Nutrición (`/atleta/nutricion`):** muestra (1) "Tus comidas del día" (tarjetas plegables con cada alimento, su estado **crudo/cocido**, los gramos exactos, notas y, si vienen del catálogo, macros por alimento, total por comida y total del día), (2) objetivo diario vigente (kcal, macros, estado calórico) y (3) promedio de calorías de últimos 7 días vs objetivo.
+ - **Mis datos (`/atleta/datos`):**
+   - *Medidas:* gráficas de tendencia/proyección a 14 días (mín. 3 pesos y 7 días; cuenta el peso oficial del entrenador y el declarado en el check-in, y si el mismo día hay medición oficial manda esa), "Peso actual" con el último peso (oficial o de check-in), oscilación del peso, tarjetas resumen, evolución peso + calorías con línea de objetivo e historial.
+   - *Récords (`/records`):* ranking top 8 de 1RM, buscador de ejercicios (sin tildes/mayúsculas) y detalle bajo demanda: 1RM estimado (Epley, solo ejercicios no `aislado`) con gráfica por fecha y últimas 8 marcas, evolución de peso máximo y repeticiones por sesión, y mejores reps por peso exacto.
+@@ -26,14 +26,16 @@ Barra inferior con 3 pestañas: **Entrenar**, **Nutrición**, **Mis datos**.
+ - **Ficha del atleta (`/admin/atletas/:id`):** cabecera con edad/fecha de nacimiento y 3 pestañas con navegación rápida:
+   1. *Resumen (Panel general):* bloque "Atención" (alertas por inactividad en check-in >=2d, sin rutina, sin entrenar >=7d, sin plan nutricional, sin medición >=14d), tarjetas KPI clicables que navegan a cada sección y check-ins recientes.
+   2. *Entrenamiento:* rutinas (crear/activar/archivar/copiar), **Semana de descarga** (activar hoy / cancelar; dura 7 días y luego vuelve sola la rutina anterior), **Cargas y progresión** (ajuste por ejercicio y separado por disciplina en híbridas), **Periodos de la rutina** (historial solo lectura con diffs entre snapshots y actividad real del atleta), ciclos (macro/mesociclos sin solapes), volumen semanal por músculo, lista negra de ejercicios y entrenamientos recientes (incluye cierres con motivo).
+-  3. *Cuerpo y nutrición:* **Plan nutricional** (versionado al guardar, aviso si macros difieren >10% de kcal), **Comidas del día** (editor en borrador hasta 10 comidas x 30 alimentos, reordenamiento, guardado atómico vía `set_meal_plan` y alerta de cambios sin guardar), mediciones (CRUD 1 por día) y récords.
++  3. *Cuerpo y nutrición:* **Plan nutricional** (versionado al guardar, aviso si macros difieren >10% de kcal), **Comidas del día / creador de dieta** (editor en borrador hasta 10 comidas x 30 alimentos; alimentos del catálogo —en gramos, crudo o cocido— o manuales; **Calculadora de gramos** con objetivo P/C/G precargado del plan vigente, reparto entre comidas y redondeo 1/5/10 g; edición manual de gramos, intercambio de alimento y botón "Pasar a crudo/cocido" con totales por comida y del día en vivo; guardado atómico vía `set_meal_plan` con snapshot de macros; alerta de cambios sin guardar), mediciones (CRUD 1 por día) y récords.
+ - **Editor de rutinas (`/admin/rutinas/:rutinaId`):** interruptor modo híbrido, días, ejercicios, descansos rápidos (30s, 1m, 2m, 3m), `pide_rpe`, progresión (`ninguna`, `doble` por rango de reps, `escalera` fuerza simple NxM), alertas de lista negra y volumen en vivo.
++- **Catálogo de alimentos (`/admin/alimentos`):** crear/editar/desactivar alimentos con macros por 100 g, estado (crudo/cocido/n/a), categoría y macro dominante (automática); búsqueda y filtros por categoría/estado con carga ligera (30 por vez, "Ver más"). Sin IA. Seed inicial de ~92 alimentos (proteínas, carbohidratos, legumbres, grasas, lácteos, frutas, verduras).
+ - **Biblioteca de ejercicios (`/admin/ejercicios`):** crear/editar ejercicios (`tipo_ejercicio`, video http/https, restringido global) y asignar músculos principales (1.0) / secundarios (0.5).
+ 
+ ## 3. Reglas de Negocio Clave
+ - **Progresión:** Evalúa la mejor serie del peso más alto de la última sesión del ejercicio (historial continuo por `exercise_id`, sobrevive cambios de rutina). En `doble`: sube +1 rep hasta `reps_max`, luego sugiere `+incremento_kg` y reinicia a `reps_min`. En `escalera`: avanza pasos ordenados por reps y luego series; al completar el último sube peso y vuelve al primero.
+ - **Semana de descarga:** 7 días locales desde hoy sobre la rutina activa, sin alterar su configuración. Series −40 % (mín. 1), carga −10 % (musculación) o −20 % (halterofilia) sobre el peso de trabajo de la última sesión normal (redondeo 0,5 kg; peso corporal no cambia), RPE objetivo ≤ 7, progresión en pausa. Las series hechas en descarga se marcan (`en_descarga`) y no cuentan para la progresión posterior. Solo el admin activa/cancela; máx. 1 en curso por atleta.
+ - **Récords:** Epley `peso * (1 + reps/30)` con `peso > 0`; excluido si `tipo_ejercicio = 'aislado'`.
++- **Autocálculo de dieta:** determinista (sin IA). Cada alimento cubre un macro (auto = dominante, editable); reparte el objetivo del día entre las comidas con fuente de ese macro, descuenta macros indirectos y respeta los gramos fijados. Los manuales no suman. Al guardar se congela un snapshot (macros base y asignados): cambiar el catálogo después no altera menús ya guardados.
+ - **Comidas:** Máx. 10 comidas (nombre 2–40 chars), máx. 30 alimentos/comida (nombre 2–80 chars, cantidad >0..10000 hasta 2 decimales, unidad `g`/`ml`/`unidad`/`porcion`).
+ 
+ ## 4. Pendientes y Hoja de Ruta
+diff --git a/src/App.jsx b/src/App.jsx
+index 083be77..598b8db 100644
+--- a/src/App.jsx
++++ b/src/App.jsx
+@@ -20,6 +20,7 @@ import ListaAtletas from './admin/ListaAtletas'
+ import DetalleAtleta from './admin/DetalleAtleta'
+ import EditorRutina from './admin/EditorRutina'
+ import Ejercicios from './admin/Ejercicios'
++import Alimentos from './admin/Alimentos'
+ import GestionUsuarios from './admin/GestionUsuarios'
+ 
+ export default function App() {
+@@ -77,6 +78,10 @@ export default function App() {
+         path="/admin/ejercicios"
+         element={<RutaProtegida rol="admin"><Ejercicios /></RutaProtegida>}
+       />
++      <Route
++        path="/admin/alimentos"
++        element={<RutaProtegida rol="admin"><Alimentos /></RutaProtegida>}
++      />
+       <Route
+         path="/admin/usuarios"
+         element={<RutaProtegida rol="admin"><GestionUsuarios /></RutaProtegida>}
+diff --git a/src/admin/Alimentos.jsx b/src/admin/Alimentos.jsx
+new file mode 100644
+index 0000000..499e3c0
+--- /dev/null
++++ b/src/admin/Alimentos.jsx
+@@ -0,0 +1,142 @@
++// =====================================================================
++// Alimentos — catálogo propio de alimentos del entrenador (/admin/alimentos).
++//
++// Cada alimento guarda sus macros por 100 g y su estado (crudo, cocido o no aplica); de ahí
++// sale el autocálculo de gramos del creador de dieta. Aquí el entrenador busca, agrega, edita
++// y desactiva alimentos sin usar IA.
++//
++// Carga LIGERA: nunca baja todo el catálogo. Pide 30 alimentos por vez (los que coinciden con
++// la búsqueda y los filtros) y "Ver más" pide 30 más. Los alimentos NO se borran: se desactivan,
++// para que los menús ya guardados sigan coherentes.
++// =====================================================================
++import { useState } from 'react'
++import { supabase } from '../lib/supabase'
++import Encabezado from '../components/Encabezado'
++import { CATEGORIAS, ESTADOS, TEXTO_MACRO, textoCategoria, textoEstado } from '../lib/alimentos'
++import { useBusquedaAlimentos } from '../lib/useBusquedaAlimentos'
++import { CAMPO, BOTON, BOTON_SEC, TARJETA } from '../lib/estilos'
++import FormAlimento from './FormAlimento'
++
++const PAGINA = 30
++const numero = (n) => Number(n).toLocaleString('es-CO', { maximumFractionDigits: 1 })
++
++export default function Alimentos() {
++  const [busqueda, setBusqueda] = useState('')
++  const [categoria, setCategoria] = useState('')
++  const [estado, setEstado] = useState('')
++  const [verInactivos, setVerInactivos] = useState(false)
++  const [limite, setLimite] = useState(PAGINA)
++  const [version, setVersion] = useState(0)
++  const [formAbierto, setFormAbierto] = useState(null) // null | 'nuevo' | id del alimento que se edita
++  const [errorAccion, setErrorAccion] = useState('')
++
++  const { alimentos, cargando, error, hayMas } = useBusquedaAlimentos({
++    texto: busqueda, categoria, estado, limite, soloActivos: !verInactivos, version,
++  })
++
++  // Al cambiar un filtro se vuelve a la primera página
++  const filtrar = (poner) => (valor) => { poner(valor); setLimite(PAGINA) }
++
++  async function cambiarActivo(a) {
++    setErrorAccion('')
++    const { data, error: errorBD } = await supabase
++      .from('foods').update({ activo: !a.activo }).eq('id', a.id).select('id')
++    if (errorBD || !data || data.length === 0) return setErrorAccion('No se pudo cambiar el estado del alimento.')
++    setVersion((v) => v + 1)
++  }
++
++  return (
++    <>
++      <Encabezado titulo="Catálogo de alimentos" volverA="/admin" textoVolver="Atletas" />
++      <main className="mx-auto flex max-w-3xl flex-col gap-4 p-4">
++        <p className="text-sm text-suave">
++          Tus alimentos con sus macros por 100 g, en crudo o cocido. El creador de dieta los usa para calcular los gramos.
++        </p>
++
++        {formAbierto === 'nuevo' ? (
++          <FormAlimento
++            alimento={null}
++            onCancelar={() => setFormAbierto(null)}
++            onGuardado={() => { setFormAbierto(null); setVersion((v) => v + 1) }}
++          />
++        ) : (
++          <button type="button" onClick={() => setFormAbierto('nuevo')} className={BOTON}>Nuevo alimento</button>
++        )}
++
++        <input value={busqueda} onChange={(e) => filtrar(setBusqueda)(e.target.value)}
++          placeholder="Buscar alimento..." aria-label="Buscar alimento" className={CAMPO} />
++        <div className="grid grid-cols-2 gap-2">
++          <select value={categoria} onChange={(e) => filtrar(setCategoria)(e.target.value)}
++            aria-label="Categoría" className={CAMPO}>
++            <option value="">Todas las categorías</option>
++            {CATEGORIAS.map((c) => <option key={c.valor} value={c.valor}>{c.etiqueta}</option>)}
++          </select>
++          <select value={estado} onChange={(e) => filtrar(setEstado)(e.target.value)}
++            aria-label="Estado" className={CAMPO}>
++            <option value="">Crudo y cocido</option>
++            {ESTADOS.map((s) => <option key={s.valor} value={s.valor}>{s.etiqueta}</option>)}
++          </select>
++        </div>
++        <label className="flex min-h-11 items-center gap-2 text-sm">
++          <input type="checkbox" checked={verInactivos}
++            onChange={(e) => filtrar(setVerInactivos)(e.target.checked)} />
++          Mostrar también los desactivados
++        </label>
++
++        {cargando && <p role="status" className="text-suave">Cargando...</p>}
++        {error && <p role="alert" className="text-alerta">{error}</p>}
++        {errorAccion && <p role="alert" className="text-alerta">{errorAccion}</p>}
++        {!cargando && !error && alimentos.length === 0 && (
++          <p className="text-suave">No hay alimentos que coincidan.</p>
++        )}
++
++        <ul className="flex flex-col gap-3">
++          {alimentos.map((a) => (
++            <li key={a.id} className={`${TARJETA} ${a.activo ? '' : 'opacity-70'}`}>
++              <div className="flex items-start justify-between gap-3">
++                <div className="min-w-0">
++                  <p className="font-semibold">{a.nombre}</p>
++                  <p className="text-sm text-suave">
++                    {textoCategoria(a.categoria)}
++                    {a.macro_dominante && ` · domina ${TEXTO_MACRO[a.macro_dominante].toLowerCase()}`}
++                  </p>
++                </div>
++                <span className="shrink-0 rounded-full bg-hundido px-3 py-1 text-xs font-semibold">
++                  {textoEstado(a.estado)}
++                </span>
++              </div>
++              <p className="mt-2 text-sm">
++                <span className="font-bold">{numero(a.calorias)} kcal</span>
++                <span className="text-suave"> · P {numero(a.proteina_g)} · C {numero(a.carbohidratos_g)} · G {numero(a.grasas_g)} (g por 100 g)</span>
++              </p>
++              {!a.activo && <p className="text-sm text-alerta">Desactivado: no aparece al armar dietas.</p>}
++
++              <div className="mt-3 flex flex-wrap gap-2">
++                {formAbierto !== a.id && (
++                  <button type="button" onClick={() => setFormAbierto(a.id)} className={BOTON_SEC}>Editar</button>
++                )}
++                <button type="button" onClick={() => cambiarActivo(a)} className={BOTON_SEC}>
++                  {a.activo ? 'Desactivar' : 'Activar'}
++                </button>
++              </div>
++
++              {formAbierto === a.id && (
++                <div className="mt-3">
++                  <FormAlimento
++                    alimento={a}
++                    onCancelar={() => setFormAbierto(null)}
++                    onGuardado={() => { setFormAbierto(null); setVersion((v) => v + 1) }}
++                  />
++                </div>
++              )}
++            </li>
++          ))}
++        </ul>
++
++        {hayMas && !cargando && (
++          <button type="button" onClick={() => setLimite((l) => l + PAGINA)} className={BOTON_SEC}>Ver más alimentos</button>
++        )}
++      </main>
++    </>
++  )
++}
+diff --git a/src/admin/BuscadorAlimentos.jsx b/src/admin/BuscadorAlimentos.jsx
+new file mode 100644
+index 0000000..9f15240
+--- /dev/null
++++ b/src/admin/BuscadorAlimentos.jsx
+@@ -0,0 +1,75 @@
++// =====================================================================
++// BuscadorAlimentos — el entrenador elige un alimento del catálogo (con su estado crudo/cocido).
++//
++// Lo usa el creador de dieta tanto para AGREGAR un alimento a una comida como para INTERCAMBIAR
++// uno ya puesto. Es ligero: no consulta hasta que escribas 2 letras o elijas un filtro, espera
++// 300 ms tras la última tecla y trae como máximo 15 alimentos por búsqueda.
++// =====================================================================
++import { useState } from 'react'
++import { CATEGORIAS, ESTADOS, textoEstado } from '../lib/alimentos'
++import { useBusquedaAlimentos } from '../lib/useBusquedaAlimentos'
++import { CAMPO, BOTON_SEC, TARJETA } from '../lib/estilos'
++
++const LIMITE = 15
++const numero = (n) => Number(n).toLocaleString('es-CO', { maximumFractionDigits: 1 })
++
++export default function BuscadorAlimentos({ titulo = 'Elegir alimento', textoBoton = 'Elegir', onElegir, onCerrar }) {
++  const [busqueda, setBusqueda] = useState('')
++  const [categoria, setCategoria] = useState('')
++  const [estado, setEstado] = useState('')
++
++  const { alimentos, cargando, error, consultando, hayMas } = useBusquedaAlimentos({
++    texto: busqueda, categoria, estado, limite: LIMITE, soloActivos: true, exigirFiltro: true,
++  })
++
++  return (
++    <div className={`${TARJETA} flex flex-col gap-3 bg-hundido`}>
++      <div className="flex items-center justify-between gap-2">
++        <h4 className="font-semibold">{titulo}</h4>
++        <button type="button" onClick={onCerrar} className={BOTON_SEC}>Cerrar</button>
++      </div>
++
++      <input value={busqueda} onChange={(e) => setBusqueda(e.target.value)}
++        placeholder="Buscar alimento (ej: arroz, pollo)..." aria-label="Buscar alimento en el catálogo"
++        className={CAMPO} />
++      <div className="grid grid-cols-2 gap-2">
++        <select value={categoria} onChange={(e) => setCategoria(e.target.value)} aria-label="Categoría" className={CAMPO}>
++          <option value="">Todas las categorías</option>
++          {CATEGORIAS.map((c) => <option key={c.valor} value={c.valor}>{c.etiqueta}</option>)}
++        </select>
++        <select value={estado} onChange={(e) => setEstado(e.target.value)} aria-label="Estado" className={CAMPO}>
++          <option value="">Crudo y cocido</option>
++          {ESTADOS.map((s) => <option key={s.valor} value={s.valor}>{s.etiqueta}</option>)}
++        </select>
++      </div>
++
++      {!consultando && (
++        <p className="text-sm text-suave">Escribe al menos 2 letras o elige una categoría o un estado para buscar.</p>
++      )}
++      {consultando && cargando && <p role="status" className="text-sm text-suave">Buscando...</p>}
++      {error && <p role="alert" className="text-sm text-alerta">{error}</p>}
++      {consultando && !cargando && !error && alimentos.length === 0 && (
++        <p className="text-sm text-suave">
++          No hay alimentos que coincidan. Puedes agregarlo en el catálogo (Atletas › Catálogo de alimentos).
++        </p>
++      )}
++
++      <ul className="flex flex-col gap-2">
++        {alimentos.map((a) => (
++          <li key={a.id} className="flex items-center justify-between gap-3 rounded-xl border border-borde bg-superficie p-3">
++            <div className="min-w-0">
++              <p className="font-semibold">
++                {a.nombre} <span className="text-sm font-normal text-enlace">· {textoEstado(a.estado)}</span>
++              </p>
++              <p className="text-xs text-suave">
++                {numero(a.calorias)} kcal · P {numero(a.proteina_g)} · C {numero(a.carbohidratos_g)} · G {numero(a.grasas_g)} (por 100 g)
++              </p>
++            </div>
++            <button type="button" onClick={() => onElegir(a)} className={BOTON_SEC}>{textoBoton}</button>
++          </li>
++        ))}
++      </ul>
++      {hayMas && <p className="text-xs text-suave">Mostrando los primeros {LIMITE}. Escribe más letras para afinar.</p>}
++    </div>
++  )
++}
+diff --git a/src/admin/CalculadoraDieta.jsx b/src/admin/CalculadoraDieta.jsx
+new file mode 100644
+index 0000000..6f1feec
+--- /dev/null
++++ b/src/admin/CalculadoraDieta.jsx
+@@ -0,0 +1,195 @@
++// =====================================================================
++// CalculadoraDieta — panel del creador de dieta: objetivos del día + botón "Calcular gramos".
++//
++// El entrenador define los macros objetivo (se precargan del plan nutricional vigente), ajusta
++// si quiere cuánto pesa cada comida en el reparto y el redondeo de los gramos, y pulsa
++// "Calcular gramos": lib/dieta.js reparte los gramos de los alimentos del catálogo (sin IA).
++// Después puede editar cualquier gramo a mano en las comidas: el resumen de abajo se actualiza
++// en vivo con lo que falta o sobra frente al objetivo.
++//
++// Este componente NO guarda nada en la base de datos: solo devuelve las comidas con los gramos
++// aplicados (onAplicar). El guardado lo hace "Guardar comidas" en PlanComidas.
++// =====================================================================
++import { useEffect, useState } from 'react'
++import { supabase } from '../lib/supabase'
++import { aNumero } from '../lib/numeros'
++import {
++  PASOS_REDONDEO, aplicarGramos, calcularGramos, diferenciasDia, esDeCatalogo, totalesDia, validarObjetivo,
++} from '../lib/dieta'
++import { CAMPO, BOTON, TARJETA } from '../lib/estilos'
++
++const numero = (n) => Number(n).toLocaleString('es-CO', { maximumFractionDigits: 1 })
++
++// De un plan nutricional (fila) a los textos del formulario de objetivos.
++function objetivoDePlan(plan) {
++  const texto = (n) => (n === null || n === undefined ? '' : String(n))
++  return { proteina: texto(plan?.proteina_g), carbohidratos: texto(plan?.carbohidratos_g), grasas: texto(plan?.grasas_g) }
++}
++
++export default function CalculadoraDieta({ atletaId, comidas, onAplicar }) {
++  const [objetivo, setObjetivo] = useState({ proteina: '', carbohidratos: '', grasas: '' })
++  const [kcalPlan, setKcalPlan] = useState(null)
++  const [planCargado, setPlanCargado] = useState(false)
++  const [errorPlan, setErrorPlan] = useState('')
++  const [pesos, setPesos] = useState({}) // clave de comida -> texto
++  const [paso, setPaso] = useState(1)
++  const [mensaje, setMensaje] = useState(null) // { tipo: 'error' | 'ok', texto }
++  const [avisos, setAvisos] = useState([])
++
++  // Carga UNA fila (el plan vigente) para precargar el objetivo. Solo al abrir.
++  useEffect(() => {
++    let cancelado = false
++    supabase.from('nutrition_plans')
++      .select('calorias_objetivo, proteina_g, carbohidratos_g, grasas_g')
++      .eq('user_id', atletaId).is('vigente_hasta', null).maybeSingle()
++      .then(({ data, error }) => {
++        if (cancelado) return
++        if (error) setErrorPlan('No se pudo leer el plan nutricional: escribe el objetivo a mano.')
++        else if (data) {
++          setObjetivo(objetivoDePlan(data))
++          setKcalPlan(data.calorias_objetivo)
++        }
++        setPlanCargado(true)
++      })
++    return () => { cancelado = true }
++  }, [atletaId])
++
++  const cambiarObjetivo = (campo, valor) => { setObjetivo((o) => ({ ...o, [campo]: valor })); setMensaje(null) }
++
++  const comidasConCatalogo = comidas.filter((c) => c.alimentos.some(esDeCatalogo))
++  const totales = totalesDia(comidas)
++  const lectura = validarObjetivo(objetivo)
++  const diferencias = lectura.objetivo ? diferenciasDia(totales, lectura.objetivo) : null
++
++  function calcular() {
++    setMensaje(null)
++    setAvisos([])
++    if (lectura.error) return setMensaje({ tipo: 'error', texto: lectura.error })
++    if (comidasConCatalogo.length === 0) {
++      return setMensaje({ tipo: 'error', texto: 'Agrega alimentos del catálogo a las comidas para poder calcular.' })
++    }
++    // Pesos de las comidas: vacío o inválido = 1 (partes iguales)
++    const pesosNumericos = {}
++    for (const c of comidasConCatalogo) {
++      const n = aNumero(pesos[c.clave] ?? '1')
++      if (n === null) continue
++      if (Number.isNaN(n) || n < 0 || n > 100) {
++        return setMensaje({ tipo: 'error', texto: `El peso de «${c.nombre.trim() || 'una comida'}» debe ser un número entre 0 y 100.` })
++      }
++      pesosNumericos[c.clave] = n
++    }
++
++    const { gramos, avisos: avisosCalculo } = calcularGramos({ comidas, objetivo: lectura.objetivo, pesos: pesosNumericos, paso })
++    onAplicar(aplicarGramos(comidas, gramos))
++    setAvisos(avisosCalculo)
++    setMensaje({ tipo: 'ok', texto: 'Gramos calculados. Puedes ajustarlos a mano abajo; los totales se actualizan al instante.' })
++  }
++
++  const colorMensaje = { error: 'text-alerta', ok: 'text-enlace' }
++
++  return (
++    <div className={`${TARJETA} flex flex-col gap-3`}>
++      <div>
++        <h4 className="font-semibold">Calculadora de gramos</h4>
++        <p className="text-sm text-suave">
++          Calcula los gramos exactos de los alimentos del catálogo para cumplir los macros del día (sin IA).
++          Los alimentos manuales no entran al cálculo.
++        </p>
++      </div>
++
++      <p className="text-sm font-semibold">Objetivo del día (g)</p>
++      <div className="grid grid-cols-3 gap-2">
++        {[
++          ['proteina', 'Proteína'],
++          ['carbohidratos', 'Carbohidratos'],
++          ['grasas', 'Grasas'],
++        ].map(([campo, etiqueta]) => (
++          <div key={campo}>
++            <label htmlFor={`obj-${campo}`} className="text-xs text-suave">{etiqueta}</label>
++            <input id={`obj-${campo}`} inputMode="decimal" value={objetivo[campo]}
++              onChange={(e) => cambiarObjetivo(campo, e.target.value)} placeholder="0" className={CAMPO} />
++          </div>
++        ))}
++      </div>
++      {planCargado && kcalPlan !== null && (
++        <p className="text-xs text-suave">
++          Precargado del plan nutricional vigente ({numero(kcalPlan)} kcal). Puedes cambiarlo solo para este cálculo.
++        </p>
++      )}
++      {planCargado && kcalPlan === null && !errorPlan && (
++        <p className="text-xs text-suave">El atleta no tiene plan nutricional vigente: escribe el objetivo a mano.</p>
++      )}
++      {errorPlan && <p role="alert" className="text-xs text-alerta">{errorPlan}</p>}
++
++      {comidasConCatalogo.length > 1 && (
++        <details className="rounded-xl bg-hundido p-3">
++          <summary className="flex min-h-11 cursor-pointer items-center text-sm font-semibold">
++            Reparto entre comidas (opcional)
++          </summary>
++          <p className="text-xs text-suave">
++            Por defecto todas las comidas pesan igual (1). Pon 2 en una comida para que lleve el doble que una de 1.
++          </p>
++          <div className="mt-2 grid grid-cols-2 gap-2">
++            {comidasConCatalogo.map((c, i) => (
++              <div key={c.clave}>
++                <label htmlFor={`peso-${c.clave}`} className="text-xs text-suave">{c.nombre.trim() || `Comida ${i + 1}`}</label>
++                <input id={`peso-${c.clave}`} inputMode="decimal" value={pesos[c.clave] ?? '1'}
++                  onChange={(e) => { setPesos((p) => ({ ...p, [c.clave]: e.target.value })); setMensaje(null) }}
++                  className={CAMPO} />
++              </div>
++            ))}
++          </div>
++        </details>
++      )}
++
++      <div>
++        <label htmlFor="paso-redondeo" className="text-xs text-suave">Redondear los gramos a</label>
++        <select id="paso-redondeo" value={paso} onChange={(e) => setPaso(Number(e.target.value))} className={CAMPO}>
++          {PASOS_REDONDEO.map((p) => <option key={p} value={p}>{p} g</option>)}
++        </select>
++      </div>
++
++      <button type="button" onClick={calcular} className={BOTON}>Calcular gramos</button>
++
++      {mensaje && (
++        <p role={mensaje.tipo === 'error' ? 'alert' : 'status'} className={`text-sm ${colorMensaje[mensaje.tipo]}`}>{mensaje.texto}</p>
++      )}
++      {avisos.length > 0 && (
++        <ul role="status" className="list-disc pl-5 text-sm text-alerta">
++          {avisos.map((a) => <li key={a}>{a}</li>)}
++        </ul>
++      )}
++
++      {/* Resumen en vivo del día: se recalcula con cada gramo que cambies */}
++      <div className="rounded-xl bg-hundido p-3">
++        <p className="text-sm font-semibold">Total del día (en vivo)</p>
++        <p className="text-lg font-bold">
++          {numero(totales.calorias)} kcal
++          {kcalPlan !== null && <span className="text-sm font-normal text-suave"> · plan: {numero(kcalPlan)} kcal</span>}
++        </p>
++        {diferencias ? (
++          <ul className="mt-1 grid grid-cols-3 gap-2 text-center">
++            {diferencias.map((d) => (
++              <li key={d.clave}>
++                <p className="text-xs text-suave">{d.etiqueta}</p>
++                <p className="font-bold">{numero(d.actual)} / {numero(d.objetivo)} g</p>
++                <p className={`text-xs ${Math.abs(d.diferencia) <= 2 ? 'text-suave' : 'text-alerta'}`}>
++                  {d.diferencia === 0 ? 'justo' : `${d.diferencia > 0 ? '+' : ''}${numero(d.diferencia)} g`}
++                </p>
++              </li>
++            ))}
++          </ul>
++        ) : (
++          <p className="text-sm text-suave">
++            P {numero(totales.proteina)} · C {numero(totales.carbohidratos)} · G {numero(totales.grasas)} g
++          </p>
++        )}
++        {totales.sinMacros > 0 && (
++          <p className="mt-1 text-xs text-suave">
++            {totales.sinMacros} {totales.sinMacros === 1 ? 'alimento manual no suma' : 'alimentos manuales no suman'} (sin macros).
++          </p>
++        )}
++      </div>
++    </div>
++  )
++}
+diff --git a/src/admin/FormAlimento.jsx b/src/admin/FormAlimento.jsx
+new file mode 100644
+index 0000000..1795924
+--- /dev/null
++++ b/src/admin/FormAlimento.jsx
+@@ -0,0 +1,126 @@
++// =====================================================================
++// FormAlimento — crear o editar UN alimento del catálogo (tabla `foods`, migración 25).
++//
++// Los macros se escriben POR 100 g de alimento en ese estado (crudo, cocido o no aplica).
++// Si dejas las calorías vacías se calculan con los macros (4 kcal por g de proteína y
++// carbohidratos, 9 por g de grasa). La macro dominante la calcula la base de datos sola.
++// Se valida aquí (lib/alimentos.js) y otra vez en la base de datos (CHECK).
++// =====================================================================
++import { useState } from 'react'
++import { supabase } from '../lib/supabase'
++import { aNumero } from '../lib/numeros'
++import {
++  CATEGORIAS, ESTADOS, FORM_ALIMENTO_VACIO, TEXTO_MACRO,
++  avisoCalorias, formDeAlimento, macroDominante, validarAlimento,
++} from '../lib/alimentos'
++import { kcalDeMacros } from '../lib/nutricion'
++import { CAMPO, BOTON, BOTON_SEC, TARJETA } from '../lib/estilos'
++
++export default function FormAlimento({ alimento, onCancelar, onGuardado }) {
++  const [form, setForm] = useState(() => (alimento ? formDeAlimento(alimento) : FORM_ALIMENTO_VACIO))
++  const [guardando, setGuardando] = useState(false)
++  const [error, setError] = useState('')
++  const pre = alimento ? `alimento-${alimento.id}` : 'alimento-nuevo'
++
++  const cambiar = (campo, valor) => { setForm((f) => ({ ...f, [campo]: valor })); setError('') }
++
++  // Vista previa en vivo: calorías según los macros y macro dominante
++  const p = aNumero(form.proteina)
++  const c = aNumero(form.carbohidratos)
++  const g = aNumero(form.grasas)
++  const macrosValidos = [p, c, g].every((n) => n !== null && Number.isFinite(n))
++  const kcalCalculadas = macrosValidos ? Math.round(kcalDeMacros(p, c, g)) : null
++  const dominante = macrosValidos ? macroDominante({ proteina_g: p, carbohidratos_g: c, grasas_g: g }) : null
++  const aviso = avisoCalorias(form)
++
++  async function guardar(evento) {
++    evento.preventDefault()
++    const { error: problema, datos } = validarAlimento(form)
++    if (problema) return setError(problema)
++
++    setGuardando(true)
++    // .select('id'): si la política RLS bloquea la operación, no llega ninguna fila (no falla en silencio).
++    const consulta = alimento
++      ? supabase.from('foods').update(datos).eq('id', alimento.id).select('id')
++      : supabase.from('foods').insert(datos).select('id')
++    const { data, error: errorBD } = await consulta
++    setGuardando(false)
++
++    if (errorBD) {
++      return setError(
++        errorBD.code === '23505'
++          ? 'Ya existe un alimento con ese nombre y ese estado (crudo/cocido).'
++          : 'No se pudo guardar el alimento. Inténtalo de nuevo.'
++      )
++    }
++    if (!data || data.length === 0) return setError('No se pudo guardar: no tienes permiso para esta acción.')
++    onGuardado()
++  }
++
++  return (
++    <form onSubmit={guardar} className={`${TARJETA} flex flex-col gap-3 bg-hundido`} noValidate>
++      <h3 className="font-semibold">{alimento ? 'Editar alimento' : 'Nuevo alimento'}</h3>
++
++      <div>
++        <label htmlFor={`${pre}-nombre`} className="text-xs text-suave">Nombre</label>
++        <input id={`${pre}-nombre`} value={form.nombre} maxLength={80}
++          onChange={(e) => cambiar('nombre', e.target.value)}
++          placeholder="Ej: Arroz blanco" className={CAMPO} />
++        <p className="mt-1 text-xs text-suave">
++          Escribe el nombre sin el estado: «Arroz blanco» y elige crudo o cocido abajo.
++        </p>
++      </div>
++
++      <div className="grid grid-cols-2 gap-2">
++        <div>
++          <label htmlFor={`${pre}-categoria`} className="text-xs text-suave">Categoría</label>
++          <select id={`${pre}-categoria`} value={form.categoria}
++            onChange={(e) => cambiar('categoria', e.target.value)} className={CAMPO}>
++            {CATEGORIAS.map((o) => <option key={o.valor} value={o.valor}>{o.etiqueta}</option>)}
++          </select>
++        </div>
++        <div>
++          <label htmlFor={`${pre}-estado`} className="text-xs text-suave">Estado</label>
++          <select id={`${pre}-estado`} value={form.estado}
++            onChange={(e) => cambiar('estado', e.target.value)} className={CAMPO}>
++            {ESTADOS.map((o) => <option key={o.valor} value={o.valor}>{o.etiqueta}</option>)}
++          </select>
++        </div>
++      </div>
++
++      <p className="text-sm font-semibold">Macros por 100 g</p>
++      <div className="grid grid-cols-2 gap-2">
++        {[
++          ['proteina', 'Proteína (g)'],
++          ['carbohidratos', 'Carbohidratos (g)'],
++          ['grasas', 'Grasas (g)'],
++          ['calorias', 'Calorías (kcal)'],
++        ].map(([campo, etiqueta]) => (
++          <div key={campo}>
++            <label htmlFor={`${pre}-${campo}`} className="text-xs text-suave">{etiqueta}</label>
++            <input id={`${pre}-${campo}`} inputMode="decimal" value={form[campo]}
++              onChange={(e) => cambiar(campo, e.target.value)}
++              placeholder={campo === 'calorias' && kcalCalculadas !== null ? `${kcalCalculadas} (calculadas)` : '0'}
++              className={CAMPO} />
++          </div>
++        ))}
++      </div>
++
++      {dominante && (
++        <p className="text-sm text-suave">
++          Macro dominante: <span className="font-semibold text-texto">{TEXTO_MACRO[dominante]}</span>
++          {kcalCalculadas !== null && <> · con estos macros suman unas {kcalCalculadas} kcal</>}
++        </p>
++      )}
++      {aviso && <p role="status" className="text-sm text-alerta">{aviso}</p>}
++      {error && <p role="alert" className="text-sm text-alerta">{error}</p>}
++
++      <div className="flex gap-2">
++        <button type="submit" disabled={guardando} className={`${BOTON} flex-1`}>
++          {guardando ? 'Guardando...' : 'Guardar alimento'}
++        </button>
++        <button type="button" onClick={onCancelar} className={BOTON_SEC}>Cancelar</button>
++      </div>
++    </form>
++  )
++}
+diff --git a/src/admin/ListaAtletas.jsx b/src/admin/ListaAtletas.jsx
+index c5d8f9c..5a8e049 100644
+--- a/src/admin/ListaAtletas.jsx
++++ b/src/admin/ListaAtletas.jsx
+@@ -41,6 +41,9 @@ export default function ListaAtletas() {
+           <Link to="/admin/ejercicios" className="flex min-h-11 items-center justify-center rounded-xl border border-borde bg-superficie px-4 text-sm font-semibold">
+             Biblioteca de ejercicios y músculos
+           </Link>
++          <Link to="/admin/alimentos" className="flex min-h-11 items-center justify-center rounded-xl border border-borde bg-superficie px-4 text-sm font-semibold">
++            Catálogo de alimentos (crudo y cocido)
++          </Link>
+         </div>
+         {/* Los cumpleaños solo cuentan atletas con acceso activo. */}
+         {!cargando && !error && activos.length > 0 && <CumpleanosAtletas atletas={activos} hoy={hoy} />}
+diff --git a/src/admin/PlanComidas.jsx b/src/admin/PlanComidas.jsx
+index 5fcdb24..61bc46e 100644
+--- a/src/admin/PlanComidas.jsx
++++ b/src/admin/PlanComidas.jsx
+@@ -1,82 +1,173 @@
+ // =====================================================================
+-// PlanComidas — el entrenador arma las COMIDAS DEL DÍA de UN atleta (menú manual).
++// PlanComidas — el entrenador arma las COMIDAS DEL DÍA de UN atleta (creador de dieta).
+ //
+-// Cada comida (desayuno, almuerzo, cena, snacks...) lleva sus alimentos con la cantidad
+-// exacta (gramos, mililitros, unidades o porciones). El atleta lo ve en su pestaña Nutrición.
++// Cada comida (desayuno, almuerzo, cena, snacks...) lleva sus alimentos con la cantidad exacta.
++// Los alimentos pueden ser:
++//   - del CATÁLOGO (/admin/alimentos): llevan estado (crudo/cocido), se miden en gramos y traen
++//     macros. Con ellos funciona la "Calculadora de gramos" (lib/dieta.js, sin IA) y los totales
++//     por comida y del día se recalculan en vivo al editar cualquier gramo.
++//   - MANUALES (como antes): nombre libre y cualquier unidad, sin macros.
++// El atleta lo ve en su pestaña Nutrición.
+ //
+ // Cómo funciona el guardado:
+ //   - Se EDITA un borrador en pantalla (estado local) y se guarda TODO junto con el botón
+-//     "Guardar comidas": la función de la base de datos `set_meal_plan` (migración 23)
+-//     reemplaza el menú completo en una sola operación (todo o nada).
++//     "Guardar comidas": la función de la base de datos `set_meal_plan` (migraciones 23 y 25)
++//     reemplaza el menú completo en una sola operación (todo o nada) y guarda un SNAPSHOT de
++//     los macros por 100 g y de los macros asignados a los gramos exactos.
+ //   - El menú es del atleta, no del plan de calorías: cambiar calorías o macros no lo toca.
+ //   - Antes de enviar se valida en la pantalla (lib/comidas.js); la base de datos valida otra vez.
+ // =====================================================================
+ import { useEffect, useState } from 'react'
+ import { supabase } from '../lib/supabase'
+ import { cargarComidas } from '../lib/cargarComidas'
++import { buscarVariante } from '../lib/buscarAlimentos'
+ import {
+   COMIDAS_SUGERIDAS, MAX_ALIMENTOS, MAX_COMIDAS, UNIDADES,
+-  aBorrador, aPayload, alimentoNuevo, comidaNueva, huellaBorrador, moverComida,
+-  resumenComidas, ultimaActualizacion, validarComidas,
++  aBorrador, aPayload, alimentoNuevo, aplicarAlimentoCatalogo, comidaNueva, filaDeCatalogo,
++  huellaBorrador, moverComida, resumenComidas, ultimaActualizacion, validarComidas,
+ } from '../lib/comidas'
++import { MACROS, esDeCatalogo, macrosDeFila, rolDeFila, totalesComida } from '../lib/dieta'
++import { TEXTO_MACRO, textoEstado } from '../lib/alimentos'
+ import { fechaCortaDeTimestamp } from '../lib/records'
+ import { CAMPO, BOTON, BOTON_SEC, TARJETA } from '../lib/estilos'
++import BuscadorAlimentos from './BuscadorAlimentos'
++import CalculadoraDieta from './CalculadoraDieta'
++
++const numero = (n) => Number(n).toLocaleString('es-CO', { maximumFractionDigits: 1 })
++
++// Un alimento dentro de una comida. Si es del catálogo: nombre fijo + estado, gramos, rol,
++// "fijar gramos", macros en vivo y botones de intercambio. Si es manual: como siempre.
++function FilaAlimento({ alimento: a, numero: n, nombreComida, onCambiar, onQuitar, onIntercambiar }) {
++  const [buscando, setBuscando] = useState(false)
++  const [aviso, setAviso] = useState('')
++  const [cambiandoEstado, setCambiandoEstado] = useState(false)
++  const catalogo = esDeCatalogo(a)
++  const macros = macrosDeFila(a)
++  const rol = rolDeFila(a)
++  const otroEstado = a.estado === 'crudo' ? 'cocido' : a.estado === 'cocido' ? 'crudo' : null
++
++  async function pasarAOtroEstado() {
++    setAviso('')
++    setCambiandoEstado(true)
++    const { alimento, error } = await buscarVariante(a.alimento, otroEstado)
++    setCambiandoEstado(false)
++    if (error) return setAviso(error)
++    if (!alimento) return setAviso(`No hay «${a.alimento}» en estado ${otroEstado} en el catálogo. Agrégalo en el catálogo o usa «Cambiar alimento».`)
++    onIntercambiar(alimento)
++  }
+ 
+-// Un alimento dentro de una comida: nombre, cantidad + unidad y una nota opcional.
+-function FilaAlimento({ alimento: a, numero, nombreComida, onCambiar, onQuitar }) {
+   return (
+     <div className="flex flex-col gap-2 rounded-xl bg-hundido p-3">
+       <div className="flex items-center justify-between gap-2">
+-        <span className="text-sm font-semibold">Alimento {numero}</span>
++        <span className="text-sm font-semibold">Alimento {n}{catalogo ? ' · catálogo' : ' · manual'}</span>
+         <button
+           type="button"
+           onClick={onQuitar}
+-          aria-label={`Quitar el alimento ${numero} de ${nombreComida || 'la comida'}`}
++          aria-label={`Quitar el alimento ${n} de ${nombreComida || 'la comida'}`}
+           className="min-h-11 px-2 text-sm font-semibold text-alerta"
+         >
+           Quitar
+         </button>
+       </div>
+ 
+-      <div>
+-        <label htmlFor={`${a.clave}-alimento`} className="text-xs text-suave">Alimento</label>
+-        <input id={`${a.clave}-alimento`} value={a.alimento} maxLength={80}
+-          onChange={(e) => onCambiar('alimento', e.target.value)}
+-          placeholder="Ej: Arroz blanco cocido" className={CAMPO} />
+-      </div>
++      {catalogo ? (
++        <div>
++          <p className="font-semibold">
++            {a.alimento} <span className="text-sm font-normal text-enlace">· {textoEstado(a.estado)}</span>
++          </p>
++          <div className="mt-1 flex flex-wrap gap-2">
++            <button type="button" onClick={() => setBuscando((b) => !b)} className={BOTON_SEC}>Cambiar alimento</button>
++            {otroEstado && (
++              <button type="button" onClick={pasarAOtroEstado} disabled={cambiandoEstado} className={BOTON_SEC}>
++                {cambiandoEstado ? 'Buscando...' : `Pasar a ${otroEstado}`}
++              </button>
++            )}
++          </div>
++          {aviso && <p role="alert" className="mt-1 text-sm text-alerta">{aviso}</p>}
++          {buscando && (
++            <div className="mt-2">
++              <BuscadorAlimentos
++                titulo="Cambiar por otro alimento"
++                textoBoton="Usar este"
++                onCerrar={() => setBuscando(false)}
++                onElegir={(alimento) => { onIntercambiar(alimento); setBuscando(false) }}
++              />
++            </div>
++          )}
++        </div>
++      ) : (
++        <div>
++          <label htmlFor={`${a.clave}-alimento`} className="text-xs text-suave">Alimento</label>
++          <input id={`${a.clave}-alimento`} value={a.alimento} maxLength={80}
++            onChange={(e) => onCambiar('alimento', e.target.value)}
++            placeholder="Ej: Arroz blanco cocido" className={CAMPO} />
++        </div>
++      )}
+ 
+       <div className="grid grid-cols-2 gap-2">
+         <div>
+-          <label htmlFor={`${a.clave}-cantidad`} className="text-xs text-suave">Cantidad</label>
++          <label htmlFor={`${a.clave}-cantidad`} className="text-xs text-suave">{catalogo ? 'Gramos' : 'Cantidad'}</label>
+           <input id={`${a.clave}-cantidad`} inputMode="decimal" value={a.cantidad}
+             onChange={(e) => onCambiar('cantidad', e.target.value)}
+             placeholder="Ej: 150" className={CAMPO} />
+         </div>
+         <div>
+           <label htmlFor={`${a.clave}-unidad`} className="text-xs text-suave">Unidad</label>
+-          <select id={`${a.clave}-unidad`} value={a.unidad}
+-            onChange={(e) => onCambiar('unidad', e.target.value)} className={CAMPO}>
+-            {UNIDADES.map((u) => <option key={u.valor} value={u.valor}>{u.etiqueta}</option>)}
+-          </select>
++          {catalogo ? (
++            // Los macros del catálogo son por 100 g: la unidad no se puede cambiar.
++            <p id={`${a.clave}-unidad`} className="flex min-h-11 items-center px-1 text-sm text-suave">Gramos (g)</p>
++          ) : (
++            <select id={`${a.clave}-unidad`} value={a.unidad}
++              onChange={(e) => onCambiar('unidad', e.target.value)} className={CAMPO}>
++              {UNIDADES.map((u) => <option key={u.valor} value={u.valor}>{u.etiqueta}</option>)}
++            </select>
++          )}
+         </div>
+       </div>
+ 
++      {catalogo && (
++        <>
++          {/* Macros de estos gramos, en vivo */}
++          <p className="text-sm">
++            <span className="font-bold">{numero(macros.calorias)} kcal</span>
++            <span className="text-suave"> · P {numero(macros.proteina)} · C {numero(macros.carbohidratos)} · G {numero(macros.grasas)} g</span>
++          </p>
++
++          <div className="grid grid-cols-2 gap-2">
++            <div>
++              <label htmlFor={`${a.clave}-rol`} className="text-xs text-suave">Cubre (para el cálculo)</label>
++              <select id={`${a.clave}-rol`} value={a.rol} onChange={(e) => onCambiar('rol', e.target.value)} className={CAMPO}>
++                <option value="">Auto ({rol ? TEXTO_MACRO[rol] : 'sin macros'})</option>
++                {MACROS.map((m) => <option key={m.clave} value={m.clave}>{m.etiqueta}</option>)}
++              </select>
++            </div>
++            <label className="flex min-h-11 items-end gap-2 pb-3 text-sm">
++              <input type="checkbox" checked={a.fijo} onChange={(e) => onCambiar('fijo', e.target.checked)} />
++              Fijar gramos
++            </label>
++          </div>
++        </>
++      )}
++
+       <div>
+         <label htmlFor={`${a.clave}-nota`} className="text-xs text-suave">Nota (opcional)</label>
+         <input id={`${a.clave}-nota`} value={a.nota} maxLength={120}
+           onChange={(e) => onCambiar('nota', e.target.value)}
+-          placeholder="Ej: cocido, sin sal" className={CAMPO} />
++          placeholder="Ej: sin sal, a la plancha" className={CAMPO} />
+       </div>
+     </div>
+   )
+ }
+ 
+-// Una comida: nombre, orden (subir/bajar), sus alimentos y acciones.
++// Una comida: nombre, orden (subir/bajar), sus alimentos, total en vivo y acciones.
+ function TarjetaComida({
+   comida, indice, total, onCambiar, onMover, onQuitar,
+-  onAgregarAlimento, onCambiarAlimento, onQuitarAlimento,
++  onAgregarAlimento, onAgregarDelCatalogo, onCambiarAlimento, onQuitarAlimento, onIntercambiarAlimento,
+ }) {
++  const [buscando, setBuscando] = useState(false)
+   const nombre = comida.nombre.trim()
++  const totales = totalesComida(comida)
++  const lleno = comida.alimentos.length >= MAX_ALIMENTOS
+   return (
+     <div className={`${TARJETA} flex flex-col gap-3`}>
+       <div className="flex items-end gap-2">
+@@ -114,14 +205,43 @@ function TarjetaComida({
+           nombreComida={nombre}
+           onCambiar={(campo, valor) => onCambiarAlimento(a.clave, campo, valor)}
+           onQuitar={() => onQuitarAlimento(a.clave)}
++          onIntercambiar={(alimento) => onIntercambiarAlimento(a.clave, alimento)}
+         />
+       ))}
+ 
++      {/* Total de la comida, en vivo */}
++      {comida.alimentos.length > 0 && (
++        <p className="rounded-xl bg-hundido p-3 text-sm">
++          <span className="font-semibold">Total de la comida: </span>
++          <span className="font-bold">{numero(totales.calorias)} kcal</span>
++          <span className="text-suave"> · P {numero(totales.proteina)} · C {numero(totales.carbohidratos)} · G {numero(totales.grasas)} g</span>
++          {totales.sinMacros > 0 && (
++            <span className="block text-xs text-suave">
++              {totales.sinMacros} {totales.sinMacros === 1 ? 'alimento manual no suma' : 'alimentos manuales no suman'}.
++            </span>
++          )}
++        </p>
++      )}
++
++      {buscando && (
++        <BuscadorAlimentos
++          titulo="Agregar del catálogo"
++          textoBoton="Agregar"
++          onCerrar={() => setBuscando(false)}
++          // El buscador queda abierto para sumar varios alimentos seguidos
++          onElegir={(alimento) => onAgregarDelCatalogo(alimento)}
++        />
++      )}
++
+       <div className="flex flex-wrap items-center justify-between gap-2">
+-        <button type="button" onClick={onAgregarAlimento}
+-          disabled={comida.alimentos.length >= MAX_ALIMENTOS} className={BOTON_SEC}>
+-          + Agregar alimento
+-        </button>
++        <div className="flex flex-wrap gap-2">
++          <button type="button" onClick={() => setBuscando((b) => !b)} disabled={lleno} className={BOTON_SEC}>
++            + Del catálogo
++          </button>
++          <button type="button" onClick={onAgregarAlimento} disabled={lleno} className={BOTON_SEC}>
++            + Manual
++          </button>
++        </div>
+         <button type="button" onClick={onQuitar} className={`${BOTON_SEC} text-alerta`}>
+           Quitar comida
+         </button>
+@@ -197,6 +317,24 @@ export default function PlanComidas({ atletaId, onCambiosSinGuardar }) {
+       return { ...c, alimentos: [...c.alimentos, alimentoNuevo(c.alimentos.at(-1)?.unidad)] }
+     }))
+ 
++  // Agrega un alimento del catálogo a la comida (sin gramos: se escriben o se calculan).
++  // Si la comida solo tiene la fila vacía inicial, la reemplaza en vez de dejarla sobrando.
++  const agregarDelCatalogo = (clave, alimento) =>
++    cambiar((b) => b.map((c) => {
++      if (c.clave !== clave) return c
++      const vacia = (a) => !a.base && a.alimento.trim() === '' && a.cantidad.trim() === '' && a.nota.trim() === ''
++      const base = c.alimentos.length === 1 && vacia(c.alimentos[0]) ? [] : c.alimentos
++      if (base.length >= MAX_ALIMENTOS) return c
++      return { ...c, alimentos: [...base, filaDeCatalogo(alimento)] }
++    }))
++
++  // INTERCAMBIO: la misma fila pasa a otro alimento del catálogo, conservando gramos y posición.
++  const intercambiarAlimento = (claveComida, claveAlimento, alimento) =>
++    cambiar((b) => b.map((c) => (c.clave !== claveComida ? c : {
++      ...c,
++      alimentos: c.alimentos.map((a) => (a.clave === claveAlimento ? aplicarAlimentoCatalogo(a, alimento) : a)),
++    })))
++
+   const cambiarAlimento = (claveComida, claveAlimento, campo, valor) =>
+     cambiar((b) => b.map((c) => (c.clave !== claveComida ? c : {
+       ...c,
+@@ -245,7 +383,8 @@ export default function PlanComidas({ atletaId, onCambiosSinGuardar }) {
+       <div>
+         <h3 className="text-lg font-bold">Comidas del día</h3>
+         <p className="text-sm text-suave">
+-          Arma el menú del atleta: cada comida con sus alimentos y cantidades exactas. Él lo consulta en su sección Nutrición.
++          Arma el menú del atleta: cada comida con sus alimentos y cantidades exactas. Con alimentos del catálogo
++          (crudo o cocido) puedes calcular los gramos automáticamente. Él lo consulta en su sección Nutrición.
+         </p>
+       </div>
+ 
+@@ -259,6 +398,12 @@ export default function PlanComidas({ atletaId, onCambiosSinGuardar }) {
+             {actualizado && ` · guardado el ${fechaCortaDeTimestamp(actualizado)}`}
+           </p>
+ 
++          <CalculadoraDieta
++            atletaId={atletaId}
++            comidas={borrador}
++            onAplicar={(nuevasComidas) => cambiar(() => nuevasComidas)}
++          />
++
+           {borrador.length === 0 && (
+             <div className={TARJETA}>
+               <p className="text-sm text-suave">Aún no hay comidas. Agrega la primera con los botones de abajo.</p>
+@@ -275,8 +420,10 @@ export default function PlanComidas({ atletaId, onCambiosSinGuardar }) {
+               onMover={(delta) => cambiar((b) => moverComida(b, i, delta))}
+               onQuitar={() => quitarComida(comida)}
+               onAgregarAlimento={() => agregarAlimento(comida.clave)}
++              onAgregarDelCatalogo={(alimento) => agregarDelCatalogo(comida.clave, alimento)}
+               onCambiarAlimento={(claveAlimento, campo, valor) => cambiarAlimento(comida.clave, claveAlimento, campo, valor)}
+               onQuitarAlimento={(claveAlimento) => quitarAlimento(comida.clave, claveAlimento)}
++              onIntercambiarAlimento={(claveAlimento, alimento) => intercambiarAlimento(comida.clave, claveAlimento, alimento)}
+             />
+           ))}
+ 
+@@ -311,7 +458,8 @@ export default function PlanComidas({ atletaId, onCambiosSinGuardar }) {
+             )}
+           </div>
+           <p className="text-xs text-suave">
+-            Al guardar, el menú anterior se reemplaza por este y el atleta ve el nuevo al instante.
++            Al guardar, el menú anterior se reemplaza por este y el atleta ve el nuevo al instante. Se guardan los macros
++            de cada alimento tal como están ahora: si luego cambias el catálogo, este menú no se modifica.
+           </p>
+         </>
+       )}
+diff --git a/src/atleta/Nutricion.jsx b/src/atleta/Nutricion.jsx
+index 887d1e2..e8d73e7 100644
+--- a/src/atleta/Nutricion.jsx
++++ b/src/atleta/Nutricion.jsx
+@@ -11,7 +11,7 @@ import { supabase } from '../lib/supabase'
+ import { useAuth } from '../auth/AuthProvider'
+ import { resumirMediciones } from '../lib/mediciones'
+ import { textoAdherencia } from '../lib/nutricion'
+-import { resumenComidas, ultimaActualizacion } from '../lib/comidas'
++import { hayMacros, resumenComidas, totalesAsignados, ultimaActualizacion } from '../lib/comidas'
+ import { cargarComidas } from '../lib/cargarComidas'
+ import { fechaCortaDeTimestamp } from '../lib/records'
+ import { TARJETA } from '../lib/estilos'
+@@ -66,6 +66,11 @@ export default function Nutricion() {
+   const { promedioKcal7, diasKcal7 } = resumirMediciones(mediciones)
+   const adherencia = plan ? textoAdherencia(promedioKcal7, plan.calorias_objetivo) : null
+   const actualizado = ultimaActualizacion(comidas)
++  // Total del día de las comidas (suma de los macros guardados con cada alimento del catálogo)
++  const totalComidas = hayMacros(comidas)
++    ? totalesAsignados(comidas.flatMap((c) => c.alimentos))
++    : null
++  const num = (n) => Number(n).toLocaleString('es-CO', { maximumFractionDigits: 1 })
+ 
+   return (
+     <div className="flex flex-col gap-4">
+@@ -87,6 +92,20 @@ export default function Nutricion() {
+         ) : (
+           <ListaComidas comidas={comidas} />
+         )}
++        {totalComidas && (
++          <div className={TARJETA}>
++            <p className="text-sm text-suave">Total de tus comidas del día</p>
++            <p className="text-2xl font-bold">
++              {num(totalComidas.calorias)} <span className="text-base font-normal text-suave">kcal</span>
++            </p>
++            <p className="text-sm text-suave">
++              Proteína {num(totalComidas.proteina)} g · Carbohidratos {num(totalComidas.carbohidratos)} g · Grasas {num(totalComidas.grasas)} g
++            </p>
++            {totalComidas.sinMacros > 0 && (
++              <p className="text-xs text-suave">No incluye {totalComidas.sinMacros} {totalComidas.sinMacros === 1 ? 'alimento' : 'alimentos'} sin macros calculados.</p>
++            )}
++          </div>
++        )}
+       </section>
+ 
+       {plan && (
+diff --git a/src/components/ListaComidas.jsx b/src/components/ListaComidas.jsx
+index 2fea3ee..5028087 100644
+--- a/src/components/ListaComidas.jsx
++++ b/src/components/ListaComidas.jsx
+@@ -4,51 +4,84 @@
+ // Es de PRESENTACIÓN: no consulta nada, dibuja la lista que recibe (la forma que entrega
+ // `armarComidas` de lib/comidas.js). Cada comida es una tarjeta desplegable (<details>:
+ // funciona sin JavaScript y es accesible) que arranca ABIERTA, para que el atleta vea de
+-// un vistazo qué comer y en qué cantidad; puede cerrar las que ya pasaron.
++// un vistazo qué comer, en qué estado (crudo o cocido) y en qué cantidad exacta; puede cerrar
++// las que ya pasaron.
++//
++// Si los alimentos vienen del catálogo (snapshot de la migración 25) también muestra los
++// macros de cada alimento y el total de la comida; los menús antiguos o manuales se ven como siempre.
+ // =====================================================================
+-import { textoCantidad } from '../lib/comidas'
++import { textoCantidad, totalesAsignados } from '../lib/comidas'
++import { textoEstado } from '../lib/alimentos'
+ import { TARJETA } from '../lib/estilos'
+ 
++const numero = (n) => Number(n).toLocaleString('es-CO', { maximumFractionDigits: 1 })
++
+ export default function ListaComidas({ comidas }) {
+   return (
+     <ul className="flex flex-col gap-3">
+-      {comidas.map((comida) => (
+-        <li key={comida.id}>
+-          <details open className={`${TARJETA} group`}>
+-            {/* min-h-11: el encabezado es el botón de abrir/cerrar y debe ser fácil de tocar */}
+-            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+-              <span className="min-w-0">
+-                <span className="block text-lg font-bold leading-tight">{comida.nombre}</span>
+-                <span className="block text-xs text-suave">
+-                  {comida.alimentos.length} {comida.alimentos.length === 1 ? 'alimento' : 'alimentos'}
++      {comidas.map((comida) => {
++        const totales = totalesAsignados(comida.alimentos)
++        const hayMacros = comida.alimentos.some((a) => a.asignado)
++        return (
++          <li key={comida.id}>
++            <details open className={`${TARJETA} group`}>
++              {/* min-h-11: el encabezado es el botón de abrir/cerrar y debe ser fácil de tocar */}
++              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
++                <span className="min-w-0">
++                  <span className="block text-lg font-bold leading-tight">{comida.nombre}</span>
++                  <span className="block text-xs text-suave">
++                    {comida.alimentos.length} {comida.alimentos.length === 1 ? 'alimento' : 'alimentos'}
++                    {hayMacros && ` · ${numero(totales.calorias)} kcal`}
++                  </span>
+                 </span>
+-              </span>
+-              <span aria-hidden="true" className="text-xl text-enlace transition-transform group-open:rotate-90">›</span>
+-            </summary>
++                <span aria-hidden="true" className="text-xl text-enlace transition-transform group-open:rotate-90">›</span>
++              </summary>
++
++              {comida.notas && (
++                <p className="mt-2 rounded-xl bg-hundido p-3 text-sm text-suave">{comida.notas}</p>
++              )}
+ 
+-            {comida.notas && (
+-              <p className="mt-2 rounded-xl bg-hundido p-3 text-sm text-suave">{comida.notas}</p>
+-            )}
++              {comida.alimentos.length === 0 ? (
++                <p className="mt-2 text-sm text-suave">Tu entrenador aún no agregó alimentos a esta comida.</p>
++              ) : (
++                <ul className="mt-2 divide-y divide-borde">
++                  {comida.alimentos.map((a) => (
++                    <li key={a.id} className="flex items-baseline justify-between gap-3 py-2.5">
++                      <span className="min-w-0">
++                        <span className="block">
++                          {a.alimento}
++                          {/* Estado de preparación: crudo o cocido (en "n/a" o en menús antiguos no se muestra) */}
++                          {(a.estado === 'crudo' || a.estado === 'cocido') && (
++                            <span className="ml-2 rounded-full bg-hundido px-2 py-0.5 align-middle text-xs font-semibold text-enlace">
++                              {textoEstado(a.estado)}
++                            </span>
++                          )}
++                        </span>
++                        {a.nota && <span className="block text-xs text-suave">{a.nota}</span>}
++                        {a.asignado && (
++                          <span className="block text-xs text-suave">
++                            {numero(a.asignado.calorias)} kcal · P {numero(a.asignado.proteina)} · C {numero(a.asignado.carbohidratos)} · G {numero(a.asignado.grasas)} g
++                          </span>
++                        )}
++                      </span>
++                      {/* La cantidad es lo importante: va a la derecha, en negrita y sin partirse */}
++                      <span className="shrink-0 whitespace-nowrap font-bold">{textoCantidad(a.cantidad, a.unidad)}</span>
++                    </li>
++                  ))}
++                </ul>
++              )}
+ 
+-            {comida.alimentos.length === 0 ? (
+-              <p className="mt-2 text-sm text-suave">Tu entrenador aún no agregó alimentos a esta comida.</p>
+-            ) : (
+-              <ul className="mt-2 divide-y divide-borde">
+-                {comida.alimentos.map((a) => (
+-                  <li key={a.id} className="flex items-baseline justify-between gap-3 py-2.5">
+-                    <span className="min-w-0">
+-                      <span className="block">{a.alimento}</span>
+-                      {a.nota && <span className="block text-xs text-suave">{a.nota}</span>}
+-                    </span>
+-                    {/* La cantidad es lo importante: va a la derecha, en negrita y sin partirse */}
+-                    <span className="shrink-0 whitespace-nowrap font-bold">{textoCantidad(a.cantidad, a.unidad)}</span>
+-                  </li>
+-                ))}
+-              </ul>
+-            )}
+-          </details>
+-        </li>
+-      ))}
++              {hayMacros && (
++                <p className="mt-2 rounded-xl bg-hundido p-3 text-sm">
++                  <span className="font-semibold">Total: </span>
++                  <span className="font-bold">{numero(totales.calorias)} kcal</span>
++                  <span className="text-suave"> · P {numero(totales.proteina)} · C {numero(totales.carbohidratos)} · G {numero(totales.grasas)} g</span>
++                </p>
++              )}
++            </details>
++          </li>
++        )
++      })}
+     </ul>
+   )
+ }
+diff --git a/src/lib/alimentos.js b/src/lib/alimentos.js
+new file mode 100644
+index 0000000..0ee3a49
+--- /dev/null
++++ b/src/lib/alimentos.js
+@@ -0,0 +1,131 @@
++// =====================================================================
++// src/lib/alimentos.js — lógica PURA del catálogo de alimentos (tabla `foods`, migración 25).
++//
++// Cada alimento guarda sus macros por 100 g, su estado (crudo / cocido / n/a) y una categoría.
++// Aquí vive lo que no necesita tocar la base de datos ni la pantalla: etiquetas, macro
++// dominante, validar el formulario del entrenador y preparar el texto de búsqueda.
++// =====================================================================
++import { aNumero } from './numeros'
++import { normalizarBusqueda } from './records'
++import { kcalDeMacros } from './nutricion'
++
++// Los valores son los que guarda la base de datos (CHECK de la migración 25).
++export const CATEGORIAS = [
++  { valor: 'proteina', etiqueta: 'Proteínas' },
++  { valor: 'carbohidrato', etiqueta: 'Carbohidratos' },
++  { valor: 'legumbre', etiqueta: 'Legumbres' },
++  { valor: 'grasa', etiqueta: 'Grasas' },
++  { valor: 'lacteo', etiqueta: 'Lácteos' },
++  { valor: 'fruta', etiqueta: 'Frutas' },
++  { valor: 'verdura', etiqueta: 'Verduras' },
++  { valor: 'otro', etiqueta: 'Otros' },
++]
++
++export const ESTADOS = [
++  { valor: 'crudo', etiqueta: 'Crudo' },
++  { valor: 'cocido', etiqueta: 'Cocido' },
++  { valor: 'n/a', etiqueta: 'No aplica' },
++]
++
++export const textoCategoria = (valor) => CATEGORIAS.find((c) => c.valor === valor)?.etiqueta ?? 'Otros'
++export const textoEstado = (valor) => ESTADOS.find((e) => e.valor === valor)?.etiqueta ?? 'No indicado'
++
++// Nombres de las 3 macros tal como las guarda `macro_dominante` en la base de datos.
++export const TEXTO_MACRO = { proteina: 'Proteína', carbohidratos: 'Carbohidratos', grasas: 'Grasas' }
++
++// MISMA regla que la columna generada `macro_dominante` de la migración 25: gana la macro que
++// más calorías aporta (4 kcal/g proteína y carbohidratos, 9 kcal/g grasa). Devuelve null si
++// el alimento no tiene macros.
++export function macroDominante({ proteina_g: p, carbohidratos_g: c, grasas_g: g }) {
++  if (p > 0 && p * 4 >= c * 4 && p * 4 >= g * 9) return 'proteina'
++  if (c > 0 && c * 4 >= g * 9) return 'carbohidratos'
++  if (g > 0) return 'grasas'
++  return null
++}
++
++// Quita lo que PostgREST o el patrón `ilike` interpretarían como instrucción (% _ \ * , ( )).
++// Devuelve las palabras ya sin tildes ni mayúsculas: cada una debe aparecer en el nombre.
++export function terminosBusqueda(texto) {
++  return normalizarBusqueda(texto)
++    .replace(/[%_\\*,()]/g, ' ')
++    .split(/\s+/)
++    .filter(Boolean)
++}
++
++// ---------------------------------------------------------------------
++// Formulario del entrenador (crear / editar un alimento)
++// ---------------------------------------------------------------------
++export const FORM_ALIMENTO_VACIO = {
++  nombre: '', categoria: 'proteina', estado: 'n/a',
++  calorias: '', proteina: '', carbohidratos: '', grasas: '',
++}
++
++// De una fila de `foods` al formulario (números con coma decimal, como los escribiría el entrenador).
++export function formDeAlimento(a) {
++  const texto = (n) => String(n).replace('.', ',')
++  return {
++    nombre: a.nombre, categoria: a.categoria, estado: a.estado,
++    calorias: texto(a.calorias), proteina: texto(a.proteina_g),
++    carbohidratos: texto(a.carbohidratos_g), grasas: texto(a.grasas_g),
++  }
++}
++
++// Lee un campo numérico del formulario con límites. Devuelve { valor } o { error }.
++function leerNumero(texto, etiqueta, maximo, obligatorio = true) {
++  const n = aNumero(texto)
++  if (n === null) return obligatorio ? { error: `Escribe ${etiqueta}.` } : { valor: null }
++  if (Number.isNaN(n)) return { error: `${etiqueta[0].toUpperCase()}${etiqueta.slice(1)} debe ser solo un número.` }
++  if (n < 0 || n > maximo) return { error: `${etiqueta[0].toUpperCase()}${etiqueta.slice(1)} debe estar entre 0 y ${maximo}.` }
++  // La base guarda 1 decimal: se avisa aquí para que lo guardado coincida con lo escrito.
++  if (Math.round(n * 10) / 10 !== n) return { error: `${etiqueta[0].toUpperCase()}${etiqueta.slice(1)} admite como máximo 1 decimal.` }
++  return { valor: n }
++}
++
++// Valida el formulario. Devuelve { error: '' , datos } listo para insertar en `foods`,
++// o { error: 'texto en español' }. Si las calorías se dejan vacías se calculan con los macros.
++export function validarAlimento(form) {
++  const nombre = form.nombre.trim()
++  if (nombre.length < 2 || nombre.length > 80) return { error: 'El nombre necesita de 2 a 80 letras.' }
++  if (!CATEGORIAS.some((c) => c.valor === form.categoria)) return { error: 'Elige una categoría.' }
++  if (!ESTADOS.some((e) => e.valor === form.estado)) return { error: 'Elige el estado (crudo, cocido o no aplica).' }
++
++  const p = leerNumero(form.proteina, 'la proteína por 100 g', 100)
++  if (p.error) return p
++  const c = leerNumero(form.carbohidratos, 'los carbohidratos por 100 g', 100)
++  if (c.error) return c
++  const g = leerNumero(form.grasas, 'las grasas por 100 g', 100)
++  if (g.error) return g
++  if (p.valor + c.valor + g.valor > 100.5) {
++    return { error: 'Proteína + carbohidratos + grasas no pueden pasar de 100 g por cada 100 g de alimento.' }
++  }
++
++  const k = leerNumero(form.calorias, 'las calorías por 100 g', 1000, false)
++  if (k.error) return k
++  const calorias = k.valor ?? Math.round(kcalDeMacros(p.valor, c.valor, g.valor) * 10) / 10
++  if (calorias > 1000) return { error: 'Las calorías por 100 g no pueden pasar de 1.000.' }
++
++  return {
++    error: '',
++    datos: {
++      nombre, categoria: form.categoria, estado: form.estado,
++      calorias, proteina_g: p.valor, carbohidratos_g: c.valor, grasas_g: g.valor,
++    },
++  }
++}
++
++// Aviso (no bloquea el guardado): las calorías escritas se alejan mucho de lo que suman los
++// macros. Las tablas reales difieren algo (fibra, agua), por eso solo avisa si pasa del 15 %
++// y de 10 kcal. Devuelve '' si todo cuadra o no hay datos suficientes.
++export function avisoCalorias(form) {
++  const k = aNumero(form.calorias)
++  const p = aNumero(form.proteina)
++  const c = aNumero(form.carbohidratos)
++  const g = aNumero(form.grasas)
++  if ([k, p, c, g].some((n) => n === null || Number.isNaN(n))) return ''
++  const calculadas = Math.round(kcalDeMacros(p, c, g))
++  const diferencia = Math.abs(k - calculadas)
++  if (diferencia > 10 && diferencia / Math.max(k, 1) > 0.15) {
++    return `Con esos macros las calorías serían unas ${calculadas} kcal por 100 g. Revisa si es correcto.`
++  }
++  return ''
++}
+diff --git a/src/lib/buscarAlimentos.js b/src/lib/buscarAlimentos.js
+new file mode 100644
+index 0000000..7c85fcd
+--- /dev/null
++++ b/src/lib/buscarAlimentos.js
+@@ -0,0 +1,54 @@
++// =====================================================================
++// src/lib/buscarAlimentos.js — consultas LIGERAS al catálogo de alimentos (tabla `foods`).
++//
++// Regla de oro: nunca se descarga el catálogo completo. Cada consulta pide solo las columnas
++// necesarias, filtra y limita en el servidor (`ilike` sobre `nombre_busqueda`, que ya viene sin
++// tildes ni mayúsculas) y devuelve pocas filas. Así se cuida el plan gratuito de Supabase.
++//
++// Todas devuelven { alimentos } / { alimento } o { error } (texto en español).
++// =====================================================================
++import { supabase } from './supabase'
++import { terminosBusqueda } from './alimentos'
++
++// Columnas mínimas para mostrar, elegir y calcular un alimento.
++export const COLUMNAS_ALIMENTO =
++  'id, nombre, categoria, estado, calorias, proteina_g, carbohidratos_g, grasas_g, macro_dominante, activo'
++
++// Busca alimentos.
++//   texto        palabras a buscar en el nombre (todas deben aparecer); '' = sin filtro de nombre
++//   categoria    '' o un valor de CATEGORIAS
++//   estado       '' o 'crudo' | 'cocido' | 'n/a'
++//   limite       máximo de filas (por defecto 20)
++//   soloActivos  true: oculta los alimentos desactivados
++export async function buscarAlimentos({ texto = '', categoria = '', estado = '', limite = 20, soloActivos = true } = {}) {
++  let consulta = supabase
++    .from('foods')
++    .select(COLUMNAS_ALIMENTO)
++    .order('nombre', { ascending: true })
++    .order('estado', { ascending: true })
++    .limit(limite)
++
++  for (const palabra of terminosBusqueda(texto)) consulta = consulta.ilike('nombre_busqueda', `%${palabra}%`)
++  if (categoria) consulta = consulta.eq('categoria', categoria)
++  if (estado) consulta = consulta.eq('estado', estado)
++  if (soloActivos) consulta = consulta.eq('activo', true)
++
++  const { data, error } = await consulta
++  if (error) return { error: 'No se pudo buscar en el catálogo de alimentos.' }
++  return { alimentos: data }
++}
++
++// Busca LA variante de un alimento en otro estado (p. ej. "Arroz blanco" crudo -> cocido), para
++// el botón "Cambiar a cocido/crudo". Es una consulta de UNA sola fila.
++// Devuelve { alimento } (null si no existe esa variante) o { error }.
++export async function buscarVariante(nombre, estado) {
++  const { data, error } = await supabase
++    .from('foods')
++    .select(COLUMNAS_ALIMENTO)
++    .eq('nombre', nombre)
++    .eq('estado', estado)
++    .eq('activo', true)
++    .limit(1)
++  if (error) return { error: 'No se pudo buscar esa variante del alimento.' }
++  return { alimento: data[0] ?? null }
++}
+diff --git a/src/lib/cargarComidas.js b/src/lib/cargarComidas.js
+index 7041c63..0e5cb38 100644
+--- a/src/lib/cargarComidas.js
++++ b/src/lib/cargarComidas.js
+@@ -18,7 +18,8 @@ export async function cargarComidas(userId) {
+       .eq('user_id', userId)
+       .order('orden', { ascending: true }),
+     supabase.from('meal_foods')
+-      .select('id, meal_id, alimento, cantidad, unidad, nota, orden')
++      // Incluye el snapshot de la migración 25 (estado y macros base/asignados).
++      .select('id, meal_id, alimento, cantidad, unidad, nota, orden, food_id, estado, base_calorias, base_proteina_g, base_carbohidratos_g, base_grasas_g, calorias, proteina_g, carbohidratos_g, grasas_g')
+       .eq('user_id', userId)
+       .order('orden', { ascending: true }),
+   ])
+diff --git a/src/lib/comidas.js b/src/lib/comidas.js
+index 422d920..015eb10 100644
+--- a/src/lib/comidas.js
++++ b/src/lib/comidas.js
+@@ -8,11 +8,19 @@
+ //
+ // Formas de los datos:
+ //   - "comidas" (lo que se LEE de la base): [{ id, nombre, notas, created_at,
+-//        alimentos: [{ id, alimento, cantidad (número), unidad, nota }] }]
++//        alimentos: [{ id, alimento, cantidad (número), unidad, nota,
++//                      foodId, estado, base, asignado }] }]
++//        Los 4 últimos son el SNAPSHOT de la migración 25: de qué alimento del catálogo viene,
++//        su estado (crudo/cocido/n/a), sus macros por 100 g (`base`) y los macros de esos
++//        gramos exactos (`asignado`). Son null/'' en los alimentos manuales y en los menús
++//        guardados antes de la migración 25.
+ //   - "borrador" (lo que se EDITA en el formulario): igual, pero sin ids de base de datos,
+ //        con una `clave` local para React y la cantidad como TEXTO (el usuario escribe "1,5").
++//        Cada alimento del borrador también lleva `rol` y `fijo` (solo para el cálculo de
++//        lib/dieta.js; no se guardan).
+ // =====================================================================
+ import { aNumero } from './numeros'
++import { sumarMacros } from './dieta'
+ 
+ // Mismos límites que la migración 23 (la base de datos es la barrera real).
+ export const MAX_COMIDAS = 10
+@@ -56,12 +64,27 @@ export function armarComidas(filasComidas, filasAlimentos) {
+   const alimentosDe = new Map()
+   for (const a of [...filasAlimentos].sort((x, y) => x.orden - y.orden)) {
+     if (!alimentosDe.has(a.meal_id)) alimentosDe.set(a.meal_id, [])
++    const conSnapshot = a.base_calorias !== null && a.base_calorias !== undefined
+     alimentosDe.get(a.meal_id).push({
+       id: a.id,
+       alimento: a.alimento,
+       cantidad: Number(a.cantidad), // la base entrega numeric; aquí queda como número
+       unidad: a.unidad,
+       nota: a.nota ?? '',
++      foodId: a.food_id ?? null,
++      estado: a.estado ?? '',
++      base: conSnapshot ? {
++        calorias: Number(a.base_calorias),
++        proteina_g: Number(a.base_proteina_g),
++        carbohidratos_g: Number(a.base_carbohidratos_g),
++        grasas_g: Number(a.base_grasas_g),
++      } : null,
++      asignado: conSnapshot ? {
++        calorias: Number(a.calorias),
++        proteina: Number(a.proteina_g),
++        carbohidratos: Number(a.carbohidratos_g),
++        grasas: Number(a.grasas_g),
++      } : null,
+     })
+   }
+   return [...filasComidas]
+@@ -75,6 +98,18 @@ export function armarComidas(filasComidas, filasAlimentos) {
+     }))
+ }
+ 
++// Totales (kcal y macros) de una lista de alimentos LEÍDOS de la base, sumando los macros
++// asignados que se guardaron (snapshot). `sinMacros` = alimentos manuales que no suman.
++export function totalesAsignados(alimentos) {
++  return {
++    ...sumarMacros(alimentos.map((a) => a.asignado)),
++    sinMacros: alimentos.filter((a) => !a.asignado).length,
++  }
++}
++
++// ¿Esta lista de comidas tiene al menos un alimento con macros guardados?
++export const hayMacros = (comidas) => comidas.some((c) => c.alimentos.some((a) => a.asignado))
++
+ // "Actualizado" = la fecha más reciente entre las comidas (cada guardado las recrea todas).
+ export function ultimaActualizacion(comidas) {
+   const marcas = comidas.map((c) => c.created_at).filter(Boolean).sort()
+@@ -91,7 +126,39 @@ let contador = 0
+ const nuevaClave = () => `k${++contador}`
+ 
+ export function alimentoNuevo(unidad = 'g') {
+-  return { clave: nuevaClave(), alimento: '', cantidad: '', unidad, nota: '' }
++  return {
++    clave: nuevaClave(), alimento: '', cantidad: '', unidad, nota: '',
++    foodId: null, estado: '', base: null, rol: '', fijo: false,
++  }
++}
++
++// Datos del catálogo (fila de `foods`) que se copian a la fila del borrador. La unidad pasa a
++// gramos: los macros del catálogo son por 100 g.
++function datosDeCatalogo(alimento) {
++  return {
++    alimento: alimento.nombre,
++    unidad: 'g',
++    foodId: alimento.id,
++    estado: alimento.estado,
++    base: {
++      calorias: Number(alimento.calorias),
++      proteina_g: Number(alimento.proteina_g),
++      carbohidratos_g: Number(alimento.carbohidratos_g),
++      grasas_g: Number(alimento.grasas_g),
++    },
++    rol: '', // al cambiar de alimento vuelve a su macro dominante
++  }
++}
++
++// Fila nueva a partir de un alimento del catálogo (sin gramos todavía).
++export function filaDeCatalogo(alimento) {
++  return { ...alimentoNuevo('g'), ...datosDeCatalogo(alimento) }
++}
++
++// INTERCAMBIO: la misma fila (misma posición, gramos, nota y "fijo") pasa a otro alimento
++// del catálogo. Devuelve una fila nueva; no muta la original.
++export function aplicarAlimentoCatalogo(fila, alimento) {
++  return { ...fila, ...datosDeCatalogo(alimento) }
+ }
+ 
+ export function comidaNueva(nombre = '') {
+@@ -111,6 +178,11 @@ export function aBorrador(comidas) {
+       cantidad: String(a.cantidad).replace('.', ','),
+       unidad: a.unidad,
+       nota: a.nota,
++      foodId: a.foodId,
++      estado: a.estado,
++      base: a.base,
++      rol: '',
++      fijo: false,
+     })),
+   }))
+ }
+@@ -119,7 +191,10 @@ export function aBorrador(comidas) {
+ // comparándola con la del último guardado, sin llevar una bandera aparte que se desincronice.
+ export function huellaBorrador(borrador) {
+   return JSON.stringify(
+-    borrador.map((c) => [c.nombre, c.notas, c.alimentos.map((a) => [a.alimento, a.cantidad, a.unidad, a.nota])])
++    borrador.map((c) => [
++      c.nombre, c.notas,
++      c.alimentos.map((a) => [a.alimento, a.cantidad, a.unidad, a.nota, a.foodId, a.estado, a.base]),
++    ])
+   )
+ }
+ 
+@@ -168,6 +243,10 @@ export function validarComidas(borrador) {
+       if (!UNIDADES.some((u) => u.valor === a.unidad)) {
+         return `En «${nombre}», elige la unidad de «${alimento}».`
+       }
++      // Los macros del catálogo son por 100 g: un alimento del catálogo solo se mide en gramos.
++      if (a.base && a.unidad !== 'g') {
++        return `En «${nombre}», «${alimento}» es del catálogo y debe medirse en gramos.`
++      }
+       if (a.nota.trim().length > 120) {
+         return `En «${nombre}», la nota de «${alimento}» no puede pasar de 120 caracteres.`
+       }
+@@ -187,6 +266,9 @@ export function aPayload(borrador) {
+       cantidad: aNumero(a.cantidad), // número, no texto: la función SQL lo exige así
+       unidad: a.unidad,
+       nota: a.nota.trim() || null,
++      // Snapshot (migración 25): solo los alimentos del catálogo lo llevan. La base de datos
++      // calcula los macros asignados a partir de esta base y de los gramos.
++      ...(a.base ? { food_id: a.foodId, estado: a.estado || 'n/a', base: a.base } : {}),
+     })),
+   }))
+ }
+diff --git a/src/lib/dieta.js b/src/lib/dieta.js
+new file mode 100644
+index 0000000..632b8fe
+--- /dev/null
++++ b/src/lib/dieta.js
+@@ -0,0 +1,289 @@
++// =====================================================================
++// src/lib/dieta.js — motor de AUTOCÁLCULO de la dieta (100 % JavaScript, sin IA).
++//
++// Qué resuelve: el entrenador elige alimentos del catálogo (con su estado crudo/cocido),
++// define las comidas y los macros objetivo del día, y este módulo calcula los GRAMOS de cada
++// alimento para cumplirlos, descontando los macros "indirectos" (por ejemplo, el arroz también
++// aporta algo de proteína y el pollo casi nada de carbohidratos).
++//
++// Cómo funciona (explicado simple):
++//   1. Cada alimento tiene un ROL: la macro que debe cubrir (por defecto su macro dominante;
++//      el entrenador puede cambiarlo: p. ej. el huevo es "grasa" por calorías, pero lo usa
++//      como fuente de proteína).
++//   2. El objetivo de cada macro se reparte entre las comidas según su peso (por defecto, en
++//      partes iguales) pero SOLO entre las comidas que tienen un alimento con ese rol.
++//   3. Dentro de cada comida se resuelve por rondas (método de Gauss-Seidel): se calculan los
++//      gramos de las fuentes de proteína, luego de carbohidratos, luego de grasas, restando lo
++//      que los demás ya aportan; se repite hasta que los gramos dejan de cambiar.
++//   4. Los alimentos con "gramos fijos" (o manuales, sin macros) no se tocan: su aporte se
++//      resta del objetivo antes de repartir.
++//   5. Los gramos se redondean al paso elegido (1 g, 5 g...).
++//
++// Es DETERMINISTA: los mismos datos dan siempre el mismo resultado (sin azar ni IA).
++//
++// Formas de los datos (las del borrador de lib/comidas.js):
++//   fila de alimento: { clave, alimento, cantidad (TEXTO), unidad, foodId, estado,
++//                       base: { calorias, proteina_g, carbohidratos_g, grasas_g } | null,
++//                       rol: '' | 'proteina' | 'carbohidratos' | 'grasas', fijo: boolean }
++//   comida: { clave, nombre, alimentos: [fila] }
++// =====================================================================
++import { aNumero } from './numeros'
++import { macroDominante } from './alimentos'
++
++export const MACROS = [
++  { clave: 'proteina', etiqueta: 'Proteína', campoBase: 'proteina_g' },
++  { clave: 'carbohidratos', etiqueta: 'Carbohidratos', campoBase: 'carbohidratos_g' },
++  { clave: 'grasas', etiqueta: 'Grasas', campoBase: 'grasas_g' },
++]
++const CAMPO_BASE = Object.fromEntries(MACROS.map((m) => [m.clave, m.campoBase]))
++const ETIQUETA = Object.fromEntries(MACROS.map((m) => [m.clave, m.etiqueta.toLowerCase()]))
++
++export const PASOS_REDONDEO = [1, 5, 10]
++const MAX_GRAMOS = 10000 // mismo tope que la base de datos
++const MAX_RONDAS_COMIDA = 500
++const MAX_RONDAS_DIA = 50
++const TOLERANCIA_G = 0.001
++
++// ---------------------------------------------------------------------
++// Macros de una fila / comida / día
++// ---------------------------------------------------------------------
++
++// Gramos escritos en la fila (0 si está vacío o no es un número válido).
++function gramosDe(fila) {
++  const g = aNumero(fila.cantidad)
++  return g !== null && Number.isFinite(g) && g > 0 ? g : 0
++}
++
++// ¿Es un alimento del catálogo medido en gramos (el único que trae macros)?
++export const esDeCatalogo = (fila) => Boolean(fila.base) && fila.unidad === 'g'
++
++// Macros de `gramos` de un alimento cuya base son los valores por 100 g. Se calcula con enteros
++// (decimas × centesimas) y se redondea a 1 decimal "hacia arriba en la mitad", igual que
++// `round()` de PostgreSQL: así lo que ve el entrenador coincide con lo que guarda la base.
++export function macroAsignado(valorPor100g, gramos) {
++  const decimas = Math.round(valorPor100g * 10)
++  const centesimas = Math.round(gramos * 100)
++  return Math.floor((decimas * centesimas + 5000) / 10000) / 10
++}
++
++// Macros asignados a una fila: { calorias, proteina, carbohidratos, grasas } o null si el
++// alimento es manual (sin macros).
++export function macrosDeFila(fila) {
++  if (!esDeCatalogo(fila)) return null
++  const g = gramosDe(fila)
++  return {
++    calorias: macroAsignado(fila.base.calorias, g),
++    proteina: macroAsignado(fila.base.proteina_g, g),
++    carbohidratos: macroAsignado(fila.base.carbohidratos_g, g),
++    grasas: macroAsignado(fila.base.grasas_g, g),
++  }
++}
++
++// Suma una lista de macros (ignora los null). Se suma en decimas enteras: sin errores de coma flotante.
++export function sumarMacros(lista) {
++  const total = { calorias: 0, proteina: 0, carbohidratos: 0, grasas: 0 }
++  for (const m of lista) {
++    if (!m) continue
++    for (const k of Object.keys(total)) total[k] += Math.round(m[k] * 10)
++  }
++  return {
++    calorias: total.calorias / 10, proteina: total.proteina / 10,
++    carbohidratos: total.carbohidratos / 10, grasas: total.grasas / 10,
++  }
++}
++
++// Totales de una comida + cuántos alimentos NO suman (manuales, sin macros).
++export function totalesComida(comida) {
++  const macros = comida.alimentos.map(macrosDeFila)
++  return { ...sumarMacros(macros), sinMacros: macros.filter((m) => m === null).length }
++}
++
++// Totales del día (todas las comidas).
++export function totalesDia(comidas) {
++  const porComida = comidas.map(totalesComida)
++  return {
++    ...sumarMacros(porComida),
++    sinMacros: porComida.reduce((n, t) => n + t.sinMacros, 0),
++  }
++}
++
++// ---------------------------------------------------------------------
++// Objetivo del día
++// ---------------------------------------------------------------------
++
++// Lee los tres campos del objetivo (texto) y devuelve { objetivo: {proteina, carbohidratos, grasas} }
++// o { error } en español.
++export function validarObjetivo({ proteina, carbohidratos, grasas }) {
++  const campos = [
++    ['proteina', proteina, 'la proteína'],
++    ['carbohidratos', carbohidratos, 'los carbohidratos'],
++    ['grasas', grasas, 'las grasas'],
++  ]
++  const objetivo = {}
++  for (const [clave, texto, etiqueta] of campos) {
++    const n = aNumero(texto)
++    if (n === null) return { error: `Escribe el objetivo de ${etiqueta} (en gramos).` }
++    if (Number.isNaN(n)) return { error: `El objetivo de ${etiqueta} debe ser solo un número.` }
++    if (n < 0 || n > 2000) return { error: `El objetivo de ${etiqueta} debe estar entre 0 y 2.000 g.` }
++    objetivo[clave] = n
++  }
++  return { objetivo }
++}
++
++// ---------------------------------------------------------------------
++// Cálculo automático de gramos
++// ---------------------------------------------------------------------
++
++// Rol efectivo de una fila: el elegido por el entrenador o, si no eligió, la macro dominante.
++export function rolDeFila(fila) {
++  if (!fila.base) return null
++  return fila.rol || macroDominante(fila.base)
++}
++
++// Calcula los gramos de todos los alimentos del catálogo que no estén fijados.
++//   comidas  borrador de comidas
++//   objetivo { proteina, carbohidratos, grasas } en gramos para TODO el día
++//   pesos    { [clave de comida]: número } reparto del día entre comidas (por defecto 1 para todas)
++//   paso     redondeo de los gramos (1, 5 o 10)
++// Devuelve { gramos: { [clave de alimento]: número }, avisos: [texto], convergio: boolean }.
++// No modifica nada de lo que recibe.
++export function calcularGramos({ comidas, objetivo, pesos = {}, paso = 1 }) {
++  const avisos = []
++  const pasoValido = PASOS_REDONDEO.includes(paso) ? paso : 1
++
++  // 1. Clasificar los alimentos de cada comida: variables (se calculan) y fijos (se respetan).
++  const info = comidas.map((comida) => {
++    const variables = [] // { fila, rol, coef }  coef = macro del rol por gramo
++    const fijos = []     // filas del catálogo con gramos que no se tocan
++    for (const fila of comida.alimentos) {
++      if (!esDeCatalogo(fila)) continue
++      const rol = rolDeFila(fila)
++      const coef = rol ? fila.base[CAMPO_BASE[rol]] / 100 : 0
++      if (fila.fijo) fijos.push(fila)
++      else if (!rol || !(coef > 0)) {
++        avisos.push(`«${fila.alimento}» no aporta ${rol ? ETIQUETA[rol] : 'macros'}: cambia su rol. Se dejó con sus gramos actuales.`)
++        fijos.push(fila)
++      } else variables.push({ fila, rol, coef })
++    }
++    const w = Number(pesos[comida.clave])
++    return { comida, variables, fijos, peso: Number.isFinite(w) && w >= 0 ? w : 1 }
++  })
++
++  const manuales = comidas.reduce((n, c) => n + c.alimentos.filter((f) => !esDeCatalogo(f)).length, 0)
++  if (manuales > 0) {
++    avisos.push(`${manuales} ${manuales === 1 ? 'alimento manual no entra' : 'alimentos manuales no entran'} al cálculo (sin macros en el catálogo).`)
++  }
++
++  // Aporte exacto (sin redondear) de gramos de una fila a una macro.
++  const aporte = (fila, macro, gramos) => (fila.base[CAMPO_BASE[macro]] / 100) * gramos
++  const fijoDe = (fi, macro) => fi.fijos.reduce((s, f) => s + aporte(f, macro, gramosDe(f)), 0)
++
++  // Gramos actuales de cada variable (arrancan en 0) — clave de alimento -> gramos
++  const g = new Map()
++  for (const fi of info) for (const v of fi.variables) g.set(v.fila.clave, 0)
++
++  // Aporte de las variables de una comida a una macro con los gramos actuales
++  const aporteVariables = (fi, macro, salvoRol = null) =>
++    fi.variables.reduce(
++      (s, v) => (v.rol === salvoRol ? s : s + aporte(v.fila, macro, g.get(v.fila.clave))), 0
++    )
++
++  // Comidas "elegibles" para cada macro: las que tienen al menos un alimento variable con ese rol.
++  const elegibles = Object.fromEntries(
++    MACROS.map((m) => [m.clave, info.filter((fi) => fi.variables.some((v) => v.rol === m.clave))])
++  )
++  for (const m of MACROS) {
++    if (elegibles[m.clave].length === 0 && objetivo[m.clave] > 0) {
++      avisos.push(`Ningún alimento cubre ${ETIQUETA[m.clave]}: agrega una fuente de ${ETIQUETA[m.clave]} para llegar a ${objetivo[m.clave]} g.`)
++    }
++  }
++
++  // 2. Rondas del día: se reparte cada macro entre sus comidas elegibles y se resuelve cada comida.
++  let convergio = false
++  for (let ronda = 0; ronda < MAX_RONDAS_DIA; ronda++) {
++    const antes = new Map(g)
++
++    // Objetivo efectivo de cada macro: el del día menos lo que aportan las comidas que NO
++    // pueden ajustarla (sus fijos y lo que aportan de forma indirecta con los gramos actuales).
++    const objetivoComida = new Map() // clave de comida -> { proteina, carbohidratos, grasas }
++    for (const m of MACROS) {
++      const elegibles_k = new Set(elegibles[m.clave].map((fi) => fi.comida.clave))
++      let fuera = 0
++      for (const fi of info) {
++        if (elegibles_k.has(fi.comida.clave)) continue
++        fuera += fijoDe(fi, m.clave) + aporteVariables(fi, m.clave)
++      }
++      const efectivo = objetivo[m.clave] - fuera
++      const sumaPesos = elegibles[m.clave].reduce((s, fi) => s + fi.peso, 0)
++      for (const fi of elegibles[m.clave]) {
++        // Si todas las comidas elegibles tienen peso 0, se reparte en partes iguales.
++        const parte = sumaPesos > 0 ? fi.peso / sumaPesos : 1 / elegibles[m.clave].length
++        const previo = objetivoComida.get(fi.comida.clave) ?? {}
++        objetivoComida.set(fi.comida.clave, { ...previo, [m.clave]: efectivo * parte })
++      }
++    }
++
++    // Cada comida por separado (Gauss-Seidel dentro de la comida).
++    for (const fi of info) {
++      const metas = objetivoComida.get(fi.comida.clave)
++      if (!metas || fi.variables.length === 0) continue
++      for (let r = 0; r < MAX_RONDAS_COMIDA; r++) {
++        let cambio = 0
++        for (const m of MACROS) {
++          const grupo = fi.variables.filter((v) => v.rol === m.clave)
++          if (grupo.length === 0) continue
++          // Lo que debe aportar este grupo = meta de la comida - fijos - lo que aportan los otros roles
++          const resto = metas[m.clave] - fijoDe(fi, m.clave) - aporteVariables(fi, m.clave, m.clave)
++          const porAlimento = resto / grupo.length // el grupo reparte la macro en partes iguales
++          for (const v of grupo) {
++            const nuevo = Math.min(MAX_GRAMOS, Math.max(0, porAlimento / v.coef))
++            cambio = Math.max(cambio, Math.abs(nuevo - g.get(v.fila.clave)))
++            g.set(v.fila.clave, nuevo)
++          }
++        }
++        if (cambio < TOLERANCIA_G) break
++      }
++    }
++
++    let cambioDia = 0
++    for (const [clave, valor] of g) cambioDia = Math.max(cambioDia, Math.abs(valor - antes.get(clave)))
++    if (cambioDia < TOLERANCIA_G) { convergio = true; break }
++  }
++  if (!convergio) avisos.push('El cálculo no terminó de estabilizarse: revisa los gramos resultantes.')
++
++  // 3. Redondeo y avisos por alimento
++  const gramos = {}
++  for (const fi of info) {
++    for (const v of fi.variables) {
++      const redondeado = Math.min(MAX_GRAMOS, Math.max(0, Math.round(g.get(v.fila.clave) / pasoValido) * pasoValido))
++      gramos[v.fila.clave] = redondeado
++      if (redondeado === 0) {
++        avisos.push(`«${v.fila.alimento}» quedó en 0 g: otros alimentos ya cubren ese macro. Quítalo o cambia su rol.`)
++      }
++    }
++  }
++  return { gramos, avisos, convergio }
++}
++
++// Devuelve una copia de las comidas con los gramos calculados aplicados (cantidad como texto
++// con coma decimal, como la escribiría el entrenador). No muta lo que recibe.
++export function aplicarGramos(comidas, gramos) {
++  return comidas.map((c) => ({
++    ...c,
++    alimentos: c.alimentos.map((a) => (
++      Object.hasOwn(gramos, a.clave) ? { ...a, cantidad: String(gramos[a.clave]).replace('.', ',') } : a
++    )),
++  }))
++}
++
++// Diferencia del día frente al objetivo: [{ clave, etiqueta, objetivo, actual, diferencia }]
++// (diferencia > 0 = se pasó). Sirve para mostrar cuánto falta o sobra en vivo.
++export function diferenciasDia(totales, objetivo) {
++  return MACROS.map((m) => ({
++    clave: m.clave,
++    etiqueta: m.etiqueta,
++    objetivo: objetivo[m.clave],
++    actual: totales[m.clave],
++    diferencia: Math.round((totales[m.clave] - objetivo[m.clave]) * 10) / 10,
++  }))
++}
+diff --git a/src/lib/useBusquedaAlimentos.js b/src/lib/useBusquedaAlimentos.js
+new file mode 100644
+index 0000000..b6f31f3
+--- /dev/null
++++ b/src/lib/useBusquedaAlimentos.js
+@@ -0,0 +1,45 @@
++// =====================================================================
++// src/lib/useBusquedaAlimentos.js — hook: busca alimentos mientras el entrenador escribe.
++//
++// Espera 300 ms después de la última tecla (debounce) para no consultar por cada letra, y
++// descarta las respuestas viejas (bandera `cancelado`). Con `exigirFiltro`, no consulta hasta
++// que haya al menos 2 letras o un filtro elegido: el selector del creador de dieta arranca
++// vacío en vez de bajar alimentos que nadie pidió.
++//
++// Devuelve { alimentos, cargando, error, hayMas }. `hayMas` = llegó al límite, puede haber más.
++// =====================================================================
++import { useEffect, useState } from 'react'
++import { buscarAlimentos } from './buscarAlimentos'
++import { terminosBusqueda } from './alimentos'
++
++const ESPERA_MS = 300
++
++export function useBusquedaAlimentos({
++  texto, categoria = '', estado = '', limite = 20, soloActivos = true,
++  exigirFiltro = false, version = 0,
++}) {
++  const [textoEstable, setTextoEstable] = useState(texto)
++  const [resultado, setResultado] = useState({ alimentos: [], cargando: !exigirFiltro, error: '' })
++
++  useEffect(() => {
++    const t = setTimeout(() => setTextoEstable(texto), ESPERA_MS)
++    return () => clearTimeout(t)
++  }, [texto])
++
++  const hayFiltro = terminosBusqueda(textoEstable).join('').length >= 2 || Boolean(categoria) || Boolean(estado)
++  const consultar = !exigirFiltro || hayFiltro
++
++  useEffect(() => {
++    if (!consultar) { setResultado({ alimentos: [], cargando: false, error: '' }); return }
++    let cancelado = false
++    setResultado((r) => ({ ...r, cargando: true, error: '' }))
++    buscarAlimentos({ texto: textoEstable, categoria, estado, limite, soloActivos }).then(({ alimentos, error }) => {
++      if (cancelado) return
++      if (error) setResultado({ alimentos: [], cargando: false, error })
++      else setResultado({ alimentos, cargando: false, error: '' })
++    })
++    return () => { cancelado = true }
++  }, [consultar, textoEstable, categoria, estado, limite, soloActivos, version])
++
++  return { ...resultado, hayMas: resultado.alimentos.length >= limite, consultando: consultar }
++}
+diff --git a/supabase/sql/README.md b/supabase/sql/README.md
+index 5952759..150cc9e 100644
+--- a/supabase/sql/README.md
++++ b/supabase/sql/README.md
+@@ -24,6 +24,7 @@ Estos archivos son la **fuente de verdad del esquema** de Supabase. Se ejecutan
+ | 19 | `migracion_19_fecha_nacimiento.sql` | `migracion_19_fecha_nacimiento` (nombre sugerido) | Columna `profiles.fecha_nacimiento` (opcional, CHECK ≥ 1900), trigger `validar_fecha_nacimiento` (no futura) y RPC `set_fecha_nacimiento` (solo admin) | Aplicado |
+ | 20 | `migracion_20_gestion_usuarios.sql` | `migracion_20_gestion_usuarios` (nombre sugerido) | Columna `profiles.activo` (estado del atleta) y RPC `set_perfil_atleta` (solo admin: nombre y fecha de nacimiento) | **Pendiente de aplicar** |
+ | 23 | `migracion_23_comidas_del_dia.sql` | `migracion_23` | Tablas `meals` y `meal_foods` (comidas del día con alimentos y cantidades exactas, con RLS: el atleta lee, solo el admin escribe) y RPC `set_meal_plan` (reemplaza el menú completo de un atleta, todo o nada). Contiene un `delete` dentro de la función (solo actúa al guardar desde la app) | **Pendiente de aplicar** |
++| 25 | `migracion_25_catalogo_alimentos.sql` | `migracion_25` | Tabla `foods` (catálogo de alimentos por 100 g, estado crudo/cocido/n/a, macro dominante generada, RLS solo admin) con seed de ~92 alimentos, columnas de snapshot en `meal_foods` (`food_id`, `estado`, macros base y asignados) y `set_meal_plan` reemplazada (misma firma; calcula y valida el snapshot). Contiene el `delete` de `set_meal_plan` | **Pendiente de aplicar** |
+ | 24 | `migracion_24_semana_descarga.sql` | `migracion_24` | Tabla `deload_weeks` (semana de descarga de 7 días, RLS solo lectura), columna `routine_logs.en_descarga` con trigger, RPC `activar_descarga` y `cancelar_descarga`, y `ultimas_series_por_ejercicio` ignorando series de descarga (`create or replace`). No elimina nada | **Pendiente de aplicar** |
+ | 22 | `migracion_22_historial_rutina.sql` | `migracion_22` | Tabla `routine_versions` (periodos de la rutina con foto de la prescripción), funciones `foto_rutina`, `congelar_version_rutina` y `resumen_periodo_rutina` y triggers que guardan la foto antes de ajustar una rutina con series registradas. No elimina nada | **Pendiente de aplicar** |
+ | 21 | `migracion_21_ultima_vez_por_ejercicio.sql` | `migracion_21` | Función `ultimas_series_por_ejercicio`: las series más recientes de cada ejercicio por separado, para que la progresión no pierda el historial en rutinas de larga duración. No elimina nada | **Pendiente de aplicar** |
+@@ -48,6 +49,7 @@ No existe una "migración 01": el esquema inicial hace de base. La numeración s
+ - La 19 requiere el esquema inicial (usa `profiles` e `is_admin()`).
+ - La 20 requiere la 19 (usa `profiles.fecha_nacimiento` y su trigger). Además, la app nueva necesita desplegar la Edge Function `supabase/functions/admin-usuarios` (ver `docs/ARQUITECTURA.md`, sección 9).
+ - La 21 requiere el esquema inicial (usa `routine_logs` y sus políticas RLS).
++- La 25 requiere la 23 (altera `meal_foods` y reemplaza `set_meal_plan`) y el esquema inicial (`is_admin()`); es independiente de la 24.
+ - La 24 requiere el esquema inicial (usa `profiles`, `routine_logs` e `is_admin()`); vuelve a definir la función de la 21, así que no exige tenerla aplicada antes.
+ - La 23 requiere el esquema inicial (usa `profiles` e `is_admin()`); no depende de la 22.
+ - La 22 requiere la 04, la 11, la 12 y la 16 (la foto lee `routine_exercises` con `bloque`, `pide_rpe` y la progresión) y el esquema inicial (`is_admin()`).
+@@ -65,4 +67,4 @@ No existe una "migración 01": el esquema inicial hace de base. La numeración s
+ 
+ ## Avisos esperables del SQL Editor
+ 
+-Supabase muestra "Potential issue detected" cuando un script contiene `drop` o `delete`. Es normal en estos casos: la 02, la 03 y la 05 eliminan políticas o índices antiguos para reemplazarlos, y la 06 contiene un `delete` dentro de una función que solo se ejecuta cuando guardas los músculos de un ejercicio desde la app. Ninguna borra tablas ni datos de los usuarios. La 23 contiene un `delete` dentro de la función `set_meal_plan` (borra las comidas anteriores del atleta para reemplazarlas, solo cuando el entrenador pulsa "Guardar comidas"), por eso puede mostrar el aviso; no borra tablas ni datos de otros atletas. La 07, la 08, la 09, la 11, la 17, la 18, la 19, la 20, la 21 y la 22 no eliminan nada (vistas, funciones, columnas y reglas de validación nuevas), así que no deberían mostrar el aviso.
++Supabase muestra "Potential issue detected" cuando un script contiene `drop` o `delete`. Es normal en estos casos: la 02, la 03 y la 05 eliminan políticas o índices antiguos para reemplazarlos, y la 06 contiene un `delete` dentro de una función que solo se ejecuta cuando guardas los músculos de un ejercicio desde la app. Ninguna borra tablas ni datos de los usuarios. La 23 contiene un `delete` dentro de la función `set_meal_plan` (borra las comidas anteriores del atleta para reemplazarlas, solo cuando el entrenador pulsa "Guardar comidas"), por eso puede mostrar el aviso; no borra tablas ni datos de otros atletas. La 25 conserva ese mismo `delete` (reemplaza `set_meal_plan`), por eso también puede mostrar el aviso; su seed usa `on conflict do nothing`. La 07, la 08, la 09, la 11, la 17, la 18, la 19, la 20, la 21 y la 22 no eliminan nada (vistas, funciones, columnas y reglas de validación nuevas), así que no deberían mostrar el aviso.
+diff --git a/supabase/sql/migracion_25_catalogo_alimentos.sql b/supabase/sql/migracion_25_catalogo_alimentos.sql
+new file mode 100644
+index 0000000..b7c03ea
+--- /dev/null
++++ b/supabase/sql/migracion_25_catalogo_alimentos.sql
+@@ -0,0 +1,409 @@
++-- =====================================================================
++-- Migración 25 — Catálogo de alimentos + snapshot de macros en las comidas (paso 34)
++--
++-- Qué hace:
++--   1. Crea la tabla `foods`: catálogo PROPIO de alimentos con sus macros por 100 g,
++--      su estado de preparación (crudo / cocido / n/a) y su macro dominante.
++--      El entrenador lo administra desde la app (/admin/alimentos), sin IA.
++--   2. Carga un seed inicial (~100 alimentos de nutrición deportiva; crudo y cocido
++--      cuando aplica). Son valores de referencia APROXIMADOS (tipo tablas USDA): el
++--      entrenador puede ajustarlos desde la app. Las marcas comerciales varían.
++--   3. Agrega a `meal_foods` las columnas del SNAPSHOT: de qué alimento del catálogo
++--      viene, su estado, sus macros base por 100 g y los macros ASIGNADOS (los de los
++--      gramos exactos). Así, si luego el entrenador cambia el catálogo, el menú ya
++--      guardado del atleta NO cambia.
++--   4. Reemplaza `set_meal_plan` (misma firma) para aceptar y validar ese snapshot.
++--      Los alimentos manuales (sin catálogo) siguen funcionando igual que antes.
++--
++-- Decisiones:
++--   * El catálogo es GLOBAL y solo lo ve y escribe el admin (RLS). El atleta NO lo lee:
++--     le basta el snapshot que viaja en `meal_foods` (ya legible por él).
++--   * `macro_dominante` es una columna GENERADA (por aporte calórico: 4 kcal/g proteína
++--     y carbohidratos, 9 kcal/g grasa): nunca queda desincronizada de los macros.
++--   * `nombre_busqueda` (sin tildes, en minúsculas) también es generada: la búsqueda se
++--     hace en el servidor con `ilike` y `limit`, sin descargar el catálogo completo.
++--   * Los macros ASIGNADOS los calcula la base de datos (base × gramos / 100): el cliente
++--     no puede mandar una cuenta distinta a la de los gramos.
++--   * Sin `delete` de alimentos desde la app: se DESACTIVAN (`activo = false`). Así el
++--     historial y los snapshots siguen siendo coherentes.
++--
++-- Requiere: esquema inicial (is_admin()) y la migración 23 (meals, meal_foods, set_meal_plan).
++-- Orden: aplicar PRIMERO este SQL y después subir el código.
++--
++-- AVISO: `set_meal_plan` conserva su `delete` interno (borra las comidas anteriores del
++-- atleta para reemplazarlas al guardar). El SQL Editor puede mostrar "Potential issue
++-- detected": es esperable. No se borra ninguna tabla ni dato de otros atletas.
++-- =====================================================================
++
++-- ---------------------------------------------------------------------
++-- 1. Catálogo de alimentos
++-- ---------------------------------------------------------------------
++create table public.foods (
++  id                uuid primary key default gen_random_uuid(),
++  nombre            text not null check (char_length(btrim(nombre)) between 2 and 80),
++  categoria         text not null
++                      check (categoria in ('proteina', 'carbohidrato', 'grasa', 'lacteo', 'fruta', 'verdura', 'legumbre', 'otro')),
++  estado            text not null default 'n/a' check (estado in ('crudo', 'cocido', 'n/a')),
++  -- Valores por 100 g
++  calorias          numeric(6,1) not null check (calorias >= 0 and calorias <= 1000),
++  proteina_g        numeric(5,1) not null check (proteina_g >= 0 and proteina_g <= 100),
++  carbohidratos_g   numeric(5,1) not null check (carbohidratos_g >= 0 and carbohidratos_g <= 100),
++  grasas_g          numeric(5,1) not null check (grasas_g >= 0 and grasas_g <= 100),
++  -- Lo que más aporta (por kcal). NULL si el alimento no tiene macros (p. ej. agua).
++  macro_dominante   text generated always as (
++    case
++      when proteina_g > 0 and proteina_g * 4 >= carbohidratos_g * 4 and proteina_g * 4 >= grasas_g * 9 then 'proteina'
++      when carbohidratos_g > 0 and carbohidratos_g * 4 >= grasas_g * 9 then 'carbohidratos'
++      when grasas_g > 0 then 'grasas'
++      else null
++    end
++  ) stored,
++  -- Para buscar sin tildes ni mayúsculas ("platano" encuentra "Plátano")
++  nombre_busqueda   text generated always as (
++    lower(translate(nombre, 'áéíóúüñÁÉÍÓÚÜÑ', 'aeiouunAEIOUUN'))
++  ) stored,
++  activo            boolean not null default true,
++  created_at        timestamptz not null default now(),
++  -- 100 g no pueden pesar más de 100 g (0,5 de margen por redondeos de las tablas)
++  check (proteina_g + carbohidratos_g + grasas_g <= 100.5)
++);
++
++-- Un mismo alimento no se repite en el mismo estado (sí puede estar crudo Y cocido)
++create unique index foods_nombre_estado_uidx
++  on public.foods (lower(btrim(nombre)), estado);
++
++alter table public.foods enable row level security;
++
++create policy "foods_admin_all" on public.foods
++  for all to authenticated
++  using (public.is_admin()) with check (public.is_admin());
++
++-- ---------------------------------------------------------------------
++-- 2. Seed inicial (valores por 100 g, aproximados tipo USDA; ajustables desde la app)
++--    Columnas: nombre, categoria, estado, calorias, proteina_g, carbohidratos_g, grasas_g
++-- ---------------------------------------------------------------------
++insert into public.foods (nombre, categoria, estado, calorias, proteina_g, carbohidratos_g, grasas_g) values
++  -- Proteínas
++  ('Pechuga de pollo sin piel', 'proteina', 'crudo', 120, 22.5, 0, 2.6),
++  ('Pechuga de pollo sin piel', 'proteina', 'cocido', 165, 31.0, 0, 3.6),
++  ('Muslo de pollo sin piel', 'proteina', 'crudo', 121, 19.7, 0, 4.1),
++  ('Muslo de pollo sin piel', 'proteina', 'cocido', 179, 24.8, 0, 8.2),
++  ('Carne molida de res magra (95/5)', 'proteina', 'crudo', 137, 21.4, 0, 5.0),
++  ('Carne molida de res magra (95/5)', 'proteina', 'cocido', 171, 26.1, 0, 6.5),
++  ('Lomo de res magro', 'proteina', 'crudo', 143, 22.2, 0, 5.4),
++  ('Lomo de res magro', 'proteina', 'cocido', 206, 32.0, 0, 8.0),
++  ('Lomo de cerdo magro', 'proteina', 'crudo', 143, 21.0, 0, 5.8),
++  ('Lomo de cerdo magro', 'proteina', 'cocido', 195, 29.0, 0, 8.0),
++  ('Pechuga de pavo', 'proteina', 'crudo', 114, 23.7, 0, 1.5),
++  ('Pechuga de pavo', 'proteina', 'cocido', 135, 30.1, 0, 0.7),
++  ('Salmón', 'proteina', 'crudo', 208, 20.4, 0, 13.4),
++  ('Salmón', 'proteina', 'cocido', 206, 22.1, 0, 12.4),
++  ('Tilapia', 'proteina', 'crudo', 96, 20.1, 0, 1.7),
++  ('Tilapia', 'proteina', 'cocido', 128, 26.2, 0, 2.7),
++  ('Atún en agua (enlatado, escurrido)', 'proteina', 'n/a', 116, 25.5, 0, 0.8),
++  ('Camarón', 'proteina', 'crudo', 85, 20.1, 0.2, 0.5),
++  ('Camarón', 'proteina', 'cocido', 99, 24.0, 0.2, 0.3),
++  ('Huevo entero', 'proteina', 'crudo', 143, 12.6, 0.7, 9.5),
++  ('Huevo entero', 'proteina', 'cocido', 155, 12.6, 1.1, 10.6),
++  ('Clara de huevo', 'proteina', 'crudo', 52, 10.9, 0.7, 0.2),
++  ('Tofu firme', 'proteina', 'n/a', 144, 17.3, 2.8, 8.7),
++  ('Proteína whey en polvo (genérica)', 'proteina', 'n/a', 390, 78.0, 8.0, 6.0),
++  -- Carbohidratos
++  ('Arroz blanco', 'carbohidrato', 'crudo', 365, 7.1, 80.0, 0.7),
++  ('Arroz blanco', 'carbohidrato', 'cocido', 130, 2.7, 28.2, 0.3),
++  ('Arroz integral', 'carbohidrato', 'crudo', 370, 7.9, 77.2, 2.9),
++  ('Arroz integral', 'carbohidrato', 'cocido', 123, 2.7, 25.6, 1.0),
++  ('Pasta', 'carbohidrato', 'crudo', 371, 13.0, 74.7, 1.5),
++  ('Pasta', 'carbohidrato', 'cocido', 158, 5.8, 30.9, 0.9),
++  ('Avena en hojuelas', 'carbohidrato', 'crudo', 389, 16.9, 66.3, 6.9),
++  ('Avena en hojuelas', 'carbohidrato', 'cocido', 71, 2.5, 12.0, 1.5),
++  ('Papa', 'carbohidrato', 'crudo', 77, 2.0, 17.5, 0.1),
++  ('Papa', 'carbohidrato', 'cocido', 87, 1.9, 20.1, 0.1),
++  ('Batata (camote)', 'carbohidrato', 'crudo', 86, 1.6, 20.1, 0.1),
++  ('Batata (camote)', 'carbohidrato', 'cocido', 76, 1.4, 17.7, 0.1),
++  ('Plátano de cocción', 'carbohidrato', 'crudo', 122, 1.3, 31.9, 0.4),
++  ('Plátano de cocción', 'carbohidrato', 'cocido', 116, 0.8, 31.2, 0.2),
++  ('Quinoa', 'carbohidrato', 'crudo', 368, 14.1, 64.2, 6.1),
++  ('Quinoa', 'carbohidrato', 'cocido', 120, 4.4, 21.3, 1.9),
++  ('Pan integral', 'carbohidrato', 'n/a', 247, 13.0, 41.0, 3.4),
++  ('Pan blanco', 'carbohidrato', 'n/a', 265, 9.0, 49.0, 3.2),
++  ('Tortilla de maíz', 'carbohidrato', 'n/a', 218, 5.7, 44.6, 2.9),
++  ('Galleta de arroz', 'carbohidrato', 'n/a', 387, 8.2, 81.5, 2.8),
++  ('Miel', 'carbohidrato', 'n/a', 304, 0.3, 82.4, 0),
++  -- Legumbres
++  ('Lentejas', 'legumbre', 'crudo', 352, 24.6, 63.4, 1.1),
++  ('Lentejas', 'legumbre', 'cocido', 116, 9.0, 20.1, 0.4),
++  ('Frijoles negros', 'legumbre', 'crudo', 341, 21.6, 62.4, 1.4),
++  ('Frijoles negros', 'legumbre', 'cocido', 132, 8.9, 23.7, 0.5),
++  ('Garbanzos', 'legumbre', 'crudo', 378, 20.5, 62.9, 6.0),
++  ('Garbanzos', 'legumbre', 'cocido', 164, 8.9, 27.4, 2.6),
++  ('Hummus', 'legumbre', 'n/a', 166, 7.9, 14.3, 9.6),
++  -- Grasas
++  ('Aceite de oliva', 'grasa', 'n/a', 884, 0, 0, 100.0),
++  ('Aguacate', 'grasa', 'n/a', 160, 2.0, 8.5, 14.7),
++  ('Almendras', 'grasa', 'n/a', 579, 21.2, 21.6, 49.9),
++  ('Maní', 'grasa', 'n/a', 567, 25.8, 16.1, 49.2),
++  ('Nueces', 'grasa', 'n/a', 654, 15.2, 13.7, 65.2),
++  ('Mantequilla de maní', 'grasa', 'n/a', 588, 25.1, 20.0, 50.4),
++  ('Mantequilla', 'grasa', 'n/a', 717, 0.9, 0.1, 81.1),
++  ('Semillas de chía', 'grasa', 'n/a', 486, 16.5, 42.1, 30.7),
++  ('Linaza', 'grasa', 'n/a', 534, 18.3, 28.9, 42.2),
++  ('Chocolate oscuro 70 %', 'grasa', 'n/a', 598, 7.8, 45.9, 42.6),
++  -- Lácteos
++  ('Leche entera', 'lacteo', 'n/a', 61, 3.2, 4.8, 3.3),
++  ('Leche descremada', 'lacteo', 'n/a', 34, 3.4, 5.0, 0.1),
++  ('Yogur griego natural sin grasa', 'lacteo', 'n/a', 59, 10.2, 3.6, 0.4),
++  ('Yogur griego natural entero', 'lacteo', 'n/a', 97, 9.0, 3.9, 5.0),
++  ('Queso cottage bajo en grasa', 'lacteo', 'n/a', 81, 10.5, 4.8, 2.3),
++  ('Queso mozzarella parcialmente descremado', 'lacteo', 'n/a', 254, 24.3, 2.8, 15.9),
++  -- Frutas
++  ('Banano', 'fruta', 'n/a', 89, 1.1, 22.8, 0.3),
++  ('Manzana', 'fruta', 'n/a', 52, 0.3, 13.8, 0.2),
++  ('Fresas', 'fruta', 'n/a', 32, 0.7, 7.7, 0.3),
++  ('Mango', 'fruta', 'n/a', 60, 0.8, 15.0, 0.4),
++  ('Piña', 'fruta', 'n/a', 50, 0.5, 13.1, 0.1),
++  ('Naranja', 'fruta', 'n/a', 47, 0.9, 11.8, 0.1),
++  ('Papaya', 'fruta', 'n/a', 43, 0.5, 10.8, 0.3),
++  ('Uvas', 'fruta', 'n/a', 69, 0.7, 18.1, 0.2),
++  ('Arándanos', 'fruta', 'n/a', 57, 0.7, 14.5, 0.3),
++  ('Sandía', 'fruta', 'n/a', 30, 0.6, 7.6, 0.2),
++  -- Verduras
++  ('Brócoli', 'verdura', 'crudo', 34, 2.8, 6.6, 0.4),
++  ('Brócoli', 'verdura', 'cocido', 35, 2.4, 7.2, 0.4),
++  ('Espinaca', 'verdura', 'crudo', 23, 2.9, 3.6, 0.4),
++  ('Espinaca', 'verdura', 'cocido', 23, 3.0, 3.8, 0.3),
++  ('Zanahoria', 'verdura', 'crudo', 41, 0.9, 9.6, 0.2),
++  ('Zanahoria', 'verdura', 'cocido', 35, 0.8, 8.2, 0.2),
++  ('Tomate', 'verdura', 'n/a', 18, 0.9, 3.9, 0.2),
++  ('Cebolla', 'verdura', 'n/a', 40, 1.1, 9.3, 0.1),
++  ('Pepino', 'verdura', 'n/a', 15, 0.7, 3.6, 0.1),
++  ('Lechuga', 'verdura', 'n/a', 15, 1.4, 2.9, 0.2),
++  ('Pimentón', 'verdura', 'n/a', 31, 1.0, 6.0, 0.3),
++  ('Champiñones', 'verdura', 'n/a', 22, 3.1, 3.3, 0.3),
++  ('Coliflor', 'verdura', 'crudo', 25, 1.9, 5.0, 0.3),
++  ('Habichuela (judía verde)', 'verdura', 'n/a', 31, 1.8, 7.0, 0.2)
++on conflict do nothing;
++
++-- ---------------------------------------------------------------------
++-- 3. Snapshot en meal_foods (todas las columnas son opcionales: los alimentos
++--    manuales y los menús ya guardados siguen siendo válidos)
++-- ---------------------------------------------------------------------
++alter table public.meal_foods
++  add column food_id              uuid references public.foods (id) on delete set null,
++  add column estado               text check (estado in ('crudo', 'cocido', 'n/a')),
++  -- Macros por 100 g del alimento EN EL MOMENTO de guardar (para poder recalcular al editar)
++  add column base_calorias        numeric(6,1) check (base_calorias >= 0 and base_calorias <= 1000),
++  add column base_proteina_g      numeric(5,1) check (base_proteina_g >= 0 and base_proteina_g <= 100),
++  add column base_carbohidratos_g numeric(5,1) check (base_carbohidratos_g >= 0 and base_carbohidratos_g <= 100),
++  add column base_grasas_g        numeric(5,1) check (base_grasas_g >= 0 and base_grasas_g <= 100),
++  -- Macros ASIGNADOS a los gramos exactos de esta fila (base × cantidad / 100)
++  add column calorias             numeric(8,1) check (calorias >= 0),
++  add column proteina_g           numeric(8,1) check (proteina_g >= 0),
++  add column carbohidratos_g      numeric(8,1) check (carbohidratos_g >= 0),
++  add column grasas_g             numeric(8,1) check (grasas_g >= 0);
++
++-- O el snapshot está completo, o no hay ninguno (nunca a medias)
++alter table public.meal_foods
++  add constraint meal_foods_snapshot_completo check (
++    (estado is null
++      and base_calorias is null and base_proteina_g is null
++      and base_carbohidratos_g is null and base_grasas_g is null
++      and calorias is null and proteina_g is null
++      and carbohidratos_g is null and grasas_g is null)
++    or
++    (estado is not null
++      and base_calorias is not null and base_proteina_g is not null
++      and base_carbohidratos_g is not null and base_grasas_g is not null
++      and calorias is not null and proteina_g is not null
++      and carbohidratos_g is not null and grasas_g is not null
++      and unidad = 'g')
++  );
++
++-- ---------------------------------------------------------------------
++-- 4. set_meal_plan (misma firma que en la migración 23): ahora acepta el snapshot
++--
++--   Cada alimento puede traer, además de lo de siempre, estos datos OPCIONALES:
++--     "food_id": "uuid del catálogo"  (si ya no existe, se guarda sin enlace)
++--     "estado":  "crudo" | "cocido" | "n/a"
++--     "base":    { "calorias": 130, "proteina_g": 2.7, "carbohidratos_g": 28.2, "grasas_g": 0.3 }
++--   Si trae "base", la unidad debe ser "g" y la base de datos CALCULA los macros asignados
++--   (base × gramos / 100, a 1 decimal). Sin "base", el alimento queda manual, como antes.
++-- ---------------------------------------------------------------------
++create or replace function public.set_meal_plan(
++  p_user_id uuid,
++  p_comidas jsonb
++)
++returns void
++language plpgsql
++security definer
++set search_path = ''
++as $$
++declare
++  v_comida    jsonb;
++  v_pos       bigint;
++  v_alimentos jsonb;
++  v_alimento  jsonb;
++  v_pos_a     bigint;
++  v_nombre    text;
++  v_nombre_a  text;
++  v_notas     text;
++  v_nota      text;
++  v_unidad    text;
++  v_cantidad  numeric;
++  v_meal_id   uuid;
++  -- Snapshot
++  v_base      jsonb;
++  v_food_id   uuid;
++  v_estado    text;
++  b_cal       numeric;
++  b_p         numeric;
++  b_c         numeric;
++  b_g         numeric;
++begin
++  if not public.is_admin() then
++    raise exception 'Solo un administrador puede definir las comidas de un atleta.'
++      using errcode = '42501';
++  end if;
++
++  if not exists (select 1 from public.profiles where id = p_user_id and rol = 'client') then
++    raise exception 'El destinatario no es un atleta.';
++  end if;
++
++  if p_comidas is null or jsonb_typeof(p_comidas) <> 'array' then
++    raise exception 'Las comidas deben enviarse como una lista.';
++  end if;
++  if jsonb_array_length(p_comidas) > 10 then
++    raise exception 'Un día puede tener como máximo 10 comidas.';
++  end if;
++
++  -- Se borra lo anterior y se inserta lo nuevo. Si algo falla más abajo, la excepción
++  -- deshace TODO (también este delete): el atleta nunca se queda con un menú a medias.
++  delete from public.meals where user_id = p_user_id;
++
++  for v_comida, v_pos in
++    select e.value, e.ordinality
++      from jsonb_array_elements(p_comidas) with ordinality as e(value, ordinality)
++     order by e.ordinality
++  loop
++    if jsonb_typeof(v_comida) <> 'object' then
++      raise exception 'La comida % no tiene el formato correcto.', v_pos;
++    end if;
++
++    v_nombre := btrim(coalesce(v_comida ->> 'nombre', ''));
++    if char_length(v_nombre) < 2 or char_length(v_nombre) > 40 then
++      raise exception 'La comida % necesita un nombre de 2 a 40 caracteres.', v_pos;
++    end if;
++
++    v_notas := nullif(btrim(coalesce(v_comida ->> 'notas', '')), '');
++    if v_notas is not null and char_length(v_notas) > 200 then
++      raise exception 'Las notas de «%» no pueden pasar de 200 caracteres.', v_nombre;
++    end if;
++
++    v_alimentos := coalesce(v_comida -> 'alimentos', '[]'::jsonb);
++    if jsonb_typeof(v_alimentos) <> 'array' then
++      raise exception 'Los alimentos de «%» deben ser una lista.', v_nombre;
++    end if;
++    if jsonb_array_length(v_alimentos) > 30 then
++      raise exception '«%» puede tener como máximo 30 alimentos.', v_nombre;
++    end if;
++
++    insert into public.meals (user_id, nombre, notas, orden)
++    values (p_user_id, v_nombre, v_notas, v_pos)
++    returning id into v_meal_id;
++
++    for v_alimento, v_pos_a in
++      select e.value, e.ordinality
++        from jsonb_array_elements(v_alimentos) with ordinality as e(value, ordinality)
++       order by e.ordinality
++    loop
++      if jsonb_typeof(v_alimento) <> 'object' then
++        raise exception 'El alimento % de «%» no tiene el formato correcto.', v_pos_a, v_nombre;
++      end if;
++
++      v_nombre_a := btrim(coalesce(v_alimento ->> 'alimento', ''));
++      if char_length(v_nombre_a) < 2 or char_length(v_nombre_a) > 80 then
++        raise exception 'El alimento % de «%» necesita un nombre de 2 a 80 caracteres.', v_pos_a, v_nombre;
++      end if;
++
++      -- La cantidad debe llegar como NÚMERO (no como texto). Se usa CASE porque, a diferencia
++      -- de OR, garantiza que solo se convierte a número lo que ya se comprobó que es número.
++      v_cantidad := case when jsonb_typeof(v_alimento -> 'cantidad') = 'number'
++                         then (v_alimento ->> 'cantidad')::numeric end;
++      if v_cantidad is null or v_cantidad <= 0 or v_cantidad > 10000 then
++        raise exception 'La cantidad de «%» (en «%») debe ser un número mayor que 0 y hasta 10.000.', v_nombre_a, v_nombre;
++      end if;
++      v_cantidad := round(v_cantidad, 2);
++
++      v_unidad := v_alimento ->> 'unidad';
++      if v_unidad is null or v_unidad not in ('g', 'ml', 'unidad', 'porcion') then
++        raise exception 'La unidad de «%» (en «%») debe ser g, ml, unidad o porcion.', v_nombre_a, v_nombre;
++      end if;
++
++      v_nota := nullif(btrim(coalesce(v_alimento ->> 'nota', '')), '');
++      if v_nota is not null and char_length(v_nota) > 120 then
++        raise exception 'La nota de «%» no puede pasar de 120 caracteres.', v_nombre_a;
++      end if;
++
++      -- ---- Snapshot opcional (alimento del catálogo) ----
++      v_base := v_alimento -> 'base';
++      v_food_id := null;
++      v_estado := null;
++      b_cal := null; b_p := null; b_c := null; b_g := null;
++
++      if v_base is not null and jsonb_typeof(v_base) = 'object' then
++        if v_unidad <> 'g' then
++          raise exception 'El alimento «%» (en «%») del catálogo debe medirse en gramos.', v_nombre_a, v_nombre;
++        end if;
++
++        v_estado := v_alimento ->> 'estado';
++        if v_estado is null or v_estado not in ('crudo', 'cocido', 'n/a') then
++          raise exception 'El estado de «%» (en «%») debe ser crudo, cocido o n/a.', v_nombre_a, v_nombre;
++        end if;
++
++        -- food_id: si no es un uuid válido es un error; si el alimento ya no existe, se guarda sin enlace
++        if v_alimento ->> 'food_id' is not null then
++          if jsonb_typeof(v_alimento -> 'food_id') <> 'string'
++             or (v_alimento ->> 'food_id') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
++            raise exception 'El identificador de «%» (en «%») no es válido.', v_nombre_a, v_nombre;
++          end if;
++          v_food_id := (v_alimento ->> 'food_id')::uuid;
++          if not exists (select 1 from public.foods where id = v_food_id) then
++            v_food_id := null;
++          end if;
++        end if;
++
++        b_cal := case when jsonb_typeof(v_base -> 'calorias') = 'number' then (v_base ->> 'calorias')::numeric end;
++        b_p   := case when jsonb_typeof(v_base -> 'proteina_g') = 'number' then (v_base ->> 'proteina_g')::numeric end;
++        b_c   := case when jsonb_typeof(v_base -> 'carbohidratos_g') = 'number' then (v_base ->> 'carbohidratos_g')::numeric end;
++        b_g   := case when jsonb_typeof(v_base -> 'grasas_g') = 'number' then (v_base ->> 'grasas_g')::numeric end;
++
++        if b_cal is null or b_p is null or b_c is null or b_g is null
++           or b_cal < 0 or b_cal > 1000
++           or b_p < 0 or b_p > 100 or b_c < 0 or b_c > 100 or b_g < 0 or b_g > 100
++           or b_p + b_c + b_g > 100.5 then
++          raise exception 'Los macros por 100 g de «%» (en «%») no son válidos.', v_nombre_a, v_nombre;
++        end if;
++        b_cal := round(b_cal, 1); b_p := round(b_p, 1); b_c := round(b_c, 1); b_g := round(b_g, 1);
++      elsif v_base is not null and jsonb_typeof(v_base) <> 'null' then
++        raise exception 'Los macros de «%» (en «%») no tienen el formato correcto.', v_nombre_a, v_nombre;
++      end if;
++
++      insert into public.meal_foods
++        (meal_id, user_id, alimento, cantidad, unidad, nota, orden,
++         food_id, estado,
++         base_calorias, base_proteina_g, base_carbohidratos_g, base_grasas_g,
++         calorias, proteina_g, carbohidratos_g, grasas_g)
++      values
++        (v_meal_id, p_user_id, v_nombre_a, v_cantidad, v_unidad, v_nota, v_pos_a,
++         v_food_id, v_estado,
++         b_cal, b_p, b_c, b_g,
++         -- Macros asignados: los calcula la base de datos (null si el alimento es manual)
++         round(b_cal * v_cantidad / 100, 1), round(b_p * v_cantidad / 100, 1),
++         round(b_c * v_cantidad / 100, 1), round(b_g * v_cantidad / 100, 1));
++    end loop;
++  end loop;
++end;
++$$;
++
++revoke all on function public.set_meal_plan(uuid, jsonb) from public, anon;
++grant execute on function public.set_meal_plan(uuid, jsonb) to authenticated;

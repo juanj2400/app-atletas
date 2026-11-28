@@ -20,6 +20,7 @@ import ListaAtletas from './admin/ListaAtletas'
 import DetalleAtleta from './admin/DetalleAtleta'
 import EditorRutina from './admin/EditorRutina'
 import Ejercicios from './admin/Ejercicios'
+import Alimentos from './admin/Alimentos'
 import GestionUsuarios from './admin/GestionUsuarios'
 
 export default function App() {
@@ -76,6 +77,10 @@ export default function App() {
       <Route
         path="/admin/ejercicios"
         element={<RutaProtegida rol="admin"><Ejercicios /></RutaProtegida>}
+      />
+      <Route
+        path="/admin/alimentos"
+        element={<RutaProtegida rol="admin"><Alimentos /></RutaProtegida>}
       />
       <Route
         path="/admin/usuarios"

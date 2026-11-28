@@ -1,5 +1,5 @@
 # ARQUITECTURA — MyProgress
-> Última actualización: 2026-11-27 (paso 33) · Mantener al día según `AGENTS.md`.
+> Última actualización: 2026-11-27 (paso 34) · Mantener al día según `AGENTS.md`.
 
 ## 1. Visión y Stack
 SPA (sin backend propio). El navegador habla directo con Supabase; la seguridad real reside en **PostgreSQL RLS**. Hosting en Netlify vía `git push`.
@@ -9,7 +9,7 @@ SPA (sin backend propio). El navegador habla directo con Supabase; la seguridad 
 ## 2. Estructura de Carpetas (`/`)
 - `AGENTS.md`, `README.md`, `index.html`, `vite.config.js`, `package.json`, `.env.example`, `public/_redirects` (`/* /index.html 200`).
 - `docs/`: `REQUERIMIENTOS.md`, `ARQUITECTURA.md`, `CHANGELOG.md`.
-- `supabase/sql/`: `README.md`, `schema_supabase.sql`, `migracion_02` a `24` (la `10` de IA no está aplicada).
+- `supabase/sql/`: `README.md`, `schema_supabase.sql`, `migracion_02` a `25` (la `10` de IA no está aplicada).
 - `supabase/functions/`:
   - `admin-usuarios/index.ts`: Edge Function (crear atletas, cambiar contraseñas, activar/desactivar acceso; usa `service_role`, valida JWT + rol admin).
   - `generate-weekly-proposals/index.ts`: Edge Function IA (pendiente de desplegar).
@@ -18,9 +18,9 @@ SPA (sin backend propio). El navegador habla directo con Supabase; la seguridad 
   - `auth/`: `AuthProvider.jsx` (`useAuth()`), `RutaProtegida.jsx` (incluye `CuentaDesactivada`).
   - `pages/`: `Login.jsx`, `RecuperarContrasena.jsx`, `RestablecerContrasena.jsx`, `Inicio.jsx`.
   - `components/`: `Encabezado`, `Estados` (`Cargando`, `SinPerfil`), `Selector`, `ResumenMediciones`, `GraficoEvolucion` (+`Lazy`), `GraficoTendenciaPeso` (+`Lazy`), `GraficoOscilacionPeso` (+`Lazy`), `LineaTemporal`, `RecordsAtleta`, `GraficosRecord` (+`Lazy`), `PlanNutricionalCard`, `ListaComidas`, `CicloVigenteCard`, `AvisoDescarga`, `ResumenDiaRealizado`, `AvisoActualizacion`.
-  - `lib/` (lógica pura y helpers): `supabase.js`, `fechas.js`, `useHoy.js`, `numeros.js`, `opciones.js`, `estilos.js` (`CAMPO`, `BOTON`, `BOTON_SEC`, `TARJETA`), `coloresGrafico.js`, `usuarios.js`, `adminUsuarios.js`, `oscilacionPeso.js`, `tendenciaPeso.js`, `panelAtleta.js`, `cumpleanos.js`, `mediciones.js`, `cierres.js`, `bloques.js`, `rutinas.js`, `versionesRutina.js`, `volumen.js`, `nutricion.js`, `comidas.js`, `cargarComidas.js`, `ciclos.js`, `descarga.js`, `cargarDescarga.js`, `pesoCombinado.js`, `progresion.js`, `tiposEjercicio.js`, `records.js`.
+  - `lib/` (lógica pura y helpers): `supabase.js`, `fechas.js`, `useHoy.js`, `numeros.js`, `opciones.js`, `estilos.js` (`CAMPO`, `BOTON`, `BOTON_SEC`, `TARJETA`), `coloresGrafico.js`, `usuarios.js`, `adminUsuarios.js`, `oscilacionPeso.js`, `tendenciaPeso.js`, `panelAtleta.js`, `cumpleanos.js`, `mediciones.js`, `cierres.js`, `bloques.js`, `rutinas.js`, `versionesRutina.js`, `volumen.js`, `nutricion.js`, `comidas.js`, `cargarComidas.js`, `alimentos.js`, `dieta.js` (autocálculo de gramos), `buscarAlimentos.js`, `useBusquedaAlimentos.js`, `ciclos.js`, `descarga.js`, `cargarDescarga.js`, `pesoCombinado.js`, `progresion.js`, `tiposEjercicio.js`, `records.js`.
   - `atleta/`: `PantallaAtleta` (marco + contexto `{ hoy, hecho, marcarHecho }`), `CheckIn`, `Entrenar`, `EntrenarDia`, `MisDatos` (marco), `MisMediciones`, `Records`, `Nutricion`, `CicloActual`.
-  - `admin/`: `ListaAtletas`, `CumpleanosAtletas`, `DetalleAtleta`, `PanelAtleta`, `FechaNacimientoAtleta`, `GestionUsuarios`, `FormNuevoAtleta`, `EditarAtleta`, `Mediciones`, `RutinasAtleta`, `DescargaAtleta`, `CargasAtleta`, `EditorRutina`, `SelectorEjercicio`, `HistorialEntrenamiento`, `HistorialRutina`, `VolumenMuscular`, `PlanNutricional`, `PlanComidas`, `CiclosAtleta`, `ListaNegraAtleta`, `FormEjercicio`, `Ejercicios`.
+  - `admin/`: `ListaAtletas`, `CumpleanosAtletas`, `DetalleAtleta`, `PanelAtleta`, `FechaNacimientoAtleta`, `GestionUsuarios`, `FormNuevoAtleta`, `EditarAtleta`, `Mediciones`, `RutinasAtleta`, `DescargaAtleta`, `CargasAtleta`, `EditorRutina`, `SelectorEjercicio`, `HistorialEntrenamiento`, `HistorialRutina`, `VolumenMuscular`, `PlanNutricional`, `PlanComidas`, `CiclosAtleta`, `ListaNegraAtleta`, `FormEjercicio`, `Ejercicios`, `Alimentos`, `FormAlimento`, `BuscadorAlimentos`, `CalculadoraDieta`.
 
 ## 3. Rutas
 - Públicas: `/login` (`Login`), `/recuperar` (`RecuperarContrasena`).
@@ -30,11 +30,11 @@ SPA (sin backend propio). El navegador habla directo con Supabase; la seguridad 
   - `/atleta/entrenar` (`Entrenar`), `/atleta/entrenar/:diaId` (`EntrenarDia`).
   - `/atleta/nutricion` (`Nutricion`), `/atleta/datos/nutricion` (redirige a `/atleta/nutricion`).
   - `/atleta/datos` (`MisDatos` -> índice `MisMediciones`), `/atleta/datos/records` (`Records`).
-- Admin (`admin`): `/admin` (`ListaAtletas`), `/admin/atletas/:id` (`DetalleAtleta`), `/admin/rutinas/:rutinaId` (`EditorRutina`), `/admin/ejercicios` (`Ejercicios`), `/admin/usuarios` (`GestionUsuarios`).
+- Admin (`admin`): `/admin` (`ListaAtletas`), `/admin/atletas/:id` (`DetalleAtleta`), `/admin/rutinas/:rutinaId` (`EditorRutina`), `/admin/ejercicios` (`Ejercicios`), `/admin/alimentos` (`Alimentos`), `/admin/usuarios` (`GestionUsuarios`).
 - Fallback: `*` -> `/`.
 
 ## 4. Base de Datos (Supabase / PostgreSQL)
-Migraciones en orden: `schema_supabase.sql`, `02`–`09`, `11`–`24` (10 omitida; la `24` está pendiente de aplicar).
+Migraciones en orden: `schema_supabase.sql`, `02`–`09`, `11`–`25` (10 omitida; la `24` y la `25` están pendientes de aplicar).
 
 ### Tablas y Permisos (RLS)
 - `profiles`: `rol` (`admin`/`client`), `nombre_completo`, `fecha_nacimiento` (CHECK >= 1900, trigger no futura), `activo` (bool, default true). Atleta lee la suya y edita solo `nombre_completo`. Admin lee todas; escribe nombre/fecha vía RPC; `activo` solo Edge Function.
@@ -48,7 +48,8 @@ Migraciones en orden: `schema_supabase.sql`, `02`–`09`, `11`–`24` (10 omitid
 - `routine_day_completions`: único `(user_id, routine_day_id, semana_inicio)`. Atleta ve y crea en su rutina activa (sin update/delete); admin todo.
 - `exercise_closures`: único `(user_id, routine_exercise_id, fecha)`, `nota` (3–500), `series_hechas < series_objetivo`. Atleta ve, crea y borra las suyas; admin todo.
 - `routine_versions`: snapshots automáticos por trigger (`routine_id` set null, `numero`, `desde`/`hasta`, `series_registradas`, `foto` jsonb). Atleta sin acceso; admin solo lectura.
-- `meals` (orden 1–10) y `meal_foods` (orden 1–30, `cantidad` >0..10000, `unidad`: `g`/`ml`/`unidad`/`porcion`, FK compuesta `(meal_id, user_id)`). Atleta lee; solo RPC `set_meal_plan` escribe.
+- `meals` (orden 1–10) y `meal_foods` (orden 1–30, `cantidad` >0..10000, `unidad`: `g`/`ml`/`unidad`/`porcion`, FK compuesta `(meal_id, user_id)`). Atleta lee; solo RPC `set_meal_plan` escribe. Desde la `25`, `meal_foods` guarda un **snapshot** opcional (todo o nada por CHECK): `food_id` (set null), `estado`, macros base por 100 g (`base_*`) y macros asignados a los gramos exactos (`calorias`, `proteina_g`, `carbohidratos_g`, `grasas_g`), calculados por la RPC (base × g / 100, 1 decimal); solo con `unidad = 'g'`.
+- `foods` (catálogo global, migración 25): `nombre`, `categoria` (`proteina`/`carbohidrato`/`grasa`/`lacteo`/`fruta`/`verdura`/`legumbre`/`otro`), `estado` (`crudo`/`cocido`/`n/a`), macros por 100 g, `macro_dominante` y `nombre_busqueda` (generadas), `activo`. Único `(lower(nombre), estado)`. **Solo admin** lee y escribe (el atleta usa el snapshot de `meal_foods`). No se borra: se desactiva.
 - `nutrition_plans` (1 vigente `vigente_hasta is null`), `training_cycles` (macro/meso): atleta lee; admin escribe vía RPC/tabla.
 - `ai_load_suggestions` (atleta lee `aceptadas`), `ai_nutrition_suggestions`, `athlete_exercise_blacklist` (solo admin).
 
@@ -63,7 +64,8 @@ Migraciones en orden: `schema_supabase.sql`, `02`–`09`, `11`–`24` (10 omitid
 3. **RLS silencioso:** Encadenar `.select('id')` en `update`/`delete` para confirmar filas afectadas.
 4. **Progresión y Cargas:** Calculadas en cliente (`lib/progresion.js`) sobre las últimas series de **cada ejercicio por separado** (`ultimas_series_por_ejercicio`), sin guardar la meta en BD. Permite rutinas de larga duración sin pérdida de historial.
 5. **Versionado perezoso de rutinas:** Triggers `before` congelan foto en `routine_versions` solo si existen series nuevas desde la última foto.
-6. **Comidas del día:** Pertenecen al atleta (`meals`), desacopladas de `nutrition_plans` (versionado por calorías/macros) para no duplicar menús al ajustar macros.
+6. **Catálogo y autocálculo (paso 34):** búsqueda ligera en servidor (`ilike` sobre `nombre_busqueda`, `limit`, columnas mínimas, *debounce* 300 ms; el buscador del creador de dieta no consulta hasta 2 letras o un filtro; nunca se descarga el catálogo completo). El cálculo de gramos es JS puro y determinista (`lib/dieta.js`): cada alimento cubre un macro (`rol`, por defecto su macro dominante), el objetivo se reparte entre comidas por peso y se resuelve por rondas descontando macros indirectos; respeta alimentos con gramos fijos; los manuales no entran. Los macros asignados se recalculan en vivo en cliente y la BD los vuelve a calcular al guardar (mismo redondeo, mitad hacia arriba).
+6b. **Comidas del día:** Pertenecen al atleta (`meals`), desacopladas de `nutrition_plans` (versionado por calorías/macros) para no duplicar menús al ajustar macros.
 7. **Semana de descarga:** no modifica la rutina. `lib/descarga.js` calcula en cliente una prescripción liviana (series −40 %, carga −10 % musculación / −20 % halterofilia, RPE ≤ 7, progresión en pausa) mientras haya una `deload_weeks` vigente (fecha local). `ultimas_series_por_ejercicio` ignora series `en_descarga`, por eso la progresión retoma desde la última sesión normal. Una sola descarga sin cancelar por atleta (validado en la RPC con lock).
 8. **Peso del check-in en la vista de peso:** `lib/pesoCombinado.js` suma, solo para mostrar, los pesos de `daily_check_ins` a las mediciones de `metrics` (por día manda la medición oficial con peso). NO se copia nada a `metrics` (invariante 2): el atleta no puede crear/editar/borrar mediciones oficiales. Lo usa `MisMediciones` para tendencia/proyección, oscilación y "peso actual"; la gráfica distingue punto relleno (oficial) y hueco (check-in). Sin cambios de SQL (el atleta ya lee sus check-ins).
 9. **Diseño UI:** Solo modo oscuro (`fondo: #0F1115`, `superficie: #181B22`, `hundido: #12151B`, `borde: #2A2F3A`, `texto: #E8EAEE`, `suave: #A3A9B5`, `primario: #2F5FE3`, `enlace: #7AA2FF`, `alerta: #F0A040`). Táctil >= 44px (`min-h-11`). Atleta `max-w-md`, Admin `max-w-3xl`.
@@ -82,4 +84,4 @@ Migraciones en orden: `schema_supabase.sql`, `02`–`09`, `11`–`24` (10 omitid
 - Descarga: reglas fijas en constantes de `lib/descarga.js` (sin editor por atleta); no hay indicador en `PanelAtleta`/`HistorialEntrenamiento` ni caducidad automática en BD (el fin se deduce de `fecha_fin`).
 - Check-in obligatorio validado solo en UI (`PantallaAtleta`), sin trigger en `routine_logs`.
 - Desactivar usuario en Auth tarda hasta 1h en caducar JWT activo (UI bloquea al abrir app).
-- Comidas del día: sin cálculo automático de kcal/macros, catálogo, plantillas ni checklist de consumo.
+- Comidas del día: sin plantillas ni checklist de consumo. Autocálculo: 1 alimento = 1 rol y solo ajusta gramos (no sugiere alimentos); si los macros indirectos ya superan el objetivo, el alimento queda en 0 g con aviso. Menús guardados antes de la migración 25 no tienen snapshot (se ven sin macros). El seed del catálogo son valores aproximados tipo USDA, a revisar por el entrenador. Sin tests automáticos del motor (se probó con scripts manuales).

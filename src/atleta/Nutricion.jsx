@@ -11,7 +11,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../auth/AuthProvider'
 import { resumirMediciones } from '../lib/mediciones'
 import { textoAdherencia } from '../lib/nutricion'
-import { resumenComidas, ultimaActualizacion } from '../lib/comidas'
+import { hayMacros, resumenComidas, totalesAsignados, ultimaActualizacion } from '../lib/comidas'
 import { cargarComidas } from '../lib/cargarComidas'
 import { fechaCortaDeTimestamp } from '../lib/records'
 import { TARJETA } from '../lib/estilos'
@@ -66,6 +66,11 @@ export default function Nutricion() {
   const { promedioKcal7, diasKcal7 } = resumirMediciones(mediciones)
   const adherencia = plan ? textoAdherencia(promedioKcal7, plan.calorias_objetivo) : null
   const actualizado = ultimaActualizacion(comidas)
+  // Total del día de las comidas (suma de los macros guardados con cada alimento del catálogo)
+  const totalComidas = hayMacros(comidas)
+    ? totalesAsignados(comidas.flatMap((c) => c.alimentos))
+    : null
+  const num = (n) => Number(n).toLocaleString('es-CO', { maximumFractionDigits: 1 })
 
   return (
     <div className="flex flex-col gap-4">
@@ -86,6 +91,20 @@ export default function Nutricion() {
           </div>
         ) : (
           <ListaComidas comidas={comidas} />
+        )}
+        {totalComidas && (
+          <div className={TARJETA}>
+            <p className="text-sm text-suave">Total de tus comidas del día</p>
+            <p className="text-2xl font-bold">
+              {num(totalComidas.calorias)} <span className="text-base font-normal text-suave">kcal</span>
+            </p>
+            <p className="text-sm text-suave">
+              Proteína {num(totalComidas.proteina)} g · Carbohidratos {num(totalComidas.carbohidratos)} g · Grasas {num(totalComidas.grasas)} g
+            </p>
+            {totalComidas.sinMacros > 0 && (
+              <p className="text-xs text-suave">No incluye {totalComidas.sinMacros} {totalComidas.sinMacros === 1 ? 'alimento' : 'alimentos'} sin macros calculados.</p>
+            )}
+          </div>
         )}
       </section>
 

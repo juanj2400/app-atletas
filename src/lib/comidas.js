@@ -8,11 +8,19 @@
 //
 // Formas de los datos:
 //   - "comidas" (lo que se LEE de la base): [{ id, nombre, notas, created_at,
-//        alimentos: [{ id, alimento, cantidad (número), unidad, nota }] }]
+//        alimentos: [{ id, alimento, cantidad (número), unidad, nota,
+//                      foodId, estado, base, asignado }] }]
+//        Los 4 últimos son el SNAPSHOT de la migración 25: de qué alimento del catálogo viene,
+//        su estado (crudo/cocido/n/a), sus macros por 100 g (`base`) y los macros de esos
+//        gramos exactos (`asignado`). Son null/'' en los alimentos manuales y en los menús
+//        guardados antes de la migración 25.
 //   - "borrador" (lo que se EDITA en el formulario): igual, pero sin ids de base de datos,
 //        con una `clave` local para React y la cantidad como TEXTO (el usuario escribe "1,5").
+//        Cada alimento del borrador también lleva `rol` y `fijo` (solo para el cálculo de
+//        lib/dieta.js; no se guardan).
 // =====================================================================
 import { aNumero } from './numeros'
+import { sumarMacros } from './dieta'
 
 // Mismos límites que la migración 23 (la base de datos es la barrera real).
 export const MAX_COMIDAS = 10
@@ -56,12 +64,27 @@ export function armarComidas(filasComidas, filasAlimentos) {
   const alimentosDe = new Map()
   for (const a of [...filasAlimentos].sort((x, y) => x.orden - y.orden)) {
     if (!alimentosDe.has(a.meal_id)) alimentosDe.set(a.meal_id, [])
+    const conSnapshot = a.base_calorias !== null && a.base_calorias !== undefined
     alimentosDe.get(a.meal_id).push({
       id: a.id,
       alimento: a.alimento,
       cantidad: Number(a.cantidad), // la base entrega numeric; aquí queda como número
       unidad: a.unidad,
       nota: a.nota ?? '',
+      foodId: a.food_id ?? null,
+      estado: a.estado ?? '',
+      base: conSnapshot ? {
+        calorias: Number(a.base_calorias),
+        proteina_g: Number(a.base_proteina_g),
+        carbohidratos_g: Number(a.base_carbohidratos_g),
+        grasas_g: Number(a.base_grasas_g),
+      } : null,
+      asignado: conSnapshot ? {
+        calorias: Number(a.calorias),
+        proteina: Number(a.proteina_g),
+        carbohidratos: Number(a.carbohidratos_g),
+        grasas: Number(a.grasas_g),
+      } : null,
     })
   }
   return [...filasComidas]
@@ -74,6 +97,18 @@ export function armarComidas(filasComidas, filasAlimentos) {
       alimentos: alimentosDe.get(c.id) ?? [],
     }))
 }
+
+// Totales (kcal y macros) de una lista de alimentos LEÍDOS de la base, sumando los macros
+// asignados que se guardaron (snapshot). `sinMacros` = alimentos manuales que no suman.
+export function totalesAsignados(alimentos) {
+  return {
+    ...sumarMacros(alimentos.map((a) => a.asignado)),
+    sinMacros: alimentos.filter((a) => !a.asignado).length,
+  }
+}
+
+// ¿Esta lista de comidas tiene al menos un alimento con macros guardados?
+export const hayMacros = (comidas) => comidas.some((c) => c.alimentos.some((a) => a.asignado))
 
 // "Actualizado" = la fecha más reciente entre las comidas (cada guardado las recrea todas).
 export function ultimaActualizacion(comidas) {
@@ -91,7 +126,39 @@ let contador = 0
 const nuevaClave = () => `k${++contador}`
 
 export function alimentoNuevo(unidad = 'g') {
-  return { clave: nuevaClave(), alimento: '', cantidad: '', unidad, nota: '' }
+  return {
+    clave: nuevaClave(), alimento: '', cantidad: '', unidad, nota: '',
+    foodId: null, estado: '', base: null, rol: '', fijo: false,
+  }
+}
+
+// Datos del catálogo (fila de `foods`) que se copian a la fila del borrador. La unidad pasa a
+// gramos: los macros del catálogo son por 100 g.
+function datosDeCatalogo(alimento) {
+  return {
+    alimento: alimento.nombre,
+    unidad: 'g',
+    foodId: alimento.id,
+    estado: alimento.estado,
+    base: {
+      calorias: Number(alimento.calorias),
+      proteina_g: Number(alimento.proteina_g),
+      carbohidratos_g: Number(alimento.carbohidratos_g),
+      grasas_g: Number(alimento.grasas_g),
+    },
+    rol: '', // al cambiar de alimento vuelve a su macro dominante
+  }
+}
+
+// Fila nueva a partir de un alimento del catálogo (sin gramos todavía).
+export function filaDeCatalogo(alimento) {
+  return { ...alimentoNuevo('g'), ...datosDeCatalogo(alimento) }
+}
+
+// INTERCAMBIO: la misma fila (misma posición, gramos, nota y "fijo") pasa a otro alimento
+// del catálogo. Devuelve una fila nueva; no muta la original.
+export function aplicarAlimentoCatalogo(fila, alimento) {
+  return { ...fila, ...datosDeCatalogo(alimento) }
 }
 
 export function comidaNueva(nombre = '') {
@@ -111,6 +178,11 @@ export function aBorrador(comidas) {
       cantidad: String(a.cantidad).replace('.', ','),
       unidad: a.unidad,
       nota: a.nota,
+      foodId: a.foodId,
+      estado: a.estado,
+      base: a.base,
+      rol: '',
+      fijo: false,
     })),
   }))
 }
@@ -119,7 +191,10 @@ export function aBorrador(comidas) {
 // comparándola con la del último guardado, sin llevar una bandera aparte que se desincronice.
 export function huellaBorrador(borrador) {
   return JSON.stringify(
-    borrador.map((c) => [c.nombre, c.notas, c.alimentos.map((a) => [a.alimento, a.cantidad, a.unidad, a.nota])])
+    borrador.map((c) => [
+      c.nombre, c.notas,
+      c.alimentos.map((a) => [a.alimento, a.cantidad, a.unidad, a.nota, a.foodId, a.estado, a.base]),
+    ])
   )
 }
 
@@ -168,6 +243,10 @@ export function validarComidas(borrador) {
       if (!UNIDADES.some((u) => u.valor === a.unidad)) {
         return `En «${nombre}», elige la unidad de «${alimento}».`
       }
+      // Los macros del catálogo son por 100 g: un alimento del catálogo solo se mide en gramos.
+      if (a.base && a.unidad !== 'g') {
+        return `En «${nombre}», «${alimento}» es del catálogo y debe medirse en gramos.`
+      }
       if (a.nota.trim().length > 120) {
         return `En «${nombre}», la nota de «${alimento}» no puede pasar de 120 caracteres.`
       }
@@ -187,6 +266,9 @@ export function aPayload(borrador) {
       cantidad: aNumero(a.cantidad), // número, no texto: la función SQL lo exige así
       unidad: a.unidad,
       nota: a.nota.trim() || null,
+      // Snapshot (migración 25): solo los alimentos del catálogo lo llevan. La base de datos
+      // calcula los macros asignados a partir de esta base y de los gramos.
+      ...(a.base ? { food_id: a.foodId, estado: a.estado || 'n/a', base: a.base } : {}),
     })),
   }))
 }

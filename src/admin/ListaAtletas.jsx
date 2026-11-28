@@ -41,6 +41,9 @@ export default function ListaAtletas() {
           <Link to="/admin/ejercicios" className="flex min-h-11 items-center justify-center rounded-xl border border-borde bg-superficie px-4 text-sm font-semibold">
             Biblioteca de ejercicios y músculos
           </Link>
+          <Link to="/admin/alimentos" className="flex min-h-11 items-center justify-center rounded-xl border border-borde bg-superficie px-4 text-sm font-semibold">
+            Catálogo de alimentos (crudo y cocido)
+          </Link>
         </div>
         {/* Los cumpleaños solo cuentan atletas con acceso activo. */}
         {!cargando && !error && activos.length > 0 && <CumpleanosAtletas atletas={activos} hoy={hoy} />}

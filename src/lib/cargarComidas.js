@@ -18,7 +18,8 @@ export async function cargarComidas(userId) {
       .eq('user_id', userId)
       .order('orden', { ascending: true }),
     supabase.from('meal_foods')
-      .select('id, meal_id, alimento, cantidad, unidad, nota, orden')
+      // Incluye el snapshot de la migración 25 (estado y macros base/asignados).
+      .select('id, meal_id, alimento, cantidad, unidad, nota, orden, food_id, estado, base_calorias, base_proteina_g, base_carbohidratos_g, base_grasas_g, calorias, proteina_g, carbohidratos_g, grasas_g')
       .eq('user_id', userId)
       .order('orden', { ascending: true }),
   ])

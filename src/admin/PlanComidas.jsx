@@ -1,82 +1,173 @@
 // =====================================================================
-// PlanComidas — el entrenador arma las COMIDAS DEL DÍA de UN atleta (menú manual).
+// PlanComidas — el entrenador arma las COMIDAS DEL DÍA de UN atleta (creador de dieta).
 //
-// Cada comida (desayuno, almuerzo, cena, snacks...) lleva sus alimentos con la cantidad
-// exacta (gramos, mililitros, unidades o porciones). El atleta lo ve en su pestaña Nutrición.
+// Cada comida (desayuno, almuerzo, cena, snacks...) lleva sus alimentos con la cantidad exacta.
+// Los alimentos pueden ser:
+//   - del CATÁLOGO (/admin/alimentos): llevan estado (crudo/cocido), se miden en gramos y traen
+//     macros. Con ellos funciona la "Calculadora de gramos" (lib/dieta.js, sin IA) y los totales
+//     por comida y del día se recalculan en vivo al editar cualquier gramo.
+//   - MANUALES (como antes): nombre libre y cualquier unidad, sin macros.
+// El atleta lo ve en su pestaña Nutrición.
 //
 // Cómo funciona el guardado:
 //   - Se EDITA un borrador en pantalla (estado local) y se guarda TODO junto con el botón
-//     "Guardar comidas": la función de la base de datos `set_meal_plan` (migración 23)
-//     reemplaza el menú completo en una sola operación (todo o nada).
+//     "Guardar comidas": la función de la base de datos `set_meal_plan` (migraciones 23 y 25)
+//     reemplaza el menú completo en una sola operación (todo o nada) y guarda un SNAPSHOT de
+//     los macros por 100 g y de los macros asignados a los gramos exactos.
 //   - El menú es del atleta, no del plan de calorías: cambiar calorías o macros no lo toca.
 //   - Antes de enviar se valida en la pantalla (lib/comidas.js); la base de datos valida otra vez.
 // =====================================================================
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { cargarComidas } from '../lib/cargarComidas'
+import { buscarVariante } from '../lib/buscarAlimentos'
 import {
   COMIDAS_SUGERIDAS, MAX_ALIMENTOS, MAX_COMIDAS, UNIDADES,
-  aBorrador, aPayload, alimentoNuevo, comidaNueva, huellaBorrador, moverComida,
-  resumenComidas, ultimaActualizacion, validarComidas,
+  aBorrador, aPayload, alimentoNuevo, aplicarAlimentoCatalogo, comidaNueva, filaDeCatalogo,
+  huellaBorrador, moverComida, resumenComidas, ultimaActualizacion, validarComidas,
 } from '../lib/comidas'
+import { MACROS, esDeCatalogo, macrosDeFila, rolDeFila, totalesComida } from '../lib/dieta'
+import { TEXTO_MACRO, textoEstado } from '../lib/alimentos'
 import { fechaCortaDeTimestamp } from '../lib/records'
 import { CAMPO, BOTON, BOTON_SEC, TARJETA } from '../lib/estilos'
+import BuscadorAlimentos from './BuscadorAlimentos'
+import CalculadoraDieta from './CalculadoraDieta'
 
-// Un alimento dentro de una comida: nombre, cantidad + unidad y una nota opcional.
-function FilaAlimento({ alimento: a, numero, nombreComida, onCambiar, onQuitar }) {
+const numero = (n) => Number(n).toLocaleString('es-CO', { maximumFractionDigits: 1 })
+
+// Un alimento dentro de una comida. Si es del catálogo: nombre fijo + estado, gramos, rol,
+// "fijar gramos", macros en vivo y botones de intercambio. Si es manual: como siempre.
+function FilaAlimento({ alimento: a, numero: n, nombreComida, onCambiar, onQuitar, onIntercambiar }) {
+  const [buscando, setBuscando] = useState(false)
+  const [aviso, setAviso] = useState('')
+  const [cambiandoEstado, setCambiandoEstado] = useState(false)
+  const catalogo = esDeCatalogo(a)
+  const macros = macrosDeFila(a)
+  const rol = rolDeFila(a)
+  const otroEstado = a.estado === 'crudo' ? 'cocido' : a.estado === 'cocido' ? 'crudo' : null
+
+  async function pasarAOtroEstado() {
+    setAviso('')
+    setCambiandoEstado(true)
+    const { alimento, error } = await buscarVariante(a.alimento, otroEstado)
+    setCambiandoEstado(false)
+    if (error) return setAviso(error)
+    if (!alimento) return setAviso(`No hay «${a.alimento}» en estado ${otroEstado} en el catálogo. Agrégalo en el catálogo o usa «Cambiar alimento».`)
+    onIntercambiar(alimento)
+  }
+
   return (
     <div className="flex flex-col gap-2 rounded-xl bg-hundido p-3">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-semibold">Alimento {numero}</span>
+        <span className="text-sm font-semibold">Alimento {n}{catalogo ? ' · catálogo' : ' · manual'}</span>
         <button
           type="button"
           onClick={onQuitar}
-          aria-label={`Quitar el alimento ${numero} de ${nombreComida || 'la comida'}`}
+          aria-label={`Quitar el alimento ${n} de ${nombreComida || 'la comida'}`}
           className="min-h-11 px-2 text-sm font-semibold text-alerta"
         >
           Quitar
         </button>
       </div>
 
-      <div>
-        <label htmlFor={`${a.clave}-alimento`} className="text-xs text-suave">Alimento</label>
-        <input id={`${a.clave}-alimento`} value={a.alimento} maxLength={80}
-          onChange={(e) => onCambiar('alimento', e.target.value)}
-          placeholder="Ej: Arroz blanco cocido" className={CAMPO} />
-      </div>
+      {catalogo ? (
+        <div>
+          <p className="font-semibold">
+            {a.alimento} <span className="text-sm font-normal text-enlace">· {textoEstado(a.estado)}</span>
+          </p>
+          <div className="mt-1 flex flex-wrap gap-2">
+            <button type="button" onClick={() => setBuscando((b) => !b)} className={BOTON_SEC}>Cambiar alimento</button>
+            {otroEstado && (
+              <button type="button" onClick={pasarAOtroEstado} disabled={cambiandoEstado} className={BOTON_SEC}>
+                {cambiandoEstado ? 'Buscando...' : `Pasar a ${otroEstado}`}
+              </button>
+            )}
+          </div>
+          {aviso && <p role="alert" className="mt-1 text-sm text-alerta">{aviso}</p>}
+          {buscando && (
+            <div className="mt-2">
+              <BuscadorAlimentos
+                titulo="Cambiar por otro alimento"
+                textoBoton="Usar este"
+                onCerrar={() => setBuscando(false)}
+                onElegir={(alimento) => { onIntercambiar(alimento); setBuscando(false) }}
+              />
+            </div>
+          )}
+        </div>
+      ) : (
+        <div>
+          <label htmlFor={`${a.clave}-alimento`} className="text-xs text-suave">Alimento</label>
+          <input id={`${a.clave}-alimento`} value={a.alimento} maxLength={80}
+            onChange={(e) => onCambiar('alimento', e.target.value)}
+            placeholder="Ej: Arroz blanco cocido" className={CAMPO} />
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label htmlFor={`${a.clave}-cantidad`} className="text-xs text-suave">Cantidad</label>
+          <label htmlFor={`${a.clave}-cantidad`} className="text-xs text-suave">{catalogo ? 'Gramos' : 'Cantidad'}</label>
           <input id={`${a.clave}-cantidad`} inputMode="decimal" value={a.cantidad}
             onChange={(e) => onCambiar('cantidad', e.target.value)}
             placeholder="Ej: 150" className={CAMPO} />
         </div>
         <div>
           <label htmlFor={`${a.clave}-unidad`} className="text-xs text-suave">Unidad</label>
-          <select id={`${a.clave}-unidad`} value={a.unidad}
-            onChange={(e) => onCambiar('unidad', e.target.value)} className={CAMPO}>
-            {UNIDADES.map((u) => <option key={u.valor} value={u.valor}>{u.etiqueta}</option>)}
-          </select>
+          {catalogo ? (
+            // Los macros del catálogo son por 100 g: la unidad no se puede cambiar.
+            <p id={`${a.clave}-unidad`} className="flex min-h-11 items-center px-1 text-sm text-suave">Gramos (g)</p>
+          ) : (
+            <select id={`${a.clave}-unidad`} value={a.unidad}
+              onChange={(e) => onCambiar('unidad', e.target.value)} className={CAMPO}>
+              {UNIDADES.map((u) => <option key={u.valor} value={u.valor}>{u.etiqueta}</option>)}
+            </select>
+          )}
         </div>
       </div>
+
+      {catalogo && (
+        <>
+          {/* Macros de estos gramos, en vivo */}
+          <p className="text-sm">
+            <span className="font-bold">{numero(macros.calorias)} kcal</span>
+            <span className="text-suave"> · P {numero(macros.proteina)} · C {numero(macros.carbohidratos)} · G {numero(macros.grasas)} g</span>
+          </p>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label htmlFor={`${a.clave}-rol`} className="text-xs text-suave">Cubre (para el cálculo)</label>
+              <select id={`${a.clave}-rol`} value={a.rol} onChange={(e) => onCambiar('rol', e.target.value)} className={CAMPO}>
+                <option value="">Auto ({rol ? TEXTO_MACRO[rol] : 'sin macros'})</option>
+                {MACROS.map((m) => <option key={m.clave} value={m.clave}>{m.etiqueta}</option>)}
+              </select>
+            </div>
+            <label className="flex min-h-11 items-end gap-2 pb-3 text-sm">
+              <input type="checkbox" checked={a.fijo} onChange={(e) => onCambiar('fijo', e.target.checked)} />
+              Fijar gramos
+            </label>
+          </div>
+        </>
+      )}
 
       <div>
         <label htmlFor={`${a.clave}-nota`} className="text-xs text-suave">Nota (opcional)</label>
         <input id={`${a.clave}-nota`} value={a.nota} maxLength={120}
           onChange={(e) => onCambiar('nota', e.target.value)}
-          placeholder="Ej: cocido, sin sal" className={CAMPO} />
+          placeholder="Ej: sin sal, a la plancha" className={CAMPO} />
       </div>
     </div>
   )
 }
 
-// Una comida: nombre, orden (subir/bajar), sus alimentos y acciones.
+// Una comida: nombre, orden (subir/bajar), sus alimentos, total en vivo y acciones.
 function TarjetaComida({
   comida, indice, total, onCambiar, onMover, onQuitar,
-  onAgregarAlimento, onCambiarAlimento, onQuitarAlimento,
+  onAgregarAlimento, onAgregarDelCatalogo, onCambiarAlimento, onQuitarAlimento, onIntercambiarAlimento,
 }) {
+  const [buscando, setBuscando] = useState(false)
   const nombre = comida.nombre.trim()
+  const totales = totalesComida(comida)
+  const lleno = comida.alimentos.length >= MAX_ALIMENTOS
   return (
     <div className={`${TARJETA} flex flex-col gap-3`}>
       <div className="flex items-end gap-2">
@@ -114,14 +205,43 @@ function TarjetaComida({
           nombreComida={nombre}
           onCambiar={(campo, valor) => onCambiarAlimento(a.clave, campo, valor)}
           onQuitar={() => onQuitarAlimento(a.clave)}
+          onIntercambiar={(alimento) => onIntercambiarAlimento(a.clave, alimento)}
         />
       ))}
 
+      {/* Total de la comida, en vivo */}
+      {comida.alimentos.length > 0 && (
+        <p className="rounded-xl bg-hundido p-3 text-sm">
+          <span className="font-semibold">Total de la comida: </span>
+          <span className="font-bold">{numero(totales.calorias)} kcal</span>
+          <span className="text-suave"> · P {numero(totales.proteina)} · C {numero(totales.carbohidratos)} · G {numero(totales.grasas)} g</span>
+          {totales.sinMacros > 0 && (
+            <span className="block text-xs text-suave">
+              {totales.sinMacros} {totales.sinMacros === 1 ? 'alimento manual no suma' : 'alimentos manuales no suman'}.
+            </span>
+          )}
+        </p>
+      )}
+
+      {buscando && (
+        <BuscadorAlimentos
+          titulo="Agregar del catálogo"
+          textoBoton="Agregar"
+          onCerrar={() => setBuscando(false)}
+          // El buscador queda abierto para sumar varios alimentos seguidos
+          onElegir={(alimento) => onAgregarDelCatalogo(alimento)}
+        />
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <button type="button" onClick={onAgregarAlimento}
-          disabled={comida.alimentos.length >= MAX_ALIMENTOS} className={BOTON_SEC}>
-          + Agregar alimento
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={() => setBuscando((b) => !b)} disabled={lleno} className={BOTON_SEC}>
+            + Del catálogo
+          </button>
+          <button type="button" onClick={onAgregarAlimento} disabled={lleno} className={BOTON_SEC}>
+            + Manual
+          </button>
+        </div>
         <button type="button" onClick={onQuitar} className={`${BOTON_SEC} text-alerta`}>
           Quitar comida
         </button>
@@ -197,6 +317,24 @@ export default function PlanComidas({ atletaId, onCambiosSinGuardar }) {
       return { ...c, alimentos: [...c.alimentos, alimentoNuevo(c.alimentos.at(-1)?.unidad)] }
     }))
 
+  // Agrega un alimento del catálogo a la comida (sin gramos: se escriben o se calculan).
+  // Si la comida solo tiene la fila vacía inicial, la reemplaza en vez de dejarla sobrando.
+  const agregarDelCatalogo = (clave, alimento) =>
+    cambiar((b) => b.map((c) => {
+      if (c.clave !== clave) return c
+      const vacia = (a) => !a.base && a.alimento.trim() === '' && a.cantidad.trim() === '' && a.nota.trim() === ''
+      const base = c.alimentos.length === 1 && vacia(c.alimentos[0]) ? [] : c.alimentos
+      if (base.length >= MAX_ALIMENTOS) return c
+      return { ...c, alimentos: [...base, filaDeCatalogo(alimento)] }
+    }))
+
+  // INTERCAMBIO: la misma fila pasa a otro alimento del catálogo, conservando gramos y posición.
+  const intercambiarAlimento = (claveComida, claveAlimento, alimento) =>
+    cambiar((b) => b.map((c) => (c.clave !== claveComida ? c : {
+      ...c,
+      alimentos: c.alimentos.map((a) => (a.clave === claveAlimento ? aplicarAlimentoCatalogo(a, alimento) : a)),
+    })))
+
   const cambiarAlimento = (claveComida, claveAlimento, campo, valor) =>
     cambiar((b) => b.map((c) => (c.clave !== claveComida ? c : {
       ...c,
@@ -245,7 +383,8 @@ export default function PlanComidas({ atletaId, onCambiosSinGuardar }) {
       <div>
         <h3 className="text-lg font-bold">Comidas del día</h3>
         <p className="text-sm text-suave">
-          Arma el menú del atleta: cada comida con sus alimentos y cantidades exactas. Él lo consulta en su sección Nutrición.
+          Arma el menú del atleta: cada comida con sus alimentos y cantidades exactas. Con alimentos del catálogo
+          (crudo o cocido) puedes calcular los gramos automáticamente. Él lo consulta en su sección Nutrición.
         </p>
       </div>
 
@@ -258,6 +397,12 @@ export default function PlanComidas({ atletaId, onCambiosSinGuardar }) {
             {resumenComidas(borrador)}
             {actualizado && ` · guardado el ${fechaCortaDeTimestamp(actualizado)}`}
           </p>
+
+          <CalculadoraDieta
+            atletaId={atletaId}
+            comidas={borrador}
+            onAplicar={(nuevasComidas) => cambiar(() => nuevasComidas)}
+          />
 
           {borrador.length === 0 && (
             <div className={TARJETA}>
@@ -275,8 +420,10 @@ export default function PlanComidas({ atletaId, onCambiosSinGuardar }) {
               onMover={(delta) => cambiar((b) => moverComida(b, i, delta))}
               onQuitar={() => quitarComida(comida)}
               onAgregarAlimento={() => agregarAlimento(comida.clave)}
+              onAgregarDelCatalogo={(alimento) => agregarDelCatalogo(comida.clave, alimento)}
               onCambiarAlimento={(claveAlimento, campo, valor) => cambiarAlimento(comida.clave, claveAlimento, campo, valor)}
               onQuitarAlimento={(claveAlimento) => quitarAlimento(comida.clave, claveAlimento)}
+              onIntercambiarAlimento={(claveAlimento, alimento) => intercambiarAlimento(comida.clave, claveAlimento, alimento)}
             />
           ))}
 
@@ -311,7 +458,8 @@ export default function PlanComidas({ atletaId, onCambiosSinGuardar }) {
             )}
           </div>
           <p className="text-xs text-suave">
-            Al guardar, el menú anterior se reemplaza por este y el atleta ve el nuevo al instante.
+            Al guardar, el menú anterior se reemplaza por este y el atleta ve el nuevo al instante. Se guardan los macros
+            de cada alimento tal como están ahora: si luego cambias el catálogo, este menú no se modifica.
           </p>
         </>
       )}

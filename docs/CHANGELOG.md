@@ -4,6 +4,11 @@ Registro cronológico de cambios. Agregar entradas nuevas arriba (`feat`, `fix`,
 
 ---
 
+## 2026-11-27 · Paso 34 — Catálogo de alimentos y autocálculo de gramos
+- **feat:** Catálogo propio de alimentos (`/admin/alimentos`, `Alimentos`, `FormAlimento`) con crudo/cocido, macros por 100 g y búsqueda ligera (`lib/buscarAlimentos.js`, `useBusquedaAlimentos`). Creador de dieta (`PlanComidas`) con `BuscadorAlimentos` y `CalculadoraDieta`: calcula gramos con `lib/dieta.js` (JS puro, sin IA), edición manual, intercambio de alimentos y totales por comida/día en vivo. `ListaComidas` y `Nutricion` muestran estado crudo/cocido, gramos exactos y macros.
+- **db:** `migracion_25_catalogo_alimentos.sql` — tabla `foods` (RLS solo admin) + seed, snapshot en `meal_foods` y `set_meal_plan` actualizada. **Aplicar SQL primero** (independiente de la 24).
+- **refactor:** `lib/comidas.js` (snapshot, intercambio), `lib/cargarComidas.js`, `lib/alimentos.js`.
+
 ## 2026-11-27 · Paso 33 — Peso del check-in en tendencia y peso actual
 - **feat:** El peso del check-in diario se suma, solo en la vista del atleta (`MisMediciones`), a la tendencia/proyección, la oscilación y "Peso actual". La gráfica marca con punto hueco los pesos de check-in y con relleno los oficiales; si el mismo día hay medición oficial, manda esa.
 - **refactor:** `lib/pesoCombinado.js` (`combinarPesos`). No copia nada a `metrics` (invariante 2) ni requiere SQL.

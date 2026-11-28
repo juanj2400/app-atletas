@@ -4,6 +4,10 @@ Registro cronológico de cambios. Agregar entradas nuevas arriba (`feat`, `fix`,
 
 ---
 
+## 2026-11-27 · Paso 33 — Peso del check-in en tendencia y peso actual
+- **feat:** El peso del check-in diario se suma, solo en la vista del atleta (`MisMediciones`), a la tendencia/proyección, la oscilación y "Peso actual". La gráfica marca con punto hueco los pesos de check-in y con relleno los oficiales; si el mismo día hay medición oficial, manda esa.
+- **refactor:** `lib/pesoCombinado.js` (`combinarPesos`). No copia nada a `metrics` (invariante 2) ni requiere SQL.
+
 ## 2026-11-27 · Paso 32 — Semana de descarga
 - **feat:** El entrenador activa/cancela una semana de descarga (7 días desde hoy) en la pestaña Entrenamiento (`DescargaAtleta.jsx`). El atleta ve aviso (`AvisoDescarga.jsx`) y una meta liviana por ejercicio (series −40 %, carga −10 % / −20 % en halterofilia, RPE ≤ 7, progresión en pausa) sin tocar su rutina; al terminar vuelve solo a lo anterior.
 - **db:** `migracion_24_semana_descarga.sql` — tabla `deload_weeks` (RLS, solo lectura directa), `routine_logs.en_descarga` + trigger, RPC `activar_descarga` / `cancelar_descarga` y `ultimas_series_por_ejercicio` ignora series de descarga. **Aplicar SQL primero.**

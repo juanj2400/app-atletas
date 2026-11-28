@@ -1,5 +1,5 @@
 # ARQUITECTURA — MyProgress
-> Última actualización: 2026-11-27 (paso 32) · Mantener al día según `AGENTS.md`.
+> Última actualización: 2026-11-27 (paso 33) · Mantener al día según `AGENTS.md`.
 
 ## 1. Visión y Stack
 SPA (sin backend propio). El navegador habla directo con Supabase; la seguridad real reside en **PostgreSQL RLS**. Hosting en Netlify vía `git push`.
@@ -18,7 +18,7 @@ SPA (sin backend propio). El navegador habla directo con Supabase; la seguridad 
   - `auth/`: `AuthProvider.jsx` (`useAuth()`), `RutaProtegida.jsx` (incluye `CuentaDesactivada`).
   - `pages/`: `Login.jsx`, `RecuperarContrasena.jsx`, `RestablecerContrasena.jsx`, `Inicio.jsx`.
   - `components/`: `Encabezado`, `Estados` (`Cargando`, `SinPerfil`), `Selector`, `ResumenMediciones`, `GraficoEvolucion` (+`Lazy`), `GraficoTendenciaPeso` (+`Lazy`), `GraficoOscilacionPeso` (+`Lazy`), `LineaTemporal`, `RecordsAtleta`, `GraficosRecord` (+`Lazy`), `PlanNutricionalCard`, `ListaComidas`, `CicloVigenteCard`, `AvisoDescarga`, `ResumenDiaRealizado`, `AvisoActualizacion`.
-  - `lib/` (lógica pura y helpers): `supabase.js`, `fechas.js`, `useHoy.js`, `numeros.js`, `opciones.js`, `estilos.js` (`CAMPO`, `BOTON`, `BOTON_SEC`, `TARJETA`), `coloresGrafico.js`, `usuarios.js`, `adminUsuarios.js`, `oscilacionPeso.js`, `tendenciaPeso.js`, `panelAtleta.js`, `cumpleanos.js`, `mediciones.js`, `cierres.js`, `bloques.js`, `rutinas.js`, `versionesRutina.js`, `volumen.js`, `nutricion.js`, `comidas.js`, `cargarComidas.js`, `ciclos.js`, `descarga.js`, `cargarDescarga.js`, `progresion.js`, `tiposEjercicio.js`, `records.js`.
+  - `lib/` (lógica pura y helpers): `supabase.js`, `fechas.js`, `useHoy.js`, `numeros.js`, `opciones.js`, `estilos.js` (`CAMPO`, `BOTON`, `BOTON_SEC`, `TARJETA`), `coloresGrafico.js`, `usuarios.js`, `adminUsuarios.js`, `oscilacionPeso.js`, `tendenciaPeso.js`, `panelAtleta.js`, `cumpleanos.js`, `mediciones.js`, `cierres.js`, `bloques.js`, `rutinas.js`, `versionesRutina.js`, `volumen.js`, `nutricion.js`, `comidas.js`, `cargarComidas.js`, `ciclos.js`, `descarga.js`, `cargarDescarga.js`, `pesoCombinado.js`, `progresion.js`, `tiposEjercicio.js`, `records.js`.
   - `atleta/`: `PantallaAtleta` (marco + contexto `{ hoy, hecho, marcarHecho }`), `CheckIn`, `Entrenar`, `EntrenarDia`, `MisDatos` (marco), `MisMediciones`, `Records`, `Nutricion`, `CicloActual`.
   - `admin/`: `ListaAtletas`, `CumpleanosAtletas`, `DetalleAtleta`, `PanelAtleta`, `FechaNacimientoAtleta`, `GestionUsuarios`, `FormNuevoAtleta`, `EditarAtleta`, `Mediciones`, `RutinasAtleta`, `DescargaAtleta`, `CargasAtleta`, `EditorRutina`, `SelectorEjercicio`, `HistorialEntrenamiento`, `HistorialRutina`, `VolumenMuscular`, `PlanNutricional`, `PlanComidas`, `CiclosAtleta`, `ListaNegraAtleta`, `FormEjercicio`, `Ejercicios`.
 
@@ -65,7 +65,8 @@ Migraciones en orden: `schema_supabase.sql`, `02`–`09`, `11`–`24` (10 omitid
 5. **Versionado perezoso de rutinas:** Triggers `before` congelan foto en `routine_versions` solo si existen series nuevas desde la última foto.
 6. **Comidas del día:** Pertenecen al atleta (`meals`), desacopladas de `nutrition_plans` (versionado por calorías/macros) para no duplicar menús al ajustar macros.
 7. **Semana de descarga:** no modifica la rutina. `lib/descarga.js` calcula en cliente una prescripción liviana (series −40 %, carga −10 % musculación / −20 % halterofilia, RPE ≤ 7, progresión en pausa) mientras haya una `deload_weeks` vigente (fecha local). `ultimas_series_por_ejercicio` ignora series `en_descarga`, por eso la progresión retoma desde la última sesión normal. Una sola descarga sin cancelar por atleta (validado en la RPC con lock).
-8. **Diseño UI:** Solo modo oscuro (`fondo: #0F1115`, `superficie: #181B22`, `hundido: #12151B`, `borde: #2A2F3A`, `texto: #E8EAEE`, `suave: #A3A9B5`, `primario: #2F5FE3`, `enlace: #7AA2FF`, `alerta: #F0A040`). Táctil >= 44px (`min-h-11`). Atleta `max-w-md`, Admin `max-w-3xl`.
+8. **Peso del check-in en la vista de peso:** `lib/pesoCombinado.js` suma, solo para mostrar, los pesos de `daily_check_ins` a las mediciones de `metrics` (por día manda la medición oficial con peso). NO se copia nada a `metrics` (invariante 2): el atleta no puede crear/editar/borrar mediciones oficiales. Lo usa `MisMediciones` para tendencia/proyección, oscilación y "peso actual"; la gráfica distingue punto relleno (oficial) y hueco (check-in). Sin cambios de SQL (el atleta ya lee sus check-ins).
+9. **Diseño UI:** Solo modo oscuro (`fondo: #0F1115`, `superficie: #181B22`, `hundido: #12151B`, `borde: #2A2F3A`, `texto: #E8EAEE`, `suave: #A3A9B5`, `primario: #2F5FE3`, `enlace: #7AA2FF`, `alerta: #F0A040`). Táctil >= 44px (`min-h-11`). Atleta `max-w-md`, Admin `max-w-3xl`.
 
 ## 6. Despliegue y Configuración Manual
 - **Env vars frontend (Netlify y `.env`):** `VITE_SUPABASE_URL`, `VITE_SUPABASE_KEY`.
@@ -77,6 +78,7 @@ Migraciones en orden: `schema_supabase.sql`, `02`–`09`, `11`–`24` (10 omitid
 - Sin ESLint ni suite de tests automatizados en repo (se prueban funciones puras y SQL manualmente).
 - `border-[#5B6372]` y `lib/coloresGrafico.js` fuera de `@theme` en `index.css`; `Mediciones.jsx` duplica constante `CAMPO`.
 - `routines.cycle_id` sin interfaz; pestaña activa en `DetalleAtleta` se pierde al recargar; `PanelAtleta` repite 8 consultas al volver (sin caché).
+- Peso del check-in: solo se combina en `MisMediciones` (últimos 60 check-ins con peso); `PanelAtleta`, `Mediciones` (admin) y `GraficoEvolucion` siguen usando solo `metrics`.
 - Descarga: reglas fijas en constantes de `lib/descarga.js` (sin editor por atleta); no hay indicador en `PanelAtleta`/`HistorialEntrenamiento` ni caducidad automática en BD (el fin se deduce de `fecha_fin`).
 - Check-in obligatorio validado solo en UI (`PantallaAtleta`), sin trigger en `routine_logs`.
 - Desactivar usuario en Auth tarda hasta 1h en caducar JWT activo (UI bloquea al abrir app).

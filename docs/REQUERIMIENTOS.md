@@ -1,5 +1,5 @@
 # REQUERIMIENTOS — MyProgress
-> Última actualización: 2026-11-27 (paso 32) · Mantener al día según `AGENTS.md`.
+> Última actualización: 2026-11-27 (paso 33) · Mantener al día según `AGENTS.md`.
 
 ## 1. Producto y Roles
 PWA privada, mobile-first y solo oscura para un entrenador (`admin`) y 15–30 atletas (`client`). Costo cero (Supabase, Netlify, Gemini AI Studio).
@@ -17,7 +17,7 @@ Barra inferior con 3 pestañas: **Entrenar**, **Nutrición**, **Mis datos**.
 - **Entrenar (`/atleta/entrenar` y `:diaId`):** muestra ciclo vigente (`CicloActual`), lista de días con contador semanal (lunes–domingo) y estado "Realizado ✓" (días realizados se ven en solo lectura con `ResumenDiaRealizado` y se bloquean hasta el lunes). Soporta **rutina híbrida** (bloques halterofilia y musculación). En cada ejercicio: prescripción, "última vez", tarjeta **"Meta de hoy"** si tiene progresión, registro de series con tope estricto (RPE solo si `pide_rpe = true`) y opción de finalizar ejercicio incompleto con nota obligatoria (3–500 chars). Al completar/finalizar todo, *Terminar rutina* marca el día realizado. Durante una **semana de descarga** muestra un aviso y la prescripción reducida ("Meta de hoy · Descarga").
 - **Nutrición (`/atleta/nutricion`):** muestra (1) "Tus comidas del día" (tarjetas plegables con alimentos, cantidades exactas y notas), (2) objetivo diario vigente (kcal, macros, estado calórico) y (3) promedio de calorías de últimos 7 días vs objetivo.
 - **Mis datos (`/atleta/datos`):**
-  - *Medidas:* gráficas de tendencia/proyección a 14 días (mín. 3 pesos y 7 días), oscilación del peso, tarjetas resumen, evolución peso + calorías con línea de objetivo e historial.
+  - *Medidas:* gráficas de tendencia/proyección a 14 días (mín. 3 pesos y 7 días; cuenta el peso oficial del entrenador y el declarado en el check-in, y si el mismo día hay medición oficial manda esa), "Peso actual" con el último peso (oficial o de check-in), oscilación del peso, tarjetas resumen, evolución peso + calorías con línea de objetivo e historial.
   - *Récords (`/records`):* ranking top 8 de 1RM, buscador de ejercicios (sin tildes/mayúsculas) y detalle bajo demanda: 1RM estimado (Epley, solo ejercicios no `aislado`) con gráfica por fecha y últimas 8 marcas, evolución de peso máximo y repeticiones por sesión, y mejores reps por peso exacto.
 
 ### 2.3 Zona del Entrenador (`/admin`)

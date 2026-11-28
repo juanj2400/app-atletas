@@ -19,6 +19,18 @@ import { COLOR } from '../lib/coloresGrafico'
 import { calcularTendenciaPeso, textoTendencia, isoDesdeDia } from '../lib/tendenciaPeso'
 
 const TICK = { fill: COLOR.texto, fontSize: 12 }
+// Punto del peso real: relleno = medición oficial del entrenador; hueco = peso de tu check-in.
+// (Recharts no dibuja puntos en las filas sin peso, como la del final de la proyección.)
+function PuntoPeso({ cx, cy, payload }) {
+  if (cx == null || cy == null || payload?.peso == null) return null
+  return (
+    <circle
+      cx={cx} cy={cy} r={3.5} stroke={COLOR.peso} strokeWidth={1.5}
+      fill={payload.origen === 'checkin' ? COLOR.fondo : COLOR.peso}
+    />
+  )
+}
+
 const kg = (v) => `${Number(v).toLocaleString('es-CO', { maximumFractionDigits: 1 })} kg`
 
 export default function GraficoTendenciaPeso({ mediciones }) {
@@ -65,7 +77,7 @@ export default function GraficoTendenciaPeso({ mediciones }) {
             {/* Pesos reales: línea fina y puntos */}
             <Line
               dataKey="peso" name="Peso real" type="linear" connectNulls
-              stroke={COLOR.peso} strokeOpacity={0.55} strokeWidth={1.5} dot={{ r: 3 }} isAnimationActive={false}
+              stroke={COLOR.peso} strokeOpacity={0.55} strokeWidth={1.5} dot={<PuntoPeso />} isAnimationActive={false}
             />
             {/* Tendencia: la recta de mejor ajuste sobre los días medidos */}
             <Line
@@ -84,7 +96,10 @@ export default function GraficoTendenciaPeso({ mediciones }) {
       {/* Leyenda propia en HTML: en celular la de Recharts se ve apretada y esta es más legible */}
       <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-suave">
         <li className="flex items-center gap-1.5">
-          <span aria-hidden="true" className="inline-block h-2 w-2 rounded-full" style={{ background: COLOR.peso }} />Peso real
+          <span aria-hidden="true" className="inline-block h-2 w-2 rounded-full" style={{ background: COLOR.peso }} />Medición del entrenador
+        </li>
+        <li className="flex items-center gap-1.5">
+          <span aria-hidden="true" className="inline-block h-2 w-2 rounded-full" style={{ border: `1.5px solid ${COLOR.peso}` }} />Peso de tu check-in
         </li>
         <li className="flex items-center gap-1.5">
           <span aria-hidden="true" className="inline-block h-1 w-4 rounded" style={{ background: COLOR.linea }} />Tendencia
@@ -94,7 +109,7 @@ export default function GraficoTendenciaPeso({ mediciones }) {
         </li>
       </ul>
       <p className="mt-2 text-xs text-suave">
-        Es una estimación con tus últimas {t.puntos} mediciones de peso; no es una promesa.
+        Es una estimación con tus últimos {t.puntos} pesos (mediciones y check-ins); no es una promesa.
       </p>
     </div>
   )

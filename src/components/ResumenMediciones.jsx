@@ -22,8 +22,8 @@ export default function ResumenMediciones({ resumen, objetivoKcal = null }) {
         valor={pesoActual ? `${pesoActual.peso_corporal_kg} kg` : '—'}
         detalle={
           delta !== null
-            ? `${delta > 0 ? '+' : ''}${delta.toFixed(1)} kg vs. anterior`
-            : pesoActual && `Medido el ${formatearFechaCorta(pesoActual.fecha)}`
+            ? `${delta > 0 ? '+' : ''}${delta.toFixed(1)} kg vs. anterior${pesoActual.origen === 'checkin' ? ' · check-in' : ''}`
+            : pesoActual && `${pesoActual.origen === 'checkin' ? 'Check-in del' : 'Medido el'} ${formatearFechaCorta(pesoActual.fecha)}`
         }
       />
       <Tarjeta

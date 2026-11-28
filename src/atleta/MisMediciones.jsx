@@ -10,6 +10,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../auth/AuthProvider'
 import { formatearFecha } from '../lib/fechas'
 import { resumirMediciones, textoMedicion } from '../lib/mediciones'
+import { combinarPesos } from '../lib/pesoCombinado'
 import ResumenMediciones from '../components/ResumenMediciones'
 import GraficoEvolucion from '../components/GraficoEvolucionLazy'
 import GraficoTendenciaPeso from '../components/GraficoTendenciaPesoLazy'
@@ -21,6 +22,8 @@ export default function MisMediciones() {
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
   const [planes, setPlanes] = useState([]) // planes nutricionales (para la línea de objetivo)
+  // Pesos que el atleta declara en su check-in diario (solo lectura; se suman a la VISTA, no a metrics)
+  const [checkIns, setCheckIns] = useState([])
 
   useEffect(() => {
     let cancelado = false
@@ -53,30 +56,48 @@ export default function MisMediciones() {
     return () => { cancelado = true }
   }, [perfil.id])
 
+  // Check-ins con peso (1 por día). Si falla no es grave: se muestran solo las mediciones oficiales.
+  // Se pide por la fecha de HOY hacia atrás (60 días de check-ins como máximo).
+  useEffect(() => {
+    let cancelado = false
+    supabase
+      .from('daily_check_ins')
+      .select('fecha, peso_corporal_kg')
+      .eq('user_id', perfil.id)
+      .not('peso_corporal_kg', 'is', null)
+      .order('fecha', { ascending: false })
+      .limit(60)
+      .then(({ data }) => { if (!cancelado && data) setCheckIns(data) })
+    return () => { cancelado = true }
+  }, [perfil.id])
+
   if (cargando) return <p className="text-suave">Cargando tus datos...</p>
   if (error) return <p role="alert" className="text-alerta">{error}</p>
 
+  // Oficial + declarado (si el mismo día hay medición oficial con peso, manda esa)
+  const pesos = combinarPesos(mediciones, checkIns)
+
   return (
     <div className="flex flex-col gap-4">
-      {mediciones.length === 0 ? (
+      {pesos.length === 0 ? (
         <p className="rounded-2xl border border-borde bg-superficie p-4 text-suave">
-          Aún no tienes mediciones registradas. Cuando tu entrenador las cargue, las verás aquí.
+          Aún no tienes mediciones registradas. Cuando tu entrenador las cargue o anotes tu peso en el check-in, las verás aquí.
         </p>
       ) : (
         <>
           {/* Lo primero que ve el atleta: hacia dónde va su peso (tendencia + proyección). */}
-          <GraficoTendenciaPeso mediciones={mediciones} />
-          <GraficoOscilacionPeso mediciones={mediciones} />
+          <GraficoTendenciaPeso mediciones={pesos} />
+          <GraficoOscilacionPeso mediciones={pesos} />
           <p className="text-sm text-suave">
-            Tu entrenador registra estas mediciones. Aquí puedes ver tu progreso.
+            Tu entrenador registra las mediciones oficiales. El peso que anotas en tu check-in diario también cuenta para tu tendencia y tu peso actual; si el mismo día hay medición oficial, manda esa.
           </p>
           <ResumenMediciones
-            resumen={resumirMediciones(mediciones)}
+            resumen={resumirMediciones(pesos)}
             objetivoKcal={planes.find((p) => p.vigente_hasta === null)?.calorias_objetivo ?? null}
           />
-          <GraficoEvolucion mediciones={mediciones} planes={planes} />
+          {mediciones.length > 0 && <GraficoEvolucion mediciones={mediciones} planes={planes} />}
 
-          <section>
+          {mediciones.length > 0 && <section>
             <h3 className="mb-2 font-semibold">Historial</h3>
             <ul className="flex flex-col gap-3">
               {mediciones.map((m) => (
@@ -87,7 +108,7 @@ export default function MisMediciones() {
                 </li>
               ))}
             </ul>
-          </section>
+          </section>}
         </>
       )}
     </div>

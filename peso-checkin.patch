@@ -1,0 +1,293 @@
+diff --git a/docs/ARQUITECTURA.md b/docs/ARQUITECTURA.md
+index 1b22856..448ffd4 100644
+--- a/docs/ARQUITECTURA.md
++++ b/docs/ARQUITECTURA.md
+@@ -1,5 +1,5 @@
+ # ARQUITECTURA — MyProgress
+-> Última actualización: 2026-11-27 (paso 32) · Mantener al día según `AGENTS.md`.
++> Última actualización: 2026-11-27 (paso 33) · Mantener al día según `AGENTS.md`.
+ 
+ ## 1. Visión y Stack
+ SPA (sin backend propio). El navegador habla directo con Supabase; la seguridad real reside en **PostgreSQL RLS**. Hosting en Netlify vía `git push`.
+@@ -18,7 +18,7 @@ SPA (sin backend propio). El navegador habla directo con Supabase; la seguridad
+   - `auth/`: `AuthProvider.jsx` (`useAuth()`), `RutaProtegida.jsx` (incluye `CuentaDesactivada`).
+   - `pages/`: `Login.jsx`, `RecuperarContrasena.jsx`, `RestablecerContrasena.jsx`, `Inicio.jsx`.
+   - `components/`: `Encabezado`, `Estados` (`Cargando`, `SinPerfil`), `Selector`, `ResumenMediciones`, `GraficoEvolucion` (+`Lazy`), `GraficoTendenciaPeso` (+`Lazy`), `GraficoOscilacionPeso` (+`Lazy`), `LineaTemporal`, `RecordsAtleta`, `GraficosRecord` (+`Lazy`), `PlanNutricionalCard`, `ListaComidas`, `CicloVigenteCard`, `AvisoDescarga`, `ResumenDiaRealizado`, `AvisoActualizacion`.
+-  - `lib/` (lógica pura y helpers): `supabase.js`, `fechas.js`, `useHoy.js`, `numeros.js`, `opciones.js`, `estilos.js` (`CAMPO`, `BOTON`, `BOTON_SEC`, `TARJETA`), `coloresGrafico.js`, `usuarios.js`, `adminUsuarios.js`, `oscilacionPeso.js`, `tendenciaPeso.js`, `panelAtleta.js`, `cumpleanos.js`, `mediciones.js`, `cierres.js`, `bloques.js`, `rutinas.js`, `versionesRutina.js`, `volumen.js`, `nutricion.js`, `comidas.js`, `cargarComidas.js`, `ciclos.js`, `descarga.js`, `cargarDescarga.js`, `progresion.js`, `tiposEjercicio.js`, `records.js`.
++  - `lib/` (lógica pura y helpers): `supabase.js`, `fechas.js`, `useHoy.js`, `numeros.js`, `opciones.js`, `estilos.js` (`CAMPO`, `BOTON`, `BOTON_SEC`, `TARJETA`), `coloresGrafico.js`, `usuarios.js`, `adminUsuarios.js`, `oscilacionPeso.js`, `tendenciaPeso.js`, `panelAtleta.js`, `cumpleanos.js`, `mediciones.js`, `cierres.js`, `bloques.js`, `rutinas.js`, `versionesRutina.js`, `volumen.js`, `nutricion.js`, `comidas.js`, `cargarComidas.js`, `ciclos.js`, `descarga.js`, `cargarDescarga.js`, `pesoCombinado.js`, `progresion.js`, `tiposEjercicio.js`, `records.js`.
+   - `atleta/`: `PantallaAtleta` (marco + contexto `{ hoy, hecho, marcarHecho }`), `CheckIn`, `Entrenar`, `EntrenarDia`, `MisDatos` (marco), `MisMediciones`, `Records`, `Nutricion`, `CicloActual`.
+   - `admin/`: `ListaAtletas`, `CumpleanosAtletas`, `DetalleAtleta`, `PanelAtleta`, `FechaNacimientoAtleta`, `GestionUsuarios`, `FormNuevoAtleta`, `EditarAtleta`, `Mediciones`, `RutinasAtleta`, `DescargaAtleta`, `CargasAtleta`, `EditorRutina`, `SelectorEjercicio`, `HistorialEntrenamiento`, `HistorialRutina`, `VolumenMuscular`, `PlanNutricional`, `PlanComidas`, `CiclosAtleta`, `ListaNegraAtleta`, `FormEjercicio`, `Ejercicios`.
+ 
+@@ -65,7 +65,8 @@ Migraciones en orden: `schema_supabase.sql`, `02`–`09`, `11`–`24` (10 omitid
+ 5. **Versionado perezoso de rutinas:** Triggers `before` congelan foto en `routine_versions` solo si existen series nuevas desde la última foto.
+ 6. **Comidas del día:** Pertenecen al atleta (`meals`), desacopladas de `nutrition_plans` (versionado por calorías/macros) para no duplicar menús al ajustar macros.
+ 7. **Semana de descarga:** no modifica la rutina. `lib/descarga.js` calcula en cliente una prescripción liviana (series −40 %, carga −10 % musculación / −20 % halterofilia, RPE ≤ 7, progresión en pausa) mientras haya una `deload_weeks` vigente (fecha local). `ultimas_series_por_ejercicio` ignora series `en_descarga`, por eso la progresión retoma desde la última sesión normal. Una sola descarga sin cancelar por atleta (validado en la RPC con lock).
+-8. **Diseño UI:** Solo modo oscuro (`fondo: #0F1115`, `superficie: #181B22`, `hundido: #12151B`, `borde: #2A2F3A`, `texto: #E8EAEE`, `suave: #A3A9B5`, `primario: #2F5FE3`, `enlace: #7AA2FF`, `alerta: #F0A040`). Táctil >= 44px (`min-h-11`). Atleta `max-w-md`, Admin `max-w-3xl`.
++8. **Peso del check-in en la vista de peso:** `lib/pesoCombinado.js` suma, solo para mostrar, los pesos de `daily_check_ins` a las mediciones de `metrics` (por día manda la medición oficial con peso). NO se copia nada a `metrics` (invariante 2): el atleta no puede crear/editar/borrar mediciones oficiales. Lo usa `MisMediciones` para tendencia/proyección, oscilación y "peso actual"; la gráfica distingue punto relleno (oficial) y hueco (check-in). Sin cambios de SQL (el atleta ya lee sus check-ins).
++9. **Diseño UI:** Solo modo oscuro (`fondo: #0F1115`, `superficie: #181B22`, `hundido: #12151B`, `borde: #2A2F3A`, `texto: #E8EAEE`, `suave: #A3A9B5`, `primario: #2F5FE3`, `enlace: #7AA2FF`, `alerta: #F0A040`). Táctil >= 44px (`min-h-11`). Atleta `max-w-md`, Admin `max-w-3xl`.
+ 
+ ## 6. Despliegue y Configuración Manual
+ - **Env vars frontend (Netlify y `.env`):** `VITE_SUPABASE_URL`, `VITE_SUPABASE_KEY`.
+@@ -77,6 +78,7 @@ Migraciones en orden: `schema_supabase.sql`, `02`–`09`, `11`–`24` (10 omitid
+ - Sin ESLint ni suite de tests automatizados en repo (se prueban funciones puras y SQL manualmente).
+ - `border-[#5B6372]` y `lib/coloresGrafico.js` fuera de `@theme` en `index.css`; `Mediciones.jsx` duplica constante `CAMPO`.
+ - `routines.cycle_id` sin interfaz; pestaña activa en `DetalleAtleta` se pierde al recargar; `PanelAtleta` repite 8 consultas al volver (sin caché).
++- Peso del check-in: solo se combina en `MisMediciones` (últimos 60 check-ins con peso); `PanelAtleta`, `Mediciones` (admin) y `GraficoEvolucion` siguen usando solo `metrics`.
+ - Descarga: reglas fijas en constantes de `lib/descarga.js` (sin editor por atleta); no hay indicador en `PanelAtleta`/`HistorialEntrenamiento` ni caducidad automática en BD (el fin se deduce de `fecha_fin`).
+ - Check-in obligatorio validado solo en UI (`PantallaAtleta`), sin trigger en `routine_logs`.
+ - Desactivar usuario en Auth tarda hasta 1h en caducar JWT activo (UI bloquea al abrir app).
+diff --git a/docs/CHANGELOG.md b/docs/CHANGELOG.md
+index 26cc611..1e0f230 100644
+--- a/docs/CHANGELOG.md
++++ b/docs/CHANGELOG.md
+@@ -4,6 +4,10 @@ Registro cronológico de cambios. Agregar entradas nuevas arriba (`feat`, `fix`,
+ 
+ ---
+ 
++## 2026-11-27 · Paso 33 — Peso del check-in en tendencia y peso actual
++- **feat:** El peso del check-in diario se suma, solo en la vista del atleta (`MisMediciones`), a la tendencia/proyección, la oscilación y "Peso actual". La gráfica marca con punto hueco los pesos de check-in y con relleno los oficiales; si el mismo día hay medición oficial, manda esa.
++- **refactor:** `lib/pesoCombinado.js` (`combinarPesos`). No copia nada a `metrics` (invariante 2) ni requiere SQL.
++
+ ## 2026-11-27 · Paso 32 — Semana de descarga
+ - **feat:** El entrenador activa/cancela una semana de descarga (7 días desde hoy) en la pestaña Entrenamiento (`DescargaAtleta.jsx`). El atleta ve aviso (`AvisoDescarga.jsx`) y una meta liviana por ejercicio (series −40 %, carga −10 % / −20 % en halterofilia, RPE ≤ 7, progresión en pausa) sin tocar su rutina; al terminar vuelve solo a lo anterior.
+ - **db:** `migracion_24_semana_descarga.sql` — tabla `deload_weeks` (RLS, solo lectura directa), `routine_logs.en_descarga` + trigger, RPC `activar_descarga` / `cancelar_descarga` y `ultimas_series_por_ejercicio` ignora series de descarga. **Aplicar SQL primero.**
+diff --git a/docs/REQUERIMIENTOS.md b/docs/REQUERIMIENTOS.md
+index 714f96a..0805a66 100644
+--- a/docs/REQUERIMIENTOS.md
++++ b/docs/REQUERIMIENTOS.md
+@@ -1,5 +1,5 @@
+ # REQUERIMIENTOS — MyProgress
+-> Última actualización: 2026-11-27 (paso 32) · Mantener al día según `AGENTS.md`.
++> Última actualización: 2026-11-27 (paso 33) · Mantener al día según `AGENTS.md`.
+ 
+ ## 1. Producto y Roles
+ PWA privada, mobile-first y solo oscura para un entrenador (`admin`) y 15–30 atletas (`client`). Costo cero (Supabase, Netlify, Gemini AI Studio).
+@@ -17,7 +17,7 @@ Barra inferior con 3 pestañas: **Entrenar**, **Nutrición**, **Mis datos**.
+ - **Entrenar (`/atleta/entrenar` y `:diaId`):** muestra ciclo vigente (`CicloActual`), lista de días con contador semanal (lunes–domingo) y estado "Realizado ✓" (días realizados se ven en solo lectura con `ResumenDiaRealizado` y se bloquean hasta el lunes). Soporta **rutina híbrida** (bloques halterofilia y musculación). En cada ejercicio: prescripción, "última vez", tarjeta **"Meta de hoy"** si tiene progresión, registro de series con tope estricto (RPE solo si `pide_rpe = true`) y opción de finalizar ejercicio incompleto con nota obligatoria (3–500 chars). Al completar/finalizar todo, *Terminar rutina* marca el día realizado. Durante una **semana de descarga** muestra un aviso y la prescripción reducida ("Meta de hoy · Descarga").
+ - **Nutrición (`/atleta/nutricion`):** muestra (1) "Tus comidas del día" (tarjetas plegables con alimentos, cantidades exactas y notas), (2) objetivo diario vigente (kcal, macros, estado calórico) y (3) promedio de calorías de últimos 7 días vs objetivo.
+ - **Mis datos (`/atleta/datos`):**
+-  - *Medidas:* gráficas de tendencia/proyección a 14 días (mín. 3 pesos y 7 días), oscilación del peso, tarjetas resumen, evolución peso + calorías con línea de objetivo e historial.
++  - *Medidas:* gráficas de tendencia/proyección a 14 días (mín. 3 pesos y 7 días; cuenta el peso oficial del entrenador y el declarado en el check-in, y si el mismo día hay medición oficial manda esa), "Peso actual" con el último peso (oficial o de check-in), oscilación del peso, tarjetas resumen, evolución peso + calorías con línea de objetivo e historial.
+   - *Récords (`/records`):* ranking top 8 de 1RM, buscador de ejercicios (sin tildes/mayúsculas) y detalle bajo demanda: 1RM estimado (Epley, solo ejercicios no `aislado`) con gráfica por fecha y últimas 8 marcas, evolución de peso máximo y repeticiones por sesión, y mejores reps por peso exacto.
+ 
+ ### 2.3 Zona del Entrenador (`/admin`)
+diff --git a/src/atleta/MisMediciones.jsx b/src/atleta/MisMediciones.jsx
+index 1567c45..125a137 100644
+--- a/src/atleta/MisMediciones.jsx
++++ b/src/atleta/MisMediciones.jsx
+@@ -10,6 +10,7 @@ import { supabase } from '../lib/supabase'
+ import { useAuth } from '../auth/AuthProvider'
+ import { formatearFecha } from '../lib/fechas'
+ import { resumirMediciones, textoMedicion } from '../lib/mediciones'
++import { combinarPesos } from '../lib/pesoCombinado'
+ import ResumenMediciones from '../components/ResumenMediciones'
+ import GraficoEvolucion from '../components/GraficoEvolucionLazy'
+ import GraficoTendenciaPeso from '../components/GraficoTendenciaPesoLazy'
+@@ -21,6 +22,8 @@ export default function MisMediciones() {
+   const [cargando, setCargando] = useState(true)
+   const [error, setError] = useState('')
+   const [planes, setPlanes] = useState([]) // planes nutricionales (para la línea de objetivo)
++  // Pesos que el atleta declara en su check-in diario (solo lectura; se suman a la VISTA, no a metrics)
++  const [checkIns, setCheckIns] = useState([])
+ 
+   useEffect(() => {
+     let cancelado = false
+@@ -53,30 +56,48 @@ export default function MisMediciones() {
+     return () => { cancelado = true }
+   }, [perfil.id])
+ 
++  // Check-ins con peso (1 por día). Si falla no es grave: se muestran solo las mediciones oficiales.
++  // Se pide por la fecha de HOY hacia atrás (60 días de check-ins como máximo).
++  useEffect(() => {
++    let cancelado = false
++    supabase
++      .from('daily_check_ins')
++      .select('fecha, peso_corporal_kg')
++      .eq('user_id', perfil.id)
++      .not('peso_corporal_kg', 'is', null)
++      .order('fecha', { ascending: false })
++      .limit(60)
++      .then(({ data }) => { if (!cancelado && data) setCheckIns(data) })
++    return () => { cancelado = true }
++  }, [perfil.id])
++
+   if (cargando) return <p className="text-suave">Cargando tus datos...</p>
+   if (error) return <p role="alert" className="text-alerta">{error}</p>
+ 
++  // Oficial + declarado (si el mismo día hay medición oficial con peso, manda esa)
++  const pesos = combinarPesos(mediciones, checkIns)
++
+   return (
+     <div className="flex flex-col gap-4">
+-      {mediciones.length === 0 ? (
++      {pesos.length === 0 ? (
+         <p className="rounded-2xl border border-borde bg-superficie p-4 text-suave">
+-          Aún no tienes mediciones registradas. Cuando tu entrenador las cargue, las verás aquí.
++          Aún no tienes mediciones registradas. Cuando tu entrenador las cargue o anotes tu peso en el check-in, las verás aquí.
+         </p>
+       ) : (
+         <>
+           {/* Lo primero que ve el atleta: hacia dónde va su peso (tendencia + proyección). */}
+-          <GraficoTendenciaPeso mediciones={mediciones} />
+-          <GraficoOscilacionPeso mediciones={mediciones} />
++          <GraficoTendenciaPeso mediciones={pesos} />
++          <GraficoOscilacionPeso mediciones={pesos} />
+           <p className="text-sm text-suave">
+-            Tu entrenador registra estas mediciones. Aquí puedes ver tu progreso.
++            Tu entrenador registra las mediciones oficiales. El peso que anotas en tu check-in diario también cuenta para tu tendencia y tu peso actual; si el mismo día hay medición oficial, manda esa.
+           </p>
+           <ResumenMediciones
+-            resumen={resumirMediciones(mediciones)}
++            resumen={resumirMediciones(pesos)}
+             objetivoKcal={planes.find((p) => p.vigente_hasta === null)?.calorias_objetivo ?? null}
+           />
+-          <GraficoEvolucion mediciones={mediciones} planes={planes} />
++          {mediciones.length > 0 && <GraficoEvolucion mediciones={mediciones} planes={planes} />}
+ 
+-          <section>
++          {mediciones.length > 0 && <section>
+             <h3 className="mb-2 font-semibold">Historial</h3>
+             <ul className="flex flex-col gap-3">
+               {mediciones.map((m) => (
+@@ -87,7 +108,7 @@ export default function MisMediciones() {
+                 </li>
+               ))}
+             </ul>
+-          </section>
++          </section>}
+         </>
+       )}
+     </div>
+diff --git a/src/components/GraficoTendenciaPeso.jsx b/src/components/GraficoTendenciaPeso.jsx
+index 54416f0..c1a6727 100644
+--- a/src/components/GraficoTendenciaPeso.jsx
++++ b/src/components/GraficoTendenciaPeso.jsx
+@@ -19,6 +19,18 @@ import { COLOR } from '../lib/coloresGrafico'
+ import { calcularTendenciaPeso, textoTendencia, isoDesdeDia } from '../lib/tendenciaPeso'
+ 
+ const TICK = { fill: COLOR.texto, fontSize: 12 }
++// Punto del peso real: relleno = medición oficial del entrenador; hueco = peso de tu check-in.
++// (Recharts no dibuja puntos en las filas sin peso, como la del final de la proyección.)
++function PuntoPeso({ cx, cy, payload }) {
++  if (cx == null || cy == null || payload?.peso == null) return null
++  return (
++    <circle
++      cx={cx} cy={cy} r={3.5} stroke={COLOR.peso} strokeWidth={1.5}
++      fill={payload.origen === 'checkin' ? COLOR.fondo : COLOR.peso}
++    />
++  )
++}
++
+ const kg = (v) => `${Number(v).toLocaleString('es-CO', { maximumFractionDigits: 1 })} kg`
+ 
+ export default function GraficoTendenciaPeso({ mediciones }) {
+@@ -65,7 +77,7 @@ export default function GraficoTendenciaPeso({ mediciones }) {
+             {/* Pesos reales: línea fina y puntos */}
+             <Line
+               dataKey="peso" name="Peso real" type="linear" connectNulls
+-              stroke={COLOR.peso} strokeOpacity={0.55} strokeWidth={1.5} dot={{ r: 3 }} isAnimationActive={false}
++              stroke={COLOR.peso} strokeOpacity={0.55} strokeWidth={1.5} dot={<PuntoPeso />} isAnimationActive={false}
+             />
+             {/* Tendencia: la recta de mejor ajuste sobre los días medidos */}
+             <Line
+@@ -84,7 +96,10 @@ export default function GraficoTendenciaPeso({ mediciones }) {
+       {/* Leyenda propia en HTML: en celular la de Recharts se ve apretada y esta es más legible */}
+       <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-suave">
+         <li className="flex items-center gap-1.5">
+-          <span aria-hidden="true" className="inline-block h-2 w-2 rounded-full" style={{ background: COLOR.peso }} />Peso real
++          <span aria-hidden="true" className="inline-block h-2 w-2 rounded-full" style={{ background: COLOR.peso }} />Medición del entrenador
++        </li>
++        <li className="flex items-center gap-1.5">
++          <span aria-hidden="true" className="inline-block h-2 w-2 rounded-full" style={{ border: `1.5px solid ${COLOR.peso}` }} />Peso de tu check-in
+         </li>
+         <li className="flex items-center gap-1.5">
+           <span aria-hidden="true" className="inline-block h-1 w-4 rounded" style={{ background: COLOR.linea }} />Tendencia
+@@ -94,7 +109,7 @@ export default function GraficoTendenciaPeso({ mediciones }) {
+         </li>
+       </ul>
+       <p className="mt-2 text-xs text-suave">
+-        Es una estimación con tus últimas {t.puntos} mediciones de peso; no es una promesa.
++        Es una estimación con tus últimos {t.puntos} pesos (mediciones y check-ins); no es una promesa.
+       </p>
+     </div>
+   )
+diff --git a/src/components/ResumenMediciones.jsx b/src/components/ResumenMediciones.jsx
+index eb950d1..40c9d9a 100644
+--- a/src/components/ResumenMediciones.jsx
++++ b/src/components/ResumenMediciones.jsx
+@@ -22,8 +22,8 @@ export default function ResumenMediciones({ resumen, objetivoKcal = null }) {
+         valor={pesoActual ? `${pesoActual.peso_corporal_kg} kg` : '—'}
+         detalle={
+           delta !== null
+-            ? `${delta > 0 ? '+' : ''}${delta.toFixed(1)} kg vs. anterior`
+-            : pesoActual && `Medido el ${formatearFechaCorta(pesoActual.fecha)}`
++            ? `${delta > 0 ? '+' : ''}${delta.toFixed(1)} kg vs. anterior${pesoActual.origen === 'checkin' ? ' · check-in' : ''}`
++            : pesoActual && `${pesoActual.origen === 'checkin' ? 'Check-in del' : 'Medido el'} ${formatearFechaCorta(pesoActual.fecha)}`
+         }
+       />
+       <Tarjeta
+diff --git a/src/lib/pesoCombinado.js b/src/lib/pesoCombinado.js
+new file mode 100644
+index 0000000..1a99c56
+--- /dev/null
++++ b/src/lib/pesoCombinado.js
+@@ -0,0 +1,38 @@
++// =====================================================================
++// src/lib/pesoCombinado.js — une el peso OFICIAL (metrics, lo mide el entrenador) con el peso
++// que el atleta DECLARA en su check-in diario (daily_check_ins), solo para MOSTRAR.
++//
++// Por qué se combina aquí y no en la base de datos: AGENTS.md (invariante 2) prohíbe copiar
++// el peso del check-in a `metrics`, y `metrics` solo la escribe el admin. Así el atleta no
++// puede crear, editar ni borrar mediciones oficiales; el dato declarado sigue siendo suyo y
++// aparte, y aquí solo se suma a la vista (tendencia, oscilación y "peso actual").
++//
++// Regla: por cada día, si hay medición oficial CON peso, manda esa y el check-in de ese día
++// no se usa. Fechas: "YYYY-MM-DD" locales, se comparan como texto.
++// =====================================================================
++
++// mediciones: filas de metrics (cualquier orden). checkIns: filas { fecha, peso_corporal_kg }.
++// Devuelve una lista NUEVA (no muta nada), de la fecha más reciente a la más antigua, con
++// `origen`: 'oficial' (metrics) o 'checkin' (declarado). Las filas de metrics sin peso se
++// conservan (cintura y calorías las siguen usando); las de check-in solo traen peso.
++export function combinarPesos(mediciones, checkIns) {
++  const oficiales = (mediciones ?? []).map((m) => ({ ...m, origen: 'oficial' }))
++  const diasConPesoOficial = new Set(
++    oficiales.filter((m) => m.peso_corporal_kg !== null && m.peso_corporal_kg !== undefined).map((m) => m.fecha)
++  )
++  const declarados = (checkIns ?? [])
++    .filter((c) => c.peso_corporal_kg !== null && c.peso_corporal_kg !== undefined)
++    .filter((c) => !diasConPesoOficial.has(c.fecha))
++    .map((c) => ({
++      id: `checkin-${c.fecha}`,
++      fecha: c.fecha,
++      peso_corporal_kg: c.peso_corporal_kg,
++      perimetro_cintura_cm: null,
++      calorias_consumidas: null,
++      estado_calorico: null,
++      notas: null,
++      origen: 'checkin',
++    }))
++  // Orden estable: fecha descendente; en empate, primero la oficial.
++  return [...oficiales, ...declarados].sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0))
++}
+diff --git a/src/lib/tendenciaPeso.js b/src/lib/tendenciaPeso.js
+index 880623c..293b2c4 100644
+--- a/src/lib/tendenciaPeso.js
++++ b/src/lib/tendenciaPeso.js
+@@ -46,7 +46,7 @@ export function calcularTendenciaPeso(mediciones, diasProyeccion = DIAS_PROYECCI
+   // [...] copia antes de ordenar: nunca se muta lo que llega por props.
+   const puntos = [...mediciones]
+     .filter((m) => m.peso_corporal_kg !== null && m.peso_corporal_kg !== undefined)
+-    .map((m) => ({ fecha: m.fecha, dia: diaDesdeISO(m.fecha), peso: Number(m.peso_corporal_kg) }))
++    .map((m) => ({ fecha: m.fecha, dia: diaDesdeISO(m.fecha), peso: Number(m.peso_corporal_kg), origen: m.origen ?? 'oficial' }))
+     .filter((p) => Number.isFinite(p.peso))
+     .sort((a, b) => a.dia - b.dia)
+ 
+@@ -86,6 +86,7 @@ export function calcularTendenciaPeso(mediciones, diasProyeccion = DIAS_PROYECCI
+     dia: p.dia,
+     fecha: p.fecha,
+     peso: p.peso,
++    origen: p.origen, // 'oficial' o 'checkin' (el gráfico dibuja distinto el punto declarado)
+     tendencia: valorEn(p.dia),
+     // La proyección arranca en la última medición para que la línea punteada
+     // continúe a la continua sin hueco.

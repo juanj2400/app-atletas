@@ -46,7 +46,7 @@ export function calcularTendenciaPeso(mediciones, diasProyeccion = DIAS_PROYECCI
   // [...] copia antes de ordenar: nunca se muta lo que llega por props.
   const puntos = [...mediciones]
     .filter((m) => m.peso_corporal_kg !== null && m.peso_corporal_kg !== undefined)
-    .map((m) => ({ fecha: m.fecha, dia: diaDesdeISO(m.fecha), peso: Number(m.peso_corporal_kg) }))
+    .map((m) => ({ fecha: m.fecha, dia: diaDesdeISO(m.fecha), peso: Number(m.peso_corporal_kg), origen: m.origen ?? 'oficial' }))
     .filter((p) => Number.isFinite(p.peso))
     .sort((a, b) => a.dia - b.dia)
 
@@ -86,6 +86,7 @@ export function calcularTendenciaPeso(mediciones, diasProyeccion = DIAS_PROYECCI
     dia: p.dia,
     fecha: p.fecha,
     peso: p.peso,
+    origen: p.origen, // 'oficial' o 'checkin' (el gráfico dibuja distinto el punto declarado)
     tendencia: valorEn(p.dia),
     // La proyección arranca en la última medición para que la línea punteada
     // continúe a la continua sin hueco.

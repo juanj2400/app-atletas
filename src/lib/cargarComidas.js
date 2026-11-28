@@ -14,12 +14,13 @@ import { armarComidas } from './comidas'
 export async function cargarComidas(userId) {
   const [c, a] = await Promise.all([
     supabase.from('meals')
-      .select('id, nombre, notas, orden, created_at')
+      .select('id, nombre, notas, orden, created_at, peso_reparto')
       .eq('user_id', userId)
       .order('orden', { ascending: true }),
     supabase.from('meal_foods')
-      // Incluye el snapshot de la migración 25 (estado y macros base/asignados).
-      .select('id, meal_id, alimento, cantidad, unidad, nota, orden, food_id, estado, base_calorias, base_proteina_g, base_carbohidratos_g, base_grasas_g, calorias, proteina_g, carbohidratos_g, grasas_g')
+      // Incluye el snapshot de la migración 25 (estado y macros base/asignados) y los ajustes del
+      // autocálculo de la 26 (rol_macro, gramos_fijos; y peso_reparto en las comidas).
+      .select('id, meal_id, alimento, cantidad, unidad, nota, orden, food_id, estado, rol_macro, gramos_fijos, base_calorias, base_proteina_g, base_carbohidratos_g, base_grasas_g, calorias, proteina_g, carbohidratos_g, grasas_g')
       .eq('user_id', userId)
       .order('orden', { ascending: true }),
   ])

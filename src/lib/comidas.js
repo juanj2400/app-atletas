@@ -14,10 +14,14 @@
 //        su estado (crudo/cocido/n/a), sus macros por 100 g (`base`) y los macros de esos
 //        gramos exactos (`asignado`). Son null/'' en los alimentos manuales y en los menús
 //        guardados antes de la migración 25.
+//        Desde la migración 26 cada alimento trae también `rol` (macro que cubre en el
+//        autocálculo; '' = su macro dominante) y `fijo` (gramos fijados a mano), y cada comida
+//        `pesoReparto` (su peso al repartir el día entre comidas; por defecto 1).
 //   - "borrador" (lo que se EDITA en el formulario): igual, pero sin ids de base de datos,
 //        con una `clave` local para React y la cantidad como TEXTO (el usuario escribe "1,5").
-//        Cada alimento del borrador también lleva `rol` y `fijo` (solo para el cálculo de
-//        lib/dieta.js; no se guardan).
+//        Cada comida del borrador lleva `peso` (texto) y cada alimento `rol` y `fijo`: son los
+//        ajustes del autocálculo de lib/dieta.js y SÍ se guardan (migración 26), para que el
+//        ajuste automático respete lo que el entrenador fijó a mano.
 // =====================================================================
 import { aNumero } from './numeros'
 import { sumarMacros } from './dieta'
@@ -79,6 +83,8 @@ export function armarComidas(filasComidas, filasAlimentos) {
         carbohidratos_g: Number(a.base_carbohidratos_g),
         grasas_g: Number(a.base_grasas_g),
       } : null,
+      rol: a.rol_macro ?? '',
+      fijo: Boolean(a.gramos_fijos),
       asignado: conSnapshot ? {
         calorias: Number(a.calorias),
         proteina: Number(a.proteina_g),
@@ -94,6 +100,7 @@ export function armarComidas(filasComidas, filasAlimentos) {
       nombre: c.nombre,
       notas: c.notas ?? '',
       created_at: c.created_at,
+      pesoReparto: c.peso_reparto === null || c.peso_reparto === undefined ? 1 : Number(c.peso_reparto),
       alimentos: alimentosDe.get(c.id) ?? [],
     }))
 }
@@ -162,7 +169,7 @@ export function aplicarAlimentoCatalogo(fila, alimento) {
 }
 
 export function comidaNueva(nombre = '') {
-  return { clave: nuevaClave(), nombre, notas: '', alimentos: [] }
+  return { clave: nuevaClave(), nombre, notas: '', peso: '1', alimentos: [] }
 }
 
 // De "comidas" (base de datos) a borrador (formulario). La cantidad pasa a texto con coma
@@ -172,6 +179,7 @@ export function aBorrador(comidas) {
     clave: nuevaClave(),
     nombre: c.nombre,
     notas: c.notas,
+    peso: String(c.pesoReparto ?? 1).replace('.', ','),
     alimentos: c.alimentos.map((a) => ({
       clave: nuevaClave(),
       alimento: a.alimento,
@@ -181,8 +189,8 @@ export function aBorrador(comidas) {
       foodId: a.foodId,
       estado: a.estado,
       base: a.base,
-      rol: '',
-      fijo: false,
+      rol: a.rol ?? '',
+      fijo: Boolean(a.fijo),
     })),
   }))
 }
@@ -192,8 +200,8 @@ export function aBorrador(comidas) {
 export function huellaBorrador(borrador) {
   return JSON.stringify(
     borrador.map((c) => [
-      c.nombre, c.notas,
-      c.alimentos.map((a) => [a.alimento, a.cantidad, a.unidad, a.nota, a.foodId, a.estado, a.base]),
+      c.nombre, c.notas, c.peso,
+      c.alimentos.map((a) => [a.alimento, a.cantidad, a.unidad, a.nota, a.foodId, a.estado, a.base, a.rol, a.fijo]),
     ])
   )
 }
@@ -218,6 +226,13 @@ export function validarComidas(borrador) {
     const nombre = c.nombre.trim()
     if (nombre.length < 2 || nombre.length > 40) {
       return `La comida ${i + 1} necesita un nombre de 2 a 40 letras.`
+    }
+    const peso = aNumero(c.peso ?? '1')
+    if (peso !== null && (Number.isNaN(peso) || peso < 0 || peso > 100)) {
+      return `El peso de reparto de «${nombre}» debe ser un número entre 0 y 100.`
+    }
+    if (peso !== null && Math.round(peso * 10) / 10 !== peso) {
+      return `El peso de reparto de «${nombre}» admite como máximo 1 decimal.`
     }
     if (c.notas.trim().length > 200) return `Las notas de «${nombre}» no pueden pasar de 200 caracteres.`
     if (c.alimentos.length > MAX_ALIMENTOS) {
@@ -261,6 +276,7 @@ export function aPayload(borrador) {
   return borrador.map((c) => ({
     nombre: c.nombre.trim(),
     notas: c.notas.trim() || null,
+    peso_reparto: aNumero(c.peso ?? '1') ?? 1, // número, no texto; vacío = 1
     alimentos: c.alimentos.map((a) => ({
       alimento: a.alimento.trim(),
       cantidad: aNumero(a.cantidad), // número, no texto: la función SQL lo exige así
@@ -268,7 +284,11 @@ export function aPayload(borrador) {
       nota: a.nota.trim() || null,
       // Snapshot (migración 25): solo los alimentos del catálogo lo llevan. La base de datos
       // calcula los macros asignados a partir de esta base y de los gramos.
-      ...(a.base ? { food_id: a.foodId, estado: a.estado || 'n/a', base: a.base } : {}),
+      ...(a.base ? {
+        food_id: a.foodId, estado: a.estado || 'n/a', base: a.base,
+        // Ajustes del autocálculo (migración 26): solo los alimentos del catálogo los llevan.
+        rol_macro: a.rol || null, gramos_fijos: Boolean(a.fijo),
+      } : {}),
     })),
   }))
 }

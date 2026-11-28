@@ -2,7 +2,10 @@
 // consulta nada, solo dibuja el plan que recibe. La usan el atleta y el entrenador.
 import { fechaCortaDeTimestamp } from '../lib/records'
 import { textoEstadoCalorico } from '../lib/opciones'
+import { INTENSIDADES, OBJETIVOS, TIPOS_DIETA } from '../lib/planNutricional'
 import { TARJETA } from '../lib/estilos'
+
+const etiqueta = (lista, valor) => lista.find((o) => o.valor === valor)?.etiqueta
 
 export default function PlanNutricionalCard({ plan, titulo = 'Plan actual' }) {
   if (!plan) {
@@ -32,6 +35,11 @@ export default function PlanNutricionalCard({ plan, titulo = 'Plan actual' }) {
           {plan.objetivo_calorico ? `${textoEstadoCalorico(plan.objetivo_calorico)} · ` : ''}
           desde el {fechaCortaDeTimestamp(plan.vigente_desde)}
         </p>
+        {plan.objetivo_fisico && (
+          <p className="text-sm text-enlace">
+            {[etiqueta(OBJETIVOS, plan.objetivo_fisico), etiqueta(INTENSIDADES, plan.intensidad), etiqueta(TIPOS_DIETA, plan.tipo_dieta)].filter(Boolean).join(' · ')}
+          </p>
+        )}
       </div>
 
       {macros.some((m) => m.valor !== null) && (

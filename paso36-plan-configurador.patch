@@ -1,0 +1,2483 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index 0d3ff2c..2da74c4 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -62,6 +62,7 @@ React 19 + Vite 8 · Tailwind CSS 4 (`src/index.css` con `@theme`) · PWA (`vite
+ 18. **Comidas del día (`meals`, `meal_foods`):** menú del atleta independiente de `nutrition_plans`. Se reemplaza completo vía RPC `set_meal_plan(p_user_id, p_comidas jsonb)` (cantidad como número JSON, unidades `g`/`ml`/`unidad`/`porcion`). Topes (10 comidas, 30 alimentos, cant. ≤ 10.000, 2 decimales) sincronizados entre `lib/comidas.js` y SQL. Ruta principal atleta: `/atleta/nutricion` (`/atleta/datos/nutricion` redirige).
+ 19. **Catálogo de alimentos (`foods`) y snapshot:** `foods` es global y solo lo lee/escribe el admin (el atleta ve el snapshot de `meal_foods`); no se borra, se desactiva. `set_meal_plan` calcula y valida el snapshot (alimentos del catálogo solo en `g`, macros asignados = base × g / 100); el cliente nunca manda macros asignados. El autocálculo vive en `lib/dieta.js` (puro, sin IA) y `macro_dominante` debe coincidir entre `lib/alimentos.js` y la columna generada. Las búsquedas al catálogo siempre con `limit` y filtros en servidor, nunca se descarga completo.
+ 20. **Offline (atleta):** el SW no cachea datos; los datos locales van en IndexedDB por usuario (`lib/almacenLocal.js`). Los registros del atleta (check-in, series, cierres, día realizado) se guardan SIEMPRE con `registrar()` (`lib/colaOffline.js`) con `id`, fecha local y `realizado_en` generados en el celular; la subida es idempotente (23505 = subido) y en orden. Las lecturas de pantallas del atleta pasan por `cargarConCache`. Nunca se copia nada a `metrics` ni se escribe en tablas del admin desde la cola. El listener de `AuthProvider` solo guarda estado (la "sesión local" se marca ahí, sin consultas).
++21. **Plan nutricional como única referencia:** calorías y macros objetivo solo se definen en «Plan nutricional» (`lib/planNutricional.js`, puro). «Comidas del día» las lee con `usePlanVigente` y calcula gramos con `ajustarAlPlan` (`lib/dieta.js`); no existe objetivo propio ni calculadora aparte. Los porcentajes por intensidad/dieta son criterio propio en constantes (no inventar rangos «científicos» sin fuente). `set_nutrition_plan` guarda la configuración todo o nada y los datos físicos del atleta (solo admin).
+ 
+ ## 8. Verificación y Git
+ - Ejecutar `npm run build` sin errores. Probar lógica pura en `src/lib/` con ejemplos y entregar pasos cortos de prueba al dueño.
+diff --git a/docs/ARQUITECTURA.md b/docs/ARQUITECTURA.md
+index 92f48a3..fcab7cd 100644
+--- a/docs/ARQUITECTURA.md
++++ b/docs/ARQUITECTURA.md
+@@ -20,7 +20,7 @@ SPA (sin backend propio). El navegador habla directo con Supabase; la seguridad
+   - `components/`: `Encabezado`, `Estados` (`Cargando`, `SinPerfil`), `Selector`, `ResumenMediciones`, `GraficoEvolucion` (+`Lazy`), `GraficoTendenciaPeso` (+`Lazy`), `GraficoOscilacionPeso` (+`Lazy`), `IndicadorConexion` (+`AvisoSoloConConexion`), `NotaDatosGuardados`, `LineaTemporal`, `RecordsAtleta`, `GraficosRecord` (+`Lazy`), `PlanNutricionalCard`, `ListaComidas`, `CicloVigenteCard`, `AvisoDescarga`, `ResumenDiaRealizado`, `AvisoActualizacion`.
+   - `lib/` (lógica pura y helpers): `supabase.js`, `fechas.js`, `useHoy.js`, `numeros.js`, `opciones.js`, `estilos.js` (`CAMPO`, `BOTON`, `BOTON_SEC`, `TARJETA`), `coloresGrafico.js`, `usuarios.js`, `adminUsuarios.js`, `oscilacionPeso.js`, `tendenciaPeso.js`, `panelAtleta.js`, `cumpleanos.js`, `mediciones.js`, `cierres.js`, `bloques.js`, `rutinas.js`, `versionesRutina.js`, `volumen.js`, `nutricion.js`, `comidas.js`, `cargarComidas.js`, `alimentos.js`, `dieta.js` (autocálculo de gramos), `buscarAlimentos.js`, `useBusquedaAlimentos.js`, `ciclos.js`, `descarga.js`, `cargarDescarga.js`, `pesoCombinado.js`, offline: `almacenLocal.js` (IndexedDB), `conexion.js`, `useConexion.js`, `cacheOffline.js`, `colaOffline.js`, `vistaOffline.js`, `useCola.js`, `identidadLocal.js`, `progresion.js`, `tiposEjercicio.js`, `records.js`.
+   - `atleta/`: `PantallaAtleta` (marco + contexto `{ hoy, hecho, marcarHecho }`), `CheckIn`, `Entrenar`, `EntrenarDia`, `MisDatos` (marco), `MisMediciones`, `Records`, `Nutricion`, `CicloActual`.
+-  - `admin/`: `ListaAtletas`, `CumpleanosAtletas`, `DetalleAtleta`, `PanelAtleta`, `FechaNacimientoAtleta`, `GestionUsuarios`, `FormNuevoAtleta`, `EditarAtleta`, `Mediciones`, `RutinasAtleta`, `DescargaAtleta`, `CargasAtleta`, `EditorRutina`, `SelectorEjercicio`, `HistorialEntrenamiento`, `HistorialRutina`, `VolumenMuscular`, `PlanNutricional`, `PlanComidas`, `CiclosAtleta`, `ListaNegraAtleta`, `FormEjercicio`, `Ejercicios`, `Alimentos`, `FormAlimento`, `BuscadorAlimentos`, `CalculadoraDieta`.
++  - `admin/`: `ListaAtletas`, `CumpleanosAtletas`, `DetalleAtleta`, `PanelAtleta`, `FechaNacimientoAtleta`, `GestionUsuarios`, `FormNuevoAtleta`, `EditarAtleta`, `Mediciones`, `RutinasAtleta`, `DescargaAtleta`, `CargasAtleta`, `EditorRutina`, `SelectorEjercicio`, `HistorialEntrenamiento`, `HistorialRutina`, `VolumenMuscular`, `PlanNutricional`, `PlanComidas`, `CiclosAtleta`, `ListaNegraAtleta`, `FormEjercicio`, `Ejercicios`, `Alimentos`, `FormAlimento`, `BuscadorAlimentos`, `ConfiguradorPlan`, `ObjetivoDieta`.
+ 
+ ## 3. Rutas
+ - Públicas: `/login` (`Login`), `/recuperar` (`RecuperarContrasena`).
+@@ -50,7 +50,7 @@ Migraciones en orden: `schema_supabase.sql`, `02`–`09`, `11`–`25` (10 omitid
+ - `routine_versions`: snapshots automáticos por trigger (`routine_id` set null, `numero`, `desde`/`hasta`, `series_registradas`, `foto` jsonb). Atleta sin acceso; admin solo lectura.
+ - `meals` (orden 1–10) y `meal_foods` (orden 1–30, `cantidad` >0..10000, `unidad`: `g`/`ml`/`unidad`/`porcion`, FK compuesta `(meal_id, user_id)`). Atleta lee; solo RPC `set_meal_plan` escribe. Desde la `25`, `meal_foods` guarda un **snapshot** opcional (todo o nada por CHECK): `food_id` (set null), `estado`, macros base por 100 g (`base_*`) y macros asignados a los gramos exactos (`calorias`, `proteina_g`, `carbohidratos_g`, `grasas_g`), calculados por la RPC (base × g / 100, 1 decimal); solo con `unidad = 'g'`.
+ - `foods` (catálogo global, migración 25): `nombre`, `categoria` (`proteina`/`carbohidrato`/`grasa`/`lacteo`/`fruta`/`verdura`/`legumbre`/`otro`), `estado` (`crudo`/`cocido`/`n/a`), macros por 100 g, `macro_dominante` y `nombre_busqueda` (generadas), `activo`. Único `(lower(nombre), estado)`. **Solo admin** lee y escribe (el atleta usa el snapshot de `meal_foods`). No se borra: se desactiva.
+-- `nutrition_plans` (1 vigente `vigente_hasta is null`), `training_cycles` (macro/meso): atleta lee; admin escribe vía RPC/tabla.
++- `nutrition_plans` (1 vigente `vigente_hasta is null`), `training_cycles` (macro/meso): atleta lee; admin escribe vía RPC/tabla. Desde la `26`, `nutrition_plans` guarda la configuración del configurador (`objetivo_fisico` deficit/recomposicion/volumen, `intensidad`, `tipo_dieta`, `tmb_kcal`, `gasto_kcal`, `peso_base_kg`; todo o nada por CHECK) y `profiles` los datos físicos `sexo`, `estatura_cm`, `nivel_actividad` (solo admin, vía `set_nutrition_plan`). `meals.peso_reparto` y `meal_foods.rol_macro`/`gramos_fijos` guardan los ajustes del autocálculo.
+ - `ai_load_suggestions` (atleta lee `aceptadas`), `ai_nutrition_suggestions`, `athlete_exercise_blacklist` (solo admin).
+ 
+ ### RPCs, Triggers y Vistas clave
+@@ -64,8 +64,9 @@ Migraciones en orden: `schema_supabase.sql`, `02`–`09`, `11`–`25` (10 omitid
+ 3. **RLS silencioso:** Encadenar `.select('id')` en `update`/`delete` para confirmar filas afectadas.
+ 4. **Progresión y Cargas:** Calculadas en cliente (`lib/progresion.js`) sobre las últimas series de **cada ejercicio por separado** (`ultimas_series_por_ejercicio`), sin guardar la meta en BD. Permite rutinas de larga duración sin pérdida de historial.
+ 5. **Versionado perezoso de rutinas:** Triggers `before` congelan foto en `routine_versions` solo si existen series nuevas desde la última foto.
++6c. **Configurador del plan (paso 36):** `lib/planNutricional.js` (puro, sin IA): TMB Mifflin-St Jeor × factor de actividad = gasto (editable); ajuste por objetivo/intensidad (constantes `AJUSTE_KCAL`), proteína por g/kg, grasa por % de kcal según dieta con piso g/kg, carbohidratos el resto; piso de calorías = TMB. Los porcentajes de intensidad y reparto por dieta son **criterio propio** documentado en las constantes (Mifflin puede sesgar en atletas; el gasto se ajusta con la evolución del peso). `reequilibrar` mantiene el balance calórico al editar kcal/macros.
+ 6. **Catálogo y autocálculo (paso 34):** búsqueda ligera en servidor (`ilike` sobre `nombre_busqueda`, `limit`, columnas mínimas, *debounce* 300 ms; el buscador del creador de dieta no consulta hasta 2 letras o un filtro; nunca se descarga el catálogo completo). El cálculo de gramos es JS puro y determinista (`lib/dieta.js`): cada alimento cubre un macro (`rol`, por defecto su macro dominante), el objetivo se reparte entre comidas por peso y se resuelve por rondas descontando macros indirectos; respeta alimentos con gramos fijos; los manuales no entran. Los macros asignados se recalculan en vivo en cliente y la BD los vuelve a calcular al guardar (mismo redondeo, mitad hacia arriba).
+-6b. **Comidas del día:** Pertenecen al atleta (`meals`), desacopladas de `nutrition_plans` (versionado por calorías/macros) para no duplicar menús al ajustar macros.
++6b. **Comidas del día:** Pertenecen al atleta (`meals`) y NO se duplican al versionar el plan, pero desde el paso 36 el plan nutricional vigente es su ÚNICA referencia de objetivo: `usePlanVigente` lo lee y `ajustarAlPlan` (`lib/dieta.js`) recalcula en el borrador los gramos no fijados al cambiar alimentos o el plan. No hay calculadora independiente ni objetivo propio de las comidas. Abrir la ficha nunca reescribe el menú guardado; solo se avisa si se desvía.
+ 7. **Semana de descarga:** no modifica la rutina. `lib/descarga.js` calcula en cliente una prescripción liviana (series −40 %, carga −10 % musculación / −20 % halterofilia, RPE ≤ 7, progresión en pausa) mientras haya una `deload_weeks` vigente (fecha local). `ultimas_series_por_ejercicio` ignora series `en_descarga`, por eso la progresión retoma desde la última sesión normal. Una sola descarga sin cancelar por atleta (validado en la RPC con lock).
+ 8. **Peso del check-in en la vista de peso:** `lib/pesoCombinado.js` suma, solo para mostrar, los pesos de `daily_check_ins` a las mediciones de `metrics` (por día manda la medición oficial con peso). NO se copia nada a `metrics` (invariante 2): el atleta no puede crear/editar/borrar mediciones oficiales. Lo usa `MisMediciones` para tendencia/proyección, oscilación y "peso actual"; la gráfica distingue punto relleno (oficial) y hueco (check-in). Sin cambios de SQL (el atleta ya lee sus check-ins).
+ 9. **Uso sin internet (paso 35):** el SW solo sirve la app (shell); los DATOS viven en IndexedDB (`lib/almacenLocal.js`, BD `myprogress-offline`), separados por usuario: `cache` (`<userId>|<clave>`: rutina, día con series/última vez, plan/comidas/mediciones, ciclos, estado del check-in del día) y `cola` (registros pendientes). Lectura: `cargarConCache` (con internet lee y guarda copia; sin él, la copia; si la BD rechaza algo no se oculta con datos viejos). Escritura: `registrar()` guarda directo si hay internet y cola vacía; si no, encola. Tipos en cola: `checkin` (`daily_check_ins`), `serie` (`routine_logs`), `cierre` (`exercise_closures`), `dia` (`routine_day_completions`). El **id** (series) y `realizado_en`/`fecha` locales los genera el celular al registrar: la subida es idempotente (23505 = ya existía) y el trigger `bloquear_dia_realizado` evalúa la hora REAL. Sin duplicados por `clave` única (`serie:sesión:ejercicio:n°`, `checkin:fecha`...). Subida en orden (`useSincronizacion`: al abrir, evento `online`, al volver a la app, cada 30 s); si se cae la red se corta y conserva el orden; un rechazo de la BD (P0001, RLS, FK) deja el registro en `error` con mensaje en español y no bloquea al resto. Las pantallas reciben lo pendiente mezclado (`lib/vistaOffline.js`, `pendiente: true`) y se recargan al volver el internet o terminar de subir. Borrar/reabrir algo YA subido exige internet (`exigirConexion`); si aún está pendiente, solo se quita de la cola. **Sesión local:** con el token vencido y sin red, `supabase-js` entrega sesión vacía; `AuthProvider` deja entrar con el perfil recordado (`identidadLocal.js`, solo si sigue guardada la sesión de Supabase) y se trata como sin conexión hasta renovar. Al cerrar sesión se borra la copia del usuario pero la cola se conserva (avisa si hay pendientes). Acciones del entrenador: `AvisoSoloConConexion` (en `Encabezado`) y `exigirConexion` en `adminUsuarios.js`.
+diff --git a/docs/CHANGELOG.md b/docs/CHANGELOG.md
+index 1ee7356..662a8e7 100644
+--- a/docs/CHANGELOG.md
++++ b/docs/CHANGELOG.md
+@@ -4,6 +4,12 @@ Registro cronológico de cambios. Agregar entradas nuevas arriba (`feat`, `fix`,
+ 
+ ---
+ 
++## 2026-11-28 · Paso 36 — Plan nutricional inteligente conectado a «Comidas del día»
++- **feat:** «Plan nutricional» es ahora un configurador (`ConfiguradorPlan`): objetivo físico (déficit/recomposición/volumen), intensidad (conservadora/moderada/agresiva) y tipo de dieta; con edad (de la fecha de nacimiento), peso (precargado de la última medición/check-in), estatura, sexo y actividad calcula metabolismo basal (Mifflin-St Jeor), gasto, calorías y macros (`lib/planNutricional.js`, sin IA). Proteína/carbos/grasas en g y % editables; al editar uno los demás se reequilibran (con «Fijar»); gasto editable; estado calórico automático. Un plan manual sigue funcionando.
++- **feat:** «Comidas del día» usa el plan vigente como ÚNICA referencia (`ObjetivoDieta`, `usePlanVigente`, `ajustarAlPlan` en `lib/dieta.js`): ajuste automático de gramos al agregar/quitar/cambiar alimentos y al cambiar el plan; escribir gramos fija ese alimento; «Reajustar al plan», «Soltar gramos fijados», reparto por comida (`peso_reparto`). Al abrir no se modifica el menú guardado.
++- **refactor:** se elimina `CalculadoraDieta` (calculadora independiente). `PlanNutricionalCard`, `Nutricion` y `PanelAtleta` muestran objetivo/intensidad/dieta.
++- **db:** `migracion_26_plan_configurador.sql` — columnas de datos físicos en `profiles`, configuración en `nutrition_plans`, ajustes de autocálculo en `meals`/`meal_foods`, `set_nutrition_plan` y `set_meal_plan` reemplazadas. **Aplicar SQL primero.**
++
+ ## 2026-11-27 · Paso 35 — PWA sin internet (datos locales y cola de sincronización)
+ - **feat:** El atleta puede abrir la app, ver su rutina/metas/plan nutricional y registrar check-in, series, cierres y *Terminar rutina* sin señal. Los datos se guardan en IndexedDB por usuario y los registros pendientes suben solos en orden (id y hora generados en el celular, subida idempotente y sin duplicados). `IndicadorConexion` muestra el estado y los pendientes; `NotaDatosGuardados` avisa cuando se ve una copia. Acciones del entrenador/IA sin internet muestran aviso claro (`AvisoSoloConConexion`, `exigirConexion`).
+ - **fix:** Con el token vencido y sin red ya no se cae al login: sesión local con perfil recordado (`AuthProvider`, `identidadLocal.js`).
+diff --git a/docs/REQUERIMIENTOS.md b/docs/REQUERIMIENTOS.md
+index 6b98cd5..90d7596 100644
+--- a/docs/REQUERIMIENTOS.md
++++ b/docs/REQUERIMIENTOS.md
+@@ -1,5 +1,5 @@
+ # REQUERIMIENTOS — MyProgress
+-> Última actualización: 2026-11-27 (paso 35) · Mantener al día según `AGENTS.md`.
++> Última actualización: 2026-11-28 (paso 36) · Mantener al día según `AGENTS.md`.
+ 
+ ## 1. Producto y Roles
+ PWA privada, mobile-first y solo oscura para un entrenador (`admin`) y 15–30 atletas (`client`). Costo cero (Supabase, Netlify, Gemini AI Studio).
+@@ -27,7 +27,7 @@ Barra inferior con 3 pestañas: **Entrenar**, **Nutrición**, **Mis datos**.
+ - **Ficha del atleta (`/admin/atletas/:id`):** cabecera con edad/fecha de nacimiento y 3 pestañas con navegación rápida:
+   1. *Resumen (Panel general):* bloque "Atención" (alertas por inactividad en check-in >=2d, sin rutina, sin entrenar >=7d, sin plan nutricional, sin medición >=14d), tarjetas KPI clicables que navegan a cada sección y check-ins recientes.
+   2. *Entrenamiento:* rutinas (crear/activar/archivar/copiar), **Semana de descarga** (activar hoy / cancelar; dura 7 días y luego vuelve sola la rutina anterior), **Cargas y progresión** (ajuste por ejercicio y separado por disciplina en híbridas), **Periodos de la rutina** (historial solo lectura con diffs entre snapshots y actividad real del atleta), ciclos (macro/mesociclos sin solapes), volumen semanal por músculo, lista negra de ejercicios y entrenamientos recientes (incluye cierres con motivo).
+-  3. *Cuerpo y nutrición:* **Plan nutricional** (versionado al guardar, aviso si macros difieren >10% de kcal), **Comidas del día / creador de dieta** (editor en borrador hasta 10 comidas x 30 alimentos; alimentos del catálogo —en gramos, crudo o cocido— o manuales; **Calculadora de gramos** con objetivo P/C/G precargado del plan vigente, reparto entre comidas y redondeo 1/5/10 g; edición manual de gramos, intercambio de alimento y botón "Pasar a crudo/cocido" con totales por comida y del día en vivo; guardado atómico vía `set_meal_plan` con snapshot de macros; alerta de cambios sin guardar), mediciones (CRUD 1 por día) y récords.
++  3. *Cuerpo y nutrición:* **Plan nutricional** configurador inteligente (objetivo déficit/recomposición/volumen, intensidad, tipo de dieta; calcula TMB, gasto, calorías y macros desde edad, peso, estatura, sexo y actividad; macros en g y % editables con reequilibrio automático; versionado al guardar, aviso si macros difieren >10% de kcal), **Comidas del día / creador de dieta** (editor en borrador hasta 10 comidas x 30 alimentos; alimentos del catálogo —en gramos, crudo o cocido— o manuales; **ajuste automático de gramos** al objetivo del Plan nutricional vigente (única referencia, sin calculadora independiente), con gramos fijables, reparto entre comidas, redondeo 1/5/10 g y reajuste al cambiar el plan; edición manual de gramos, intercambio de alimento y botón "Pasar a crudo/cocido" con totales por comida y del día en vivo; guardado atómico vía `set_meal_plan` con snapshot de macros; alerta de cambios sin guardar), mediciones (CRUD 1 por día) y récords.
+ - **Editor de rutinas (`/admin/rutinas/:rutinaId`):** interruptor modo híbrido, días, ejercicios, descansos rápidos (30s, 1m, 2m, 3m), `pide_rpe`, progresión (`ninguna`, `doble` por rango de reps, `escalera` fuerza simple NxM), alertas de lista negra y volumen en vivo.
+ - **Catálogo de alimentos (`/admin/alimentos`):** crear/editar/desactivar alimentos con macros por 100 g, estado (crudo/cocido/n/a), categoría y macro dominante (automática); búsqueda y filtros por categoría/estado con carga ligera (30 por vez, "Ver más"). Sin IA. Seed inicial de ~92 alimentos (proteínas, carbohidratos, legumbres, grasas, lácteos, frutas, verduras).
+ - **Biblioteca de ejercicios (`/admin/ejercicios`):** crear/editar ejercicios (`tipo_ejercicio`, video http/https, restringido global) y asignar músculos principales (1.0) / secundarios (0.5).
+diff --git a/src/admin/CalculadoraDieta.jsx b/src/admin/CalculadoraDieta.jsx
+deleted file mode 100644
+index 6f1feec..0000000
+--- a/src/admin/CalculadoraDieta.jsx
++++ /dev/null
+@@ -1,195 +0,0 @@
+-// =====================================================================
+-// CalculadoraDieta — panel del creador de dieta: objetivos del día + botón "Calcular gramos".
+-//
+-// El entrenador define los macros objetivo (se precargan del plan nutricional vigente), ajusta
+-// si quiere cuánto pesa cada comida en el reparto y el redondeo de los gramos, y pulsa
+-// "Calcular gramos": lib/dieta.js reparte los gramos de los alimentos del catálogo (sin IA).
+-// Después puede editar cualquier gramo a mano en las comidas: el resumen de abajo se actualiza
+-// en vivo con lo que falta o sobra frente al objetivo.
+-//
+-// Este componente NO guarda nada en la base de datos: solo devuelve las comidas con los gramos
+-// aplicados (onAplicar). El guardado lo hace "Guardar comidas" en PlanComidas.
+-// =====================================================================
+-import { useEffect, useState } from 'react'
+-import { supabase } from '../lib/supabase'
+-import { aNumero } from '../lib/numeros'
+-import {
+-  PASOS_REDONDEO, aplicarGramos, calcularGramos, diferenciasDia, esDeCatalogo, totalesDia, validarObjetivo,
+-} from '../lib/dieta'
+-import { CAMPO, BOTON, TARJETA } from '../lib/estilos'
+-
+-const numero = (n) => Number(n).toLocaleString('es-CO', { maximumFractionDigits: 1 })
+-
+-// De un plan nutricional (fila) a los textos del formulario de objetivos.
+-function objetivoDePlan(plan) {
+-  const texto = (n) => (n === null || n === undefined ? '' : String(n))
+-  return { proteina: texto(plan?.proteina_g), carbohidratos: texto(plan?.carbohidratos_g), grasas: texto(plan?.grasas_g) }
+-}
+-
+-export default function CalculadoraDieta({ atletaId, comidas, onAplicar }) {
+-  const [objetivo, setObjetivo] = useState({ proteina: '', carbohidratos: '', grasas: '' })
+-  const [kcalPlan, setKcalPlan] = useState(null)
+-  const [planCargado, setPlanCargado] = useState(false)
+-  const [errorPlan, setErrorPlan] = useState('')
+-  const [pesos, setPesos] = useState({}) // clave de comida -> texto
+-  const [paso, setPaso] = useState(1)
+-  const [mensaje, setMensaje] = useState(null) // { tipo: 'error' | 'ok', texto }
+-  const [avisos, setAvisos] = useState([])
+-
+-  // Carga UNA fila (el plan vigente) para precargar el objetivo. Solo al abrir.
+-  useEffect(() => {
+-    let cancelado = false
+-    supabase.from('nutrition_plans')
+-      .select('calorias_objetivo, proteina_g, carbohidratos_g, grasas_g')
+-      .eq('user_id', atletaId).is('vigente_hasta', null).maybeSingle()
+-      .then(({ data, error }) => {
+-        if (cancelado) return
+-        if (error) setErrorPlan('No se pudo leer el plan nutricional: escribe el objetivo a mano.')
+-        else if (data) {
+-          setObjetivo(objetivoDePlan(data))
+-          setKcalPlan(data.calorias_objetivo)
+-        }
+-        setPlanCargado(true)
+-      })
+-    return () => { cancelado = true }
+-  }, [atletaId])
+-
+-  const cambiarObjetivo = (campo, valor) => { setObjetivo((o) => ({ ...o, [campo]: valor })); setMensaje(null) }
+-
+-  const comidasConCatalogo = comidas.filter((c) => c.alimentos.some(esDeCatalogo))
+-  const totales = totalesDia(comidas)
+-  const lectura = validarObjetivo(objetivo)
+-  const diferencias = lectura.objetivo ? diferenciasDia(totales, lectura.objetivo) : null
+-
+-  function calcular() {
+-    setMensaje(null)
+-    setAvisos([])
+-    if (lectura.error) return setMensaje({ tipo: 'error', texto: lectura.error })
+-    if (comidasConCatalogo.length === 0) {
+-      return setMensaje({ tipo: 'error', texto: 'Agrega alimentos del catálogo a las comidas para poder calcular.' })
+-    }
+-    // Pesos de las comidas: vacío o inválido = 1 (partes iguales)
+-    const pesosNumericos = {}
+-    for (const c of comidasConCatalogo) {
+-      const n = aNumero(pesos[c.clave] ?? '1')
+-      if (n === null) continue
+-      if (Number.isNaN(n) || n < 0 || n > 100) {
+-        return setMensaje({ tipo: 'error', texto: `El peso de «${c.nombre.trim() || 'una comida'}» debe ser un número entre 0 y 100.` })
+-      }
+-      pesosNumericos[c.clave] = n
+-    }
+-
+-    const { gramos, avisos: avisosCalculo } = calcularGramos({ comidas, objetivo: lectura.objetivo, pesos: pesosNumericos, paso })
+-    onAplicar(aplicarGramos(comidas, gramos))
+-    setAvisos(avisosCalculo)
+-    setMensaje({ tipo: 'ok', texto: 'Gramos calculados. Puedes ajustarlos a mano abajo; los totales se actualizan al instante.' })
+-  }
+-
+-  const colorMensaje = { error: 'text-alerta', ok: 'text-enlace' }
+-
+-  return (
+-    <div className={`${TARJETA} flex flex-col gap-3`}>
+-      <div>
+-        <h4 className="font-semibold">Calculadora de gramos</h4>
+-        <p className="text-sm text-suave">
+-          Calcula los gramos exactos de los alimentos del catálogo para cumplir los macros del día (sin IA).
+-          Los alimentos manuales no entran al cálculo.
+-        </p>
+-      </div>
+-
+-      <p className="text-sm font-semibold">Objetivo del día (g)</p>
+-      <div className="grid grid-cols-3 gap-2">
+-        {[
+-          ['proteina', 'Proteína'],
+-          ['carbohidratos', 'Carbohidratos'],
+-          ['grasas', 'Grasas'],
+-        ].map(([campo, etiqueta]) => (
+-          <div key={campo}>
+-            <label htmlFor={`obj-${campo}`} className="text-xs text-suave">{etiqueta}</label>
+-            <input id={`obj-${campo}`} inputMode="decimal" value={objetivo[campo]}
+-              onChange={(e) => cambiarObjetivo(campo, e.target.value)} placeholder="0" className={CAMPO} />
+-          </div>
+-        ))}
+-      </div>
+-      {planCargado && kcalPlan !== null && (
+-        <p className="text-xs text-suave">
+-          Precargado del plan nutricional vigente ({numero(kcalPlan)} kcal). Puedes cambiarlo solo para este cálculo.
+-        </p>
+-      )}
+-      {planCargado && kcalPlan === null && !errorPlan && (
+-        <p className="text-xs text-suave">El atleta no tiene plan nutricional vigente: escribe el objetivo a mano.</p>
+-      )}
+-      {errorPlan && <p role="alert" className="text-xs text-alerta">{errorPlan}</p>}
+-
+-      {comidasConCatalogo.length > 1 && (
+-        <details className="rounded-xl bg-hundido p-3">
+-          <summary className="flex min-h-11 cursor-pointer items-center text-sm font-semibold">
+-            Reparto entre comidas (opcional)
+-          </summary>
+-          <p className="text-xs text-suave">
+-            Por defecto todas las comidas pesan igual (1). Pon 2 en una comida para que lleve el doble que una de 1.
+-          </p>
+-          <div className="mt-2 grid grid-cols-2 gap-2">
+-            {comidasConCatalogo.map((c, i) => (
+-              <div key={c.clave}>
+-                <label htmlFor={`peso-${c.clave}`} className="text-xs text-suave">{c.nombre.trim() || `Comida ${i + 1}`}</label>
+-                <input id={`peso-${c.clave}`} inputMode="decimal" value={pesos[c.clave] ?? '1'}
+-                  onChange={(e) => { setPesos((p) => ({ ...p, [c.clave]: e.target.value })); setMensaje(null) }}
+-                  className={CAMPO} />
+-              </div>
+-            ))}
+-          </div>
+-        </details>
+-      )}
+-
+-      <div>
+-        <label htmlFor="paso-redondeo" className="text-xs text-suave">Redondear los gramos a</label>
+-        <select id="paso-redondeo" value={paso} onChange={(e) => setPaso(Number(e.target.value))} className={CAMPO}>
+-          {PASOS_REDONDEO.map((p) => <option key={p} value={p}>{p} g</option>)}
+-        </select>
+-      </div>
+-
+-      <button type="button" onClick={calcular} className={BOTON}>Calcular gramos</button>
+-
+-      {mensaje && (
+-        <p role={mensaje.tipo === 'error' ? 'alert' : 'status'} className={`text-sm ${colorMensaje[mensaje.tipo]}`}>{mensaje.texto}</p>
+-      )}
+-      {avisos.length > 0 && (
+-        <ul role="status" className="list-disc pl-5 text-sm text-alerta">
+-          {avisos.map((a) => <li key={a}>{a}</li>)}
+-        </ul>
+-      )}
+-
+-      {/* Resumen en vivo del día: se recalcula con cada gramo que cambies */}
+-      <div className="rounded-xl bg-hundido p-3">
+-        <p className="text-sm font-semibold">Total del día (en vivo)</p>
+-        <p className="text-lg font-bold">
+-          {numero(totales.calorias)} kcal
+-          {kcalPlan !== null && <span className="text-sm font-normal text-suave"> · plan: {numero(kcalPlan)} kcal</span>}
+-        </p>
+-        {diferencias ? (
+-          <ul className="mt-1 grid grid-cols-3 gap-2 text-center">
+-            {diferencias.map((d) => (
+-              <li key={d.clave}>
+-                <p className="text-xs text-suave">{d.etiqueta}</p>
+-                <p className="font-bold">{numero(d.actual)} / {numero(d.objetivo)} g</p>
+-                <p className={`text-xs ${Math.abs(d.diferencia) <= 2 ? 'text-suave' : 'text-alerta'}`}>
+-                  {d.diferencia === 0 ? 'justo' : `${d.diferencia > 0 ? '+' : ''}${numero(d.diferencia)} g`}
+-                </p>
+-              </li>
+-            ))}
+-          </ul>
+-        ) : (
+-          <p className="text-sm text-suave">
+-            P {numero(totales.proteina)} · C {numero(totales.carbohidratos)} · G {numero(totales.grasas)} g
+-          </p>
+-        )}
+-        {totales.sinMacros > 0 && (
+-          <p className="mt-1 text-xs text-suave">
+-            {totales.sinMacros} {totales.sinMacros === 1 ? 'alimento manual no suma' : 'alimentos manuales no suman'} (sin macros).
+-          </p>
+-        )}
+-      </div>
+-    </div>
+-  )
+-}
+diff --git a/src/admin/ConfiguradorPlan.jsx b/src/admin/ConfiguradorPlan.jsx
+new file mode 100644
+index 0000000..66a046e
+--- /dev/null
++++ b/src/admin/ConfiguradorPlan.jsx
+@@ -0,0 +1,415 @@
++// =====================================================================
++// ConfiguradorPlan — formulario inteligente del «Plan nutricional» (paso 36).
++//
++// El entrenador elige objetivo físico, intensidad y tipo de dieta; con la edad, peso, estatura, sexo
++// y actividad del atleta se calculan SOLOS (lib/planNutricional.js, sin IA) el metabolismo basal
++// (Mifflin-St Jeor), el gasto, las calorías y los macros. Todo es editable:
++//   - Cambiar objetivo / intensidad / dieta / datos físicos / gasto  → se recalculan calorías y macros.
++//   - Editar calorías o un macro (en g o en %)                       → los demás se ajustan para que
++//     el total siga cuadrando; los macros con «Fijar» no se tocan.
++// Lo que se guarda aquí es el ÚNICO objetivo de «Comidas del día» (las comidas se reajustan solas).
++// Un plan manual sigue funcionando: sin datos completos no hay cálculo, solo edición directa.
++// =====================================================================
++import { useEffect, useState } from 'react'
++import { supabase } from '../lib/supabase'
++import { aNumero } from '../lib/numeros'
++import { cargarPesoReciente } from '../lib/cargarPesoReciente'
++import { edadEnFecha } from '../lib/cumpleanos'
++import { useHoy } from '../lib/useHoy'
++import { diferenciaMacrosPct } from '../lib/nutricion'
++import { ESTADOS_CALORICOS, textoEstadoCalorico } from '../lib/opciones'
++import {
++  INTENSIDADES, NIVELES_ACTIVIDAD, OBJETIVOS, SEXOS, TIPOS_DIETA,
++  calcularPlan, estadoCaloricoDe, kcalDeMacrosG, leerNumeroPlan, porcentajes, reequilibrar,
++} from '../lib/planNutricional'
++import { CAMPO, BOTON, BOTON_SEC, TARJETA } from '../lib/estilos'
++
++const MACROS_UI = [
++  { clave: 'proteina', etiqueta: 'Proteína' },
++  { clave: 'carbohidratos', etiqueta: 'Carbohidratos' },
++  { clave: 'grasas', etiqueta: 'Grasas' },
++]
++const VACIO = { kcal: 0, proteina: 0, carbohidratos: 0, grasas: 0 }
++const COLOR_MENSAJE = { error: 'text-alerta', ok: 'text-enlace' }
++
++const numeroONull = (texto) => {
++  const n = aNumero(texto)
++  return n === null || Number.isNaN(n) ? null : n
++}
++const formato = (n) => Number(n).toLocaleString('es-CO', { maximumFractionDigits: 1 })
++
++// Campo numérico que deja escribir libremente mientras tiene el foco (el valor "oficial" del
++// padre solo se muestra cuando no se está editando), y avisa en cada cambio válido.
++function CampoNumero({ id, etiqueta, valor, onValor, ayuda, className = '' }) {
++  const [texto, setTexto] = useState(null) // null = sin foco
++  return (
++    <div className={className}>
++      <label htmlFor={id} className="text-xs text-suave">{etiqueta}</label>
++      <input
++        id={id}
++        inputMode="decimal"
++        value={texto ?? String(valor)}
++        onFocus={() => setTexto(String(valor))}
++        onBlur={() => setTexto(null)}
++        onChange={(e) => {
++          setTexto(e.target.value)
++          const n = numeroONull(e.target.value)
++          if (n !== null) onValor(n)
++        }}
++        className={CAMPO}
++      />
++      {ayuda && <p className="text-xs text-suave">{ayuda}</p>}
++    </div>
++  )
++}
++
++// Fila de botones tipo "pastilla" (una sola opción activa).
++function Opciones({ titulo, lista, valor, onElegir }) {
++  return (
++    <div>
++      <p className="text-sm text-suave">{titulo}</p>
++      <div className="mt-1 flex flex-wrap gap-2">
++        {lista.map((o) => (
++          <button
++            key={o.valor}
++            type="button"
++            aria-pressed={valor === o.valor}
++            onClick={() => onElegir(o.valor)}
++            className={`min-h-11 rounded-xl border px-3 text-sm font-semibold ${
++              valor === o.valor ? 'border-primario bg-primario text-white' : 'border-borde'
++            }`}
++          >
++            {o.etiqueta}
++          </button>
++        ))}
++      </div>
++      {lista.find((o) => o.valor === valor)?.descripcion && (
++        <p className="mt-1 text-xs text-suave">{lista.find((o) => o.valor === valor).descripcion}</p>
++      )}
++    </div>
++  )
++}
++
++export default function ConfiguradorPlan({ atletaId, fechaNacimiento, activo, perfil, onGuardado }) {
++  const hoy = useHoy()
++  const edad = fechaNacimiento ? edadEnFecha(fechaNacimiento, hoy) : null
++
++  // Datos físicos y configuración (texto/valores de los controles)
++  const [datos, setDatos] = useState(() => ({
++    sexo: perfil?.sexo ?? '',
++    estatura: perfil?.estatura_cm != null ? String(perfil.estatura_cm) : '',
++    actividad: perfil?.nivel_actividad ?? '',
++    peso: activo?.peso_base_kg != null ? String(activo.peso_base_kg) : '',
++  }))
++  const [config, setConfig] = useState(() => ({
++    objetivo: activo?.objetivo_fisico ?? '',
++    intensidad: activo?.intensidad ?? '',
++    dieta: activo?.tipo_dieta ?? '',
++  }))
++  // Gasto ajustado a mano: '' = usar el estimado
++  const [gastoTexto, setGastoTexto] = useState('')
++  const [valores, setValores] = useState(() => (activo
++    ? { kcal: activo.calorias_objetivo, proteina: activo.proteina_g ?? 0, carbohidratos: activo.carbohidratos_g ?? 0, grasas: activo.grasas_g ?? 0 }
++    : VACIO))
++  const [bloqueados, setBloqueados] = useState([])
++  const [estadoManual, setEstadoManual] = useState(activo?.objetivo_calorico ?? '')
++  const [notas, setNotas] = useState('')
++  const [avisosEdicion, setAvisosEdicion] = useState([])
++  const [mensaje, setMensaje] = useState(null)
++  const [guardando, setGuardando] = useState(false)
++  const [pesoSugerido, setPesoSugerido] = useState(null)
++
++  // Entradas del cálculo según lo que hay en pantalla
++  const argumentos = (d = datos, c = config, g = gastoTexto) => ({
++    sexo: d.sexo, edad, pesoKg: numeroONull(d.peso), estaturaCm: numeroONull(d.estatura), nivelActividad: d.actividad,
++    objetivo: c.objetivo, intensidad: c.intensidad, dieta: c.dieta,
++    gastoManual: g.trim() === '' ? null : numeroONull(g),
++  })
++  const calculo = calcularPlan(argumentos())
++  const completo = !calculo.error
++
++  // Si el plan guardado usó un gasto distinto del estimado, se muestra como gasto ajustado a mano.
++  useEffect(() => {
++    if (activo?.gasto_kcal == null) return
++    const estimado = calcularPlan({ ...argumentos(), gastoManual: null })
++    if (!estimado.error && estimado.gasto !== activo.gasto_kcal) setGastoTexto(String(activo.gasto_kcal))
++    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al montar con el plan guardado
++  }, [])
++
++  // Peso: si el plan no trae uno, se sugiere el más reciente del atleta (medición o check-in).
++  useEffect(() => {
++    if (datos.peso !== '') return
++    let cancelado = false
++    cargarPesoReciente(atletaId).then((r) => {
++      if (cancelado || r.error || r.peso == null) return
++      setPesoSugerido(r)
++      setDatos((d) => (d.peso === '' ? { ...d, peso: String(r.peso) } : d))
++    })
++    return () => { cancelado = true }
++    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al montar
++  }, [])
++
++  // Aplica un cálculo nuevo a los valores en pantalla (reinicia fijados y avisos de edición).
++  function aplicarCalculo(extra = {}) {
++    const resultado = calcularPlan(argumentos(extra.datos ?? datos, extra.config ?? config, extra.gasto ?? gastoTexto))
++    if (resultado.error) return false
++    setValores({ kcal: resultado.kcal, proteina: resultado.proteina, carbohidratos: resultado.carbohidratos, grasas: resultado.grasas })
++    setBloqueados([])
++    setAvisosEdicion([])
++    return true
++  }
++
++  // Cambios de objetivo/intensidad/dieta/datos/gasto: actualizan el control y, si ya hay todo, recalculan.
++  const cambiarConfig = (campo, valor) => {
++    const nueva = { ...config, [campo]: valor }
++    setConfig(nueva); setMensaje(null)
++    aplicarCalculo({ config: nueva })
++  }
++  const cambiarDatos = (campo, valor) => {
++    const nuevos = { ...datos, [campo]: valor }
++    setDatos(nuevos); setMensaje(null)
++    aplicarCalculo({ datos: nuevos })
++  }
++  const cambiarGasto = (texto) => {
++    setGastoTexto(texto); setMensaje(null)
++    aplicarCalculo({ gasto: texto })
++  }
++
++  // Edición directa de calorías o macros: los demás se reequilibran.
++  const editar = (campo, valor, unidad = 'g') => {
++    const r = reequilibrar(valores, { campo, valor, unidad }, bloqueados)
++    setValores(r.estado)
++    setAvisosEdicion(r.avisos)
++    setMensaje(null)
++  }
++  const alternarBloqueo = (clave) =>
++    setBloqueados((b) => (b.includes(clave) ? b.filter((x) => x !== clave) : [...b, clave]))
++
++  const pct = porcentajes(valores)
++  const pesoKg = numeroONull(datos.peso)
++  const sumaMacros = kcalDeMacrosG(valores)
++  const diferencia = valores.kcal > 0 && sumaMacros > 0
++    ? diferenciaMacrosPct(valores.kcal, valores.proteina, valores.carbohidratos, valores.grasas)
++    : null
++  // Con configuración completa el estado calórico sale de comparar calorías y gasto.
++  const estadoAuto = completo ? estadoCaloricoDe(valores.kcal, calculo.gasto) : ''
++
++  async function guardar(evento) {
++    evento.preventDefault()
++    setMensaje(null)
++    const error = (texto) => setMensaje({ tipo: 'error', texto })
++
++    const k = leerNumeroPlan(String(valores.kcal), 'las calorías objetivo')
++    if (k.error) return error(k.error)
++    if (k.valor < 500 || k.valor > 10000) return error('Las calorías deben ser un número entero entre 500 y 10.000.')
++    for (const m of MACROS_UI) {
++      const r = leerNumeroPlan(String(valores[m.clave]), `${m.etiqueta.toLowerCase()} (g)`, { maximo: 1000 })
++      if (r.error) return error(r.error)
++    }
++
++    const carga = {
++      p_user_id: atletaId,
++      p_calorias: k.valor,
++      p_proteina_g: valores.proteina,
++      p_carbohidratos_g: valores.carbohidratos,
++      p_grasas_g: valores.grasas,
++      p_objetivo: (completo ? estadoAuto : estadoManual) || null,
++      p_notas: notas.trim() || null,
++    }
++    // Configuración: todo o nada (la base de datos lo exige con un CHECK)
++    if (completo) {
++      Object.assign(carga, {
++        p_objetivo_fisico: config.objetivo,
++        p_intensidad: config.intensidad,
++        p_tipo_dieta: config.dieta,
++        p_tmb: calculo.tmb,
++        p_gasto: calculo.gasto,
++        p_peso_base: numeroONull(datos.peso),
++      })
++    }
++    // Datos físicos del atleta (se guardan en su perfil): solo si son válidos
++    const estatura = numeroONull(datos.estatura)
++    if (datos.sexo) carga.p_sexo = datos.sexo
++    if (estatura !== null && estatura >= 100 && estatura <= 250) carga.p_estatura_cm = estatura
++    if (datos.actividad) carga.p_nivel_actividad = datos.actividad
++
++    setGuardando(true)
++    const { error: errorBD } = await supabase.rpc('set_nutrition_plan', carga)
++    setGuardando(false)
++    if (errorBD) {
++      // P0001 = mensaje que escribimos nosotros en la función (ya viene en español).
++      return error(errorBD.code === 'P0001' ? errorBD.message : 'No se pudo guardar el plan. Inténtalo de nuevo.')
++    }
++    setNotas('')
++    setMensaje({ tipo: 'ok', texto: 'Plan guardado. El atleta ya lo ve y «Comidas del día» se reajusta a este plan.' })
++    onGuardado?.()
++  }
++
++  return (
++    <form onSubmit={guardar} className={`${TARJETA} flex flex-col gap-4`}>
++      <div>
++        <h4 className="font-semibold">{activo ? 'Cambiar plan' : 'Definir plan'}</h4>
++        <p className="text-sm text-suave">
++          Elige el objetivo y el sistema calcula calorías y macros con los datos del atleta. Puedes editar cualquier valor.
++        </p>
++      </div>
++
++      {/* 1. Datos del atleta */}
++      <fieldset className="flex flex-col gap-2">
++        <legend className="text-sm font-semibold">1. Datos del atleta</legend>
++        <p className="text-sm">
++          Edad:{' '}
++          {edad === null
++            ? <span className="text-alerta">falta la fecha de nacimiento (agrégala en la cabecera de la ficha)</span>
++            : <span className="font-bold">{edad} años</span>}
++        </p>
++        <div className="grid grid-cols-2 gap-2">
++          <div>
++            <label htmlFor="cfg-sexo" className="text-xs text-suave">Sexo</label>
++            <select id="cfg-sexo" value={datos.sexo} onChange={(e) => cambiarDatos('sexo', e.target.value)} className={CAMPO}>
++              <option value="">Elige...</option>
++              {SEXOS.map((s) => <option key={s.valor} value={s.valor}>{s.etiqueta}</option>)}
++            </select>
++          </div>
++          <div>
++            <label htmlFor="cfg-actividad" className="text-xs text-suave">Actividad física</label>
++            <select id="cfg-actividad" value={datos.actividad} onChange={(e) => cambiarDatos('actividad', e.target.value)} className={CAMPO}>
++              <option value="">Elige...</option>
++              {NIVELES_ACTIVIDAD.map((n) => <option key={n.valor} value={n.valor}>{n.etiqueta}</option>)}
++            </select>
++          </div>
++          <div>
++            <label htmlFor="cfg-peso" className="text-xs text-suave">Peso (kg)</label>
++            <input id="cfg-peso" inputMode="decimal" value={datos.peso} onChange={(e) => cambiarDatos('peso', e.target.value)} className={CAMPO} />
++          </div>
++          <div>
++            <label htmlFor="cfg-estatura" className="text-xs text-suave">Estatura (cm)</label>
++            <input id="cfg-estatura" inputMode="decimal" value={datos.estatura} onChange={(e) => cambiarDatos('estatura', e.target.value)} className={CAMPO} />
++          </div>
++        </div>
++        {pesoSugerido && datos.peso === String(pesoSugerido.peso) && (
++          <p className="text-xs text-suave">
++            Peso tomado de {pesoSugerido.origen === 'oficial' ? 'la última medición' : 'el último check-in'}; cámbialo si no es el actual.
++          </p>
++        )}
++        {datos.actividad && (
++          <p className="text-xs text-suave">{NIVELES_ACTIVIDAD.find((n) => n.valor === datos.actividad)?.descripcion}</p>
++        )}
++      </fieldset>
++
++      {/* 2. Objetivo */}
++      <fieldset className="flex flex-col gap-3">
++        <legend className="text-sm font-semibold">2. Objetivo</legend>
++        <Opciones titulo="Objetivo físico" lista={OBJETIVOS} valor={config.objetivo} onElegir={(v) => cambiarConfig('objetivo', v)} />
++        <Opciones titulo="Intensidad" lista={INTENSIDADES} valor={config.intensidad} onElegir={(v) => cambiarConfig('intensidad', v)} />
++        <Opciones titulo="Tipo de dieta" lista={TIPOS_DIETA} valor={config.dieta} onElegir={(v) => cambiarConfig('dieta', v)} />
++      </fieldset>
++
++      {/* 3. Resultado del cálculo */}
++      {completo ? (
++        <div className="rounded-xl bg-hundido p-3 text-sm">
++          <p>
++            Metabolismo basal (Mifflin-St Jeor): <span className="font-bold">{formato(calculo.tmb)} kcal</span>
++          </p>
++          <p>
++            Gasto estimado (× {String(calculo.factor).replace('.', ',')}): <span className="font-bold">{formato(Math.round(calculo.tmb * calculo.factor))} kcal</span>
++          </p>
++          <p>
++            Ajuste: <span className="font-bold">{calculo.ajustePct > 0 ? '+' : ''}{Math.round(calculo.ajustePct * 100)} %</span>
++            {' '}sobre un gasto de {formato(calculo.gasto)} kcal
++          </p>
++          <div className="mt-2">
++            <label htmlFor="cfg-gasto" className="text-xs text-suave">Gasto energético (vacío = el estimado)</label>
++            <input id="cfg-gasto" inputMode="numeric" value={gastoTexto} placeholder={String(Math.round(calculo.tmb * calculo.factor))}
++              onChange={(e) => cambiarGasto(e.target.value)} className={CAMPO} />
++          </div>
++          <p className="mt-2 text-xs text-suave">
++            Estimación con ecuaciones poblacionales: en atletas puede desviarse. Ajusta el gasto con la evolución real del peso.
++          </p>
++        </div>
++      ) : (
++        <p role="status" className="text-sm text-suave">Para calcular automático: {calculo.error} Mientras tanto puedes escribir calorías y macros a mano.</p>
++      )}
++      {completo && calculo.avisos.length > 0 && (
++        <ul role="status" className="list-disc pl-5 text-sm text-alerta">
++          {calculo.avisos.map((a) => <li key={a}>{a}</li>)}
++        </ul>
++      )}
++
++      {/* 4. Calorías y macros editables */}
++      <fieldset className="flex flex-col gap-3">
++        <legend className="text-sm font-semibold">3. Calorías y macros (editables)</legend>
++        <CampoNumero id="cfg-kcal" etiqueta="Calorías objetivo (por día)" valor={valores.kcal} onValor={(n) => editar('kcal', n)}
++          ayuda="Al cambiarlas, los macros no fijados se reparten para cuadrar." />
++        <div className="flex flex-col gap-2">
++          {MACROS_UI.map((m) => (
++            <div key={m.clave} className="rounded-xl bg-hundido p-3">
++              <div className="flex items-center justify-between">
++                <p className="text-sm font-semibold">{m.etiqueta}</p>
++                <label className="flex min-h-11 items-center gap-2 text-xs">
++                  <input type="checkbox" checked={bloqueados.includes(m.clave)} onChange={() => alternarBloqueo(m.clave)} />
++                  Fijar
++                </label>
++              </div>
++              <div className="grid grid-cols-2 gap-2">
++                <CampoNumero id={`cfg-${m.clave}-g`} etiqueta="Gramos" valor={valores[m.clave]} onValor={(n) => editar(m.clave, n, 'g')} />
++                <CampoNumero id={`cfg-${m.clave}-pct`} etiqueta="% de las calorías" valor={pct[m.clave]} onValor={(n) => editar(m.clave, n, 'pct')} />
++              </div>
++              {pesoKg !== null && pesoKg > 0 && (
++                <p className="text-xs text-suave">{formato(Math.round((valores[m.clave] / pesoKg) * 100) / 100)} g por kg de peso</p>
++              )}
++            </div>
++          ))}
++        </div>
++        {avisosEdicion.length > 0 && (
++          <ul role="status" className="list-disc pl-5 text-sm text-alerta">
++            {avisosEdicion.map((a) => <li key={a}>{a}</li>)}
++          </ul>
++        )}
++        {sumaMacros > 0 && (
++          <p className={`text-sm ${diferencia !== null && Math.abs(diferencia) > 10 ? 'text-alerta' : 'text-suave'}`}>
++            Los macros suman {formato(sumaMacros)} kcal
++            {diferencia !== null && (Math.abs(diferencia) > 10
++              ? ` (${diferencia > 0 ? '+' : ''}${diferencia} % respecto al objetivo: revisa los números).`
++              : ' (coherente con el objetivo).')}
++          </p>
++        )}
++        {completo && (
++          <button type="button" onClick={() => aplicarCalculo()} className={BOTON_SEC}>Restablecer a lo calculado</button>
++        )}
++      </fieldset>
++
++      {/* Estado calórico: automático si hay configuración completa; manual si no */}
++      {completo ? (
++        <p className="text-sm">
++          Estado calórico: <span className="font-bold">{textoEstadoCalorico(estadoAuto)}</span>
++          <span className="text-suave"> (según las calorías frente al gasto)</span>
++        </p>
++      ) : (
++        <div>
++          <label htmlFor="cfg-estado" className="text-sm text-suave">Estado calórico (opcional)</label>
++          <select id="cfg-estado" value={estadoManual} onChange={(e) => setEstadoManual(e.target.value)} className={CAMPO}>
++            <option value="">Sin definir</option>
++            {ESTADOS_CALORICOS.map((e) => <option key={e.valor} value={e.valor}>{e.etiqueta}</option>)}
++          </select>
++        </div>
++      )}
++
++      <div>
++        <label htmlFor="cfg-notas" className="text-sm text-suave">Notas para el atleta (opcional)</label>
++        <textarea id="cfg-notas" rows={2} maxLength={300} value={notas} onChange={(e) => setNotas(e.target.value)}
++          className="w-full rounded-xl border border-[#5B6372] bg-fondo p-3" />
++      </div>
++
++      {mensaje && (
++        <p role={mensaje.tipo === 'error' ? 'alert' : 'status'} className={COLOR_MENSAJE[mensaje.tipo]}>{mensaje.texto}</p>
++      )}
++      <p className="text-xs text-suave">
++        Al guardar, el plan actual pasa al historial, el atleta ve el nuevo al instante y «Comidas del día» se reajusta a estas calorías y macros.
++      </p>
++      <button type="submit" disabled={guardando} className={BOTON}>
++        {guardando ? 'Guardando...' : 'Guardar nuevo plan'}
++      </button>
++    </form>
++  )
++}
+diff --git a/src/admin/DetalleAtleta.jsx b/src/admin/DetalleAtleta.jsx
+index ef33493..b86c594 100644
+--- a/src/admin/DetalleAtleta.jsx
++++ b/src/admin/DetalleAtleta.jsx
+@@ -237,10 +237,10 @@ export default function DetalleAtleta() {
+               <>
+                 <IndiceSecciones items={INDICE.cuerpo} onIr={irA} pestana="cuerpo" />
+                 <div id="seccion-plan" className="scroll-mt-20">
+-                  <PlanNutricional atletaId={atleta.id} onCambio={() => setVersionPlan((v) => v + 1)} />
++                  <PlanNutricional atletaId={atleta.id} fechaNacimiento={atleta.fecha_nacimiento} onCambio={() => setVersionPlan((v) => v + 1)} />
+                 </div>
+                 <div id="seccion-comidas" className="scroll-mt-20">
+-                  <PlanComidas atletaId={atleta.id} onCambiosSinGuardar={marcarComidasSinGuardar} />
++                  <PlanComidas atletaId={atleta.id} versionPlan={versionPlan} onCambiosSinGuardar={marcarComidasSinGuardar} />
+                 </div>
+                 {/* Componente autónomo: solo necesita saber de qué atleta es. */}
+                 <div id="seccion-mediciones" className="scroll-mt-20">
+diff --git a/src/admin/ObjetivoDieta.jsx b/src/admin/ObjetivoDieta.jsx
+new file mode 100644
+index 0000000..5f1b2e8
+--- /dev/null
++++ b/src/admin/ObjetivoDieta.jsx
+@@ -0,0 +1,161 @@
++// =====================================================================
++// ObjetivoDieta — panel superior del creador de dieta (Comidas del día).
++//
++// El PLAN NUTRICIONAL es la única referencia: aquí NO se escriben calorías ni macros objetivo.
++// Este panel muestra el objetivo vigente (solo lectura), cuánto llevan las comidas frente a él
++// (en vivo) y los controles del ajuste automático:
++//   - Ajuste automático: cada vez que agregas, quitas o cambias un alimento, o cambias el plan,
++//     los gramos de los alimentos NO fijados se recalculan solos para cumplir los macros.
++//     Si escribes tú los gramos de un alimento, ese alimento queda fijado y el resto se ajusta.
++//   - "Reajustar al plan": recalcula ahora (también con el ajuste automático apagado).
++//   - "Soltar gramos fijados": vuelve a dejar que el cálculo decida todos los gramos.
++// No guarda nada: el guardado lo hace "Guardar comidas" en PlanComidas.
++// =====================================================================
++import { PASOS_REDONDEO, diferenciasDia, esDeCatalogo, objetivoDePlan, totalesDia } from '../lib/dieta'
++import { textoEstadoCalorico } from '../lib/opciones'
++import { INTENSIDADES, OBJETIVOS, TIPOS_DIETA } from '../lib/planNutricional'
++import { CAMPO, BOTON_SEC, TARJETA } from '../lib/estilos'
++
++const numero = (n) => Number(n).toLocaleString('es-CO', { maximumFractionDigits: 1 })
++const etiqueta = (lista, valor) => lista.find((o) => o.valor === valor)?.etiqueta
++// Una diferencia de hasta 3 g o 3 % del objetivo se considera "cumplido" (los gramos se redondean).
++const dentroDeTolerancia = (d) => Math.abs(d.diferencia) <= Math.max(3, d.objetivo * 0.03)
++
++export default function ObjetivoDieta({
++  plan, cargandoPlan, errorPlan, comidas, auto, paso, avisos,
++  onAuto, onPaso, onReajustar, onLiberar, onPesoComida,
++}) {
++  const objetivo = objetivoDePlan(plan)
++  const totales = totalesDia(comidas)
++  const diferencias = objetivo ? diferenciasDia(totales, objetivo) : null
++  const comidasConCatalogo = comidas.filter((c) => c.alimentos.some(esDeCatalogo))
++  const hayFijos = comidas.some((c) => c.alimentos.some((a) => esDeCatalogo(a) && a.fijo))
++  const desviado = diferencias ? diferencias.some((d) => !dentroDeTolerancia(d)) : false
++  const config = plan && plan.objetivo_fisico
++    ? [etiqueta(OBJETIVOS, plan.objetivo_fisico), etiqueta(INTENSIDADES, plan.intensidad), etiqueta(TIPOS_DIETA, plan.tipo_dieta)].filter(Boolean).join(' · ')
++    : ''
++
++  return (
++    <div className={`${TARJETA} flex flex-col gap-3`}>
++      <div>
++        <h4 className="font-semibold">Objetivo del día (Plan nutricional)</h4>
++        <p className="text-sm text-suave">
++          Las comidas se calculan con el plan nutricional del atleta. Para cambiar calorías o macros, edita el
++          «Plan nutricional» (arriba) y las comidas se reajustan solas.
++        </p>
++      </div>
++
++      {cargandoPlan && <p role="status" className="text-sm text-suave">Leyendo el plan nutricional...</p>}
++      {errorPlan && <p role="alert" className="text-sm text-alerta">{errorPlan}</p>}
++
++      {!cargandoPlan && !errorPlan && !plan && (
++        <p role="status" className="rounded-xl bg-hundido p-3 text-sm text-alerta">
++          Este atleta aún no tiene plan nutricional. Defínelo en «Plan nutricional» (arriba) para poder calcular los gramos.
++        </p>
++      )}
++      {!cargandoPlan && !errorPlan && plan && !objetivo && (
++        <p role="status" className="rounded-xl bg-hundido p-3 text-sm text-alerta">
++          El plan vigente tiene {numero(plan.calorias_objetivo)} kcal pero no define proteína, carbohidratos y grasas.
++          Complétalo en «Plan nutricional» para poder calcular los gramos.
++        </p>
++      )}
++
++      {objetivo && (
++        <>
++          <div className="rounded-xl bg-hundido p-3">
++            <p className="text-lg font-bold">
++              {numero(plan.calorias_objetivo)} kcal
++              {plan.objetivo_calorico && (
++                <span className="text-sm font-normal text-suave"> · {textoEstadoCalorico(plan.objetivo_calorico)}</span>
++              )}
++            </p>
++            {config && <p className="text-xs text-enlace">{config}</p>}
++            <p className="text-sm text-suave">
++              Proteína {numero(objetivo.proteina)} g · Carbohidratos {numero(objetivo.carbohidratos)} g · Grasas {numero(objetivo.grasas)} g
++            </p>
++          </div>
++
++          <label className="flex min-h-11 items-start gap-2 text-sm">
++            <input type="checkbox" className="mt-1" checked={auto} onChange={(e) => onAuto(e.target.checked)} />
++            <span>
++              <span className="font-semibold">Ajuste automático</span>
++              <span className="block text-xs text-suave">
++                Al agregar, quitar o cambiar alimentos, o al cambiar el plan, los gramos se recalculan solos. Si escribes
++                los gramos de un alimento, queda fijado y el resto se ajusta a su alrededor.
++              </span>
++            </span>
++          </label>
++
++          <div className="flex flex-wrap gap-2">
++            <button type="button" onClick={onReajustar} className={BOTON_SEC}>Reajustar al plan</button>
++            {hayFijos && (
++              <button type="button" onClick={onLiberar} className={BOTON_SEC}>Soltar gramos fijados</button>
++            )}
++          </div>
++
++          <details className="rounded-xl bg-hundido p-3">
++            <summary className="flex min-h-11 cursor-pointer items-center text-sm font-semibold">Ajustes del cálculo</summary>
++            <div className="mt-2">
++              <label htmlFor="paso-redondeo" className="text-xs text-suave">Redondear los gramos a</label>
++              <select id="paso-redondeo" value={paso} onChange={(e) => onPaso(Number(e.target.value))} className={CAMPO}>
++                {PASOS_REDONDEO.map((p) => <option key={p} value={p}>{p} g</option>)}
++              </select>
++            </div>
++            {comidasConCatalogo.length > 1 && (
++              <>
++                <p className="mt-3 text-sm font-semibold">Reparto entre comidas</p>
++                <p className="text-xs text-suave">
++                  Por defecto todas pesan igual (1). Pon 2 en una comida para que lleve el doble que una de 1. Se guarda con el menú.
++                </p>
++                <div className="mt-2 grid grid-cols-2 gap-2">
++                  {comidasConCatalogo.map((c, i) => (
++                    <div key={c.clave}>
++                      <label htmlFor={`peso-${c.clave}`} className="text-xs text-suave">{c.nombre.trim() || `Comida ${i + 1}`}</label>
++                      <input id={`peso-${c.clave}`} inputMode="decimal" value={c.peso}
++                        onChange={(e) => onPesoComida(c.clave, e.target.value)} className={CAMPO} />
++                    </div>
++                  ))}
++                </div>
++              </>
++            )}
++          </details>
++
++          {avisos.length > 0 && (
++            <ul role="status" className="list-disc pl-5 text-sm text-alerta">
++              {avisos.map((a) => <li key={a}>{a}</li>)}
++            </ul>
++          )}
++
++          {/* Lo que llevan las comidas frente al plan, en vivo */}
++          <div className="rounded-xl bg-hundido p-3">
++            <p className="text-sm font-semibold">Total del día (en vivo)</p>
++            <p className="text-lg font-bold">
++              {numero(totales.calorias)} <span className="text-sm font-normal text-suave">/ {numero(plan.calorias_objetivo)} kcal</span>
++            </p>
++            <ul className="mt-1 grid grid-cols-3 gap-2 text-center">
++              {diferencias.map((d) => (
++                <li key={d.clave}>
++                  <p className="text-xs text-suave">{d.etiqueta}</p>
++                  <p className="font-bold">{numero(d.actual)} / {numero(d.objetivo)} g</p>
++                  <p className={`text-xs ${dentroDeTolerancia(d) ? 'text-suave' : 'text-alerta'}`}>
++                    {d.diferencia === 0 ? 'justo' : `${d.diferencia > 0 ? '+' : ''}${numero(d.diferencia)} g`}
++                  </p>
++                </li>
++              ))}
++            </ul>
++            {desviado && comidasConCatalogo.length > 0 && (
++              <p role="status" className="mt-2 text-xs text-alerta">
++                El menú se desvía del plan. {auto ? 'Revisa los avisos de arriba (por ejemplo, un macro sin alimento que lo cubra).' : 'Pulsa «Reajustar al plan».'}
++              </p>
++            )}
++            {totales.sinMacros > 0 && (
++              <p className="mt-1 text-xs text-suave">
++                {totales.sinMacros} {totales.sinMacros === 1 ? 'alimento manual no suma' : 'alimentos manuales no suman'} (sin macros).
++              </p>
++            )}
++          </div>
++        </>
++      )}
++    </div>
++  )
++}
+diff --git a/src/admin/PanelAtleta.jsx b/src/admin/PanelAtleta.jsx
+index a9133f8..7d778a4 100644
+--- a/src/admin/PanelAtleta.jsx
++++ b/src/admin/PanelAtleta.jsx
+@@ -23,7 +23,7 @@ import {
+ } from '../lib/panelAtleta'
+ 
+ const COLUMNAS_CICLO = 'id, parent_id, nivel, nombre, fecha_inicio, fecha_fin'
+-const COLUMNAS_PLAN = 'id, calorias_objetivo, proteina_g, carbohidratos_g, grasas_g, objetivo_calorico, vigente_desde'
++const COLUMNAS_PLAN = 'id, calorias_objetivo, proteina_g, carbohidratos_g, grasas_g, objetivo_calorico, objetivo_fisico, intensidad, tipo_dieta, vigente_desde'
+ 
+ // Una tarjeta del panel: toda ella es un botón para ir a editar esa sección.
+ function Tarjeta({ titulo, valor, detalle, destino, onIr }) {
+diff --git a/src/admin/PlanComidas.jsx b/src/admin/PlanComidas.jsx
+index 61bc46e..b5669d0 100644
+--- a/src/admin/PlanComidas.jsx
++++ b/src/admin/PlanComidas.jsx
+@@ -4,8 +4,9 @@
+ // Cada comida (desayuno, almuerzo, cena, snacks...) lleva sus alimentos con la cantidad exacta.
+ // Los alimentos pueden ser:
+ //   - del CATÁLOGO (/admin/alimentos): llevan estado (crudo/cocido), se miden en gramos y traen
+-//     macros. Con ellos funciona la "Calculadora de gramos" (lib/dieta.js, sin IA) y los totales
+-//     por comida y del día se recalculan en vivo al editar cualquier gramo.
++//     macros. Sus gramos se calculan SOLOS (lib/dieta.js, sin IA) para cumplir el objetivo del
++//     PLAN NUTRICIONAL vigente, que es la única referencia (no hay calculadora independiente).
++//     Si el entrenador escribe los gramos de un alimento, queda "fijado" y el resto se ajusta.
+ //   - MANUALES (como antes): nombre libre y cualquier unidad, sin macros.
+ // El atleta lo ve en su pestaña Nutrición.
+ //
+@@ -14,10 +15,12 @@
+ //     "Guardar comidas": la función de la base de datos `set_meal_plan` (migraciones 23 y 25)
+ //     reemplaza el menú completo en una sola operación (todo o nada) y guarda un SNAPSHOT de
+ //     los macros por 100 g y de los macros asignados a los gramos exactos.
+-//   - El menú es del atleta, no del plan de calorías: cambiar calorías o macros no lo toca.
++//   - Al abrir NO se modifica el menú guardado (solo se avisa si se desvía del plan). Con el ajuste
++//     automático activo, cada cambio estructural o del plan reajusta los gramos en el borrador;
++//     nada se guarda hasta pulsar "Guardar comidas".
+ //   - Antes de enviar se valida en la pantalla (lib/comidas.js); la base de datos valida otra vez.
+ // =====================================================================
+-import { useEffect, useState } from 'react'
++import { useEffect, useRef, useState } from 'react'
+ import { supabase } from '../lib/supabase'
+ import { cargarComidas } from '../lib/cargarComidas'
+ import { buscarVariante } from '../lib/buscarAlimentos'
+@@ -26,12 +29,13 @@ import {
+   aBorrador, aPayload, alimentoNuevo, aplicarAlimentoCatalogo, comidaNueva, filaDeCatalogo,
+   huellaBorrador, moverComida, resumenComidas, ultimaActualizacion, validarComidas,
+ } from '../lib/comidas'
+-import { MACROS, esDeCatalogo, macrosDeFila, rolDeFila, totalesComida } from '../lib/dieta'
++import { MACROS, ajustarAlPlan, esDeCatalogo, macrosDeFila, objetivoDePlan, rolDeFila, totalesComida } from '../lib/dieta'
++import { usePlanVigente } from '../lib/usePlanVigente'
+ import { TEXTO_MACRO, textoEstado } from '../lib/alimentos'
+ import { fechaCortaDeTimestamp } from '../lib/records'
+ import { CAMPO, BOTON, BOTON_SEC, TARJETA } from '../lib/estilos'
+ import BuscadorAlimentos from './BuscadorAlimentos'
+-import CalculadoraDieta from './CalculadoraDieta'
++import ObjetivoDieta from './ObjetivoDieta'
+ 
+ const numero = (n) => Number(n).toLocaleString('es-CO', { maximumFractionDigits: 1 })
+ 
+@@ -146,6 +150,11 @@ function FilaAlimento({ alimento: a, numero: n, nombreComida, onCambiar, onQuita
+               Fijar gramos
+             </label>
+           </div>
++          <p className="text-xs text-suave">
++            {a.fijo
++              ? 'Gramos fijados: el ajuste automático no los cambia y calcula el resto alrededor.'
++              : 'Los gramos los calcula el plan nutricional. Si los escribes tú, quedan fijados.'}
++          </p>
+         </>
+       )}
+ 
+@@ -250,7 +259,7 @@ function TarjetaComida({
+   )
+ }
+ 
+-export default function PlanComidas({ atletaId, onCambiosSinGuardar }) {
++export default function PlanComidas({ atletaId, versionPlan = 0, onCambiosSinGuardar }) {
+   const [borrador, setBorrador] = useState([])
+   const [huellaGuardada, setHuellaGuardada] = useState(huellaBorrador([]))
+   const [actualizado, setActualizado] = useState(null)
+@@ -259,6 +268,10 @@ export default function PlanComidas({ atletaId, onCambiosSinGuardar }) {
+   const [version, setVersion] = useState(0)
+   const [guardando, setGuardando] = useState(false)
+   const [mensaje, setMensaje] = useState(null)
++  const [auto, setAuto] = useState(true)
++  const [paso, setPaso] = useState(1)
++  const [avisos, setAvisos] = useState([])
++  const { plan, cargando: cargandoPlan, error: errorPlan } = usePlanVigente(atletaId, versionPlan)
+ 
+   useEffect(() => {
+     let cancelado = false
+@@ -271,6 +284,7 @@ export default function PlanComidas({ atletaId, onCambiosSinGuardar }) {
+         setHuellaGuardada(huellaBorrador(inicial))
+         setActualizado(ultimaActualizacion(comidas))
+         setErrorCarga('')
++        setAvisos([])
+       }
+       setCargando(false)
+     })
+@@ -295,32 +309,62 @@ export default function PlanComidas({ atletaId, onCambiosSinGuardar }) {
+     return () => window.removeEventListener('beforeunload', avisar)
+   }, [sucio])
+ 
+-  // Todo cambio al borrador pasa por aquí: se copia (nunca se muta) y se borra el mensaje anterior.
+-  const cambiar = (transformar) => { setBorrador((b) => transformar(b)); setMensaje(null) }
++  // Todo cambio al borrador pasa por `aplicar`: recibe el borrador NUEVO ya construido (copia, nunca
++  // se muta). Si `reajustar` es true, los gramos de los alimentos no fijados se recalculan con el
++  // plan nutricional vigente antes de guardarlo en pantalla.
++  function aplicar(nuevo, reajustar, pasoUsado = paso) {
++    setMensaje(null)
++    if (!reajustar) return setBorrador(nuevo)
++    const r = ajustarAlPlan({ comidas: nuevo, plan, paso: pasoUsado })
++    setBorrador(r.comidas)
++    setAvisos(r.avisos)
++  }
++  // Cambio de texto (nombre, notas, orden): no toca los gramos.
++  const cambiar = (nuevo) => aplicar(nuevo, false)
++  // Cambio que afecta al reparto (alimentos, roles, pesos): reajusta si el ajuste automático está activo.
++  const cambiarYAjustar = (nuevo) => aplicar(nuevo, auto)
++
++  // Si el plan nutricional cambia (el entrenador lo guardó arriba), las comidas se reajustan solas.
++  // La primera lectura NO cuenta: abrir la ficha nunca modifica el menú guardado.
++  const objetivoPlan = objetivoDePlan(plan)
++  const claveObjetivo = objetivoPlan ? JSON.stringify(objetivoPlan) : ''
++  const claveAnterior = useRef(null)
++  useEffect(() => { claveAnterior.current = null }, [atletaId])
++  useEffect(() => {
++    if (cargandoPlan) return
++    if (claveAnterior.current === null) { claveAnterior.current = claveObjetivo; return }
++    if (claveAnterior.current === claveObjetivo) return
++    claveAnterior.current = claveObjetivo
++    if (auto && claveObjetivo && !cargando && !errorCarga) aplicar(borrador, true)
++    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo debe reaccionar a un cambio del plan
++  }, [claveObjetivo, cargandoPlan])
+ 
+   const agregarComida = (nombre) =>
+     // Empieza con una fila de alimento vacía para que escribir sea inmediato.
+-    cambiar((b) => [...b, { ...comidaNueva(nombre), alimentos: [alimentoNuevo()] }])
++    cambiar([...borrador, { ...comidaNueva(nombre), alimentos: [alimentoNuevo()] }])
+ 
+   const cambiarComida = (clave, campo, valor) =>
+-    cambiar((b) => b.map((c) => (c.clave === clave ? { ...c, [campo]: valor } : c)))
++    cambiar(borrador.map((c) => (c.clave === clave ? { ...c, [campo]: valor } : c)))
++
++  const cambiarPesoComida = (clave, valor) =>
++    cambiarYAjustar(borrador.map((c) => (c.clave === clave ? { ...c, peso: valor } : c)))
+ 
+   const quitarComida = (comida) => {
+     if (comida.alimentos.length > 0 && !window.confirm(`¿Quitar «${comida.nombre.trim() || 'esta comida'}» con sus alimentos? (Se aplica al guardar.)`)) return
+-    cambiar((b) => b.filter((c) => c.clave !== comida.clave))
++    cambiarYAjustar(borrador.filter((c) => c.clave !== comida.clave))
+   }
+ 
+   const agregarAlimento = (clave) =>
+-    cambiar((b) => b.map((c) => {
++    cambiar(borrador.map((c) => {
+       if (c.clave !== clave || c.alimentos.length >= MAX_ALIMENTOS) return c
+       // La unidad del alimento anterior se repite: suele ser la misma (gramos, gramos...).
+       return { ...c, alimentos: [...c.alimentos, alimentoNuevo(c.alimentos.at(-1)?.unidad)] }
+     }))
+ 
+-  // Agrega un alimento del catálogo a la comida (sin gramos: se escriben o se calculan).
++  // Agrega un alimento del catálogo a la comida; sus gramos los calcula el plan (si hay ajuste automático).
+   // Si la comida solo tiene la fila vacía inicial, la reemplaza en vez de dejarla sobrando.
+   const agregarDelCatalogo = (clave, alimento) =>
+-    cambiar((b) => b.map((c) => {
++    cambiarYAjustar(borrador.map((c) => {
+       if (c.clave !== clave) return c
+       const vacia = (a) => !a.base && a.alimento.trim() === '' && a.cantidad.trim() === '' && a.nota.trim() === ''
+       const base = c.alimentos.length === 1 && vacia(c.alimentos[0]) ? [] : c.alimentos
+@@ -328,24 +372,46 @@ export default function PlanComidas({ atletaId, onCambiosSinGuardar }) {
+       return { ...c, alimentos: [...base, filaDeCatalogo(alimento)] }
+     }))
+ 
+-  // INTERCAMBIO: la misma fila pasa a otro alimento del catálogo, conservando gramos y posición.
++  // INTERCAMBIO: la misma fila pasa a otro alimento del catálogo; los gramos se recalculan
++  // (el alimento nuevo tiene otros macros), salvo que la fila esté fijada.
+   const intercambiarAlimento = (claveComida, claveAlimento, alimento) =>
+-    cambiar((b) => b.map((c) => (c.clave !== claveComida ? c : {
++    cambiarYAjustar(borrador.map((c) => (c.clave !== claveComida ? c : {
+       ...c,
+       alimentos: c.alimentos.map((a) => (a.clave === claveAlimento ? aplicarAlimentoCatalogo(a, alimento) : a)),
+     })))
+ 
+-  const cambiarAlimento = (claveComida, claveAlimento, campo, valor) =>
+-    cambiar((b) => b.map((c) => (c.clave !== claveComida ? c : {
++  const cambiarAlimento = (claveComida, claveAlimento, campo, valor) => {
++    const nuevo = borrador.map((c) => (c.clave !== claveComida ? c : {
+       ...c,
+-      alimentos: c.alimentos.map((a) => (a.clave === claveAlimento ? { ...a, [campo]: valor } : a)),
+-    })))
++      alimentos: c.alimentos.map((a) => {
++        if (a.clave !== claveAlimento) return a
++        // Escribir los gramos de un alimento del catálogo lo FIJA: el resto se ajusta a su alrededor.
++        if (campo === 'cantidad' && esDeCatalogo(a)) return { ...a, cantidad: valor, fijo: true }
++        return { ...a, [campo]: valor }
++      }),
++    }))
++    // Rol y fijo cambian el reparto; los gramos escritos también (los demás se reajustan).
++    const afectaReparto = campo === 'rol' || campo === 'fijo' || campo === 'cantidad'
++    if (afectaReparto) cambiarYAjustar(nuevo)
++    else cambiar(nuevo)
++  }
+ 
+   const quitarAlimento = (claveComida, claveAlimento) =>
+-    cambiar((b) => b.map((c) => (c.clave !== claveComida ? c : {
++    cambiarYAjustar(borrador.map((c) => (c.clave !== claveComida ? c : {
+       ...c, alimentos: c.alimentos.filter((a) => a.clave !== claveAlimento),
+     })))
+ 
++  const cambiarAuto = (valor) => {
++    setAuto(valor)
++    if (valor) aplicar(borrador, true) // al encenderlo se reajusta de inmediato
++  }
++  const cambiarPaso = (valor) => {
++    setPaso(valor)
++    if (auto) aplicar(borrador, true, valor)
++  }
++  const liberarFijados = () =>
++    aplicar(borrador.map((c) => ({ ...c, alimentos: c.alimentos.map((a) => (a.fijo ? { ...a, fijo: false } : a)) })), true)
++
+   async function guardar() {
+     setMensaje(null)
+     const problema = validarComidas(borrador)
+@@ -383,8 +449,8 @@ export default function PlanComidas({ atletaId, onCambiosSinGuardar }) {
+       <div>
+         <h3 className="text-lg font-bold">Comidas del día</h3>
+         <p className="text-sm text-suave">
+-          Arma el menú del atleta: cada comida con sus alimentos y cantidades exactas. Con alimentos del catálogo
+-          (crudo o cocido) puedes calcular los gramos automáticamente. Él lo consulta en su sección Nutrición.
++          Arma el menú del atleta: cada comida con sus alimentos. Con alimentos del catálogo (crudo o cocido) los
++          gramos se calculan solos para cumplir el Plan nutricional. Él lo consulta en su sección Nutrición.
+         </p>
+       </div>
+ 
+@@ -398,10 +464,19 @@ export default function PlanComidas({ atletaId, onCambiosSinGuardar }) {
+             {actualizado && ` · guardado el ${fechaCortaDeTimestamp(actualizado)}`}
+           </p>
+ 
+-          <CalculadoraDieta
+-            atletaId={atletaId}
++          <ObjetivoDieta
++            plan={plan}
++            cargandoPlan={cargandoPlan}
++            errorPlan={errorPlan}
+             comidas={borrador}
+-            onAplicar={(nuevasComidas) => cambiar(() => nuevasComidas)}
++            auto={auto}
++            paso={paso}
++            avisos={avisos}
++            onAuto={cambiarAuto}
++            onPaso={cambiarPaso}
++            onReajustar={() => aplicar(borrador, true)}
++            onLiberar={liberarFijados}
++            onPesoComida={cambiarPesoComida}
+           />
+ 
+           {borrador.length === 0 && (
+@@ -417,7 +492,7 @@ export default function PlanComidas({ atletaId, onCambiosSinGuardar }) {
+               indice={i}
+               total={borrador.length}
+               onCambiar={(campo, valor) => cambiarComida(comida.clave, campo, valor)}
+-              onMover={(delta) => cambiar((b) => moverComida(b, i, delta))}
++              onMover={(delta) => cambiar(moverComida(borrador, i, delta))}
+               onQuitar={() => quitarComida(comida)}
+               onAgregarAlimento={() => agregarAlimento(comida.clave)}
+               onAgregarDelCatalogo={(alimento) => agregarDelCatalogo(comida.clave, alimento)}
+diff --git a/src/admin/PlanNutricional.jsx b/src/admin/PlanNutricional.jsx
+index 01f7203..c12a10b 100644
+--- a/src/admin/PlanNutricional.jsx
++++ b/src/admin/PlanNutricional.jsx
+@@ -1,117 +1,60 @@
+ // =====================================================================
+-// PlanNutricional — el entrenador define el plan de UN atleta (calorías y macros).
++// PlanNutricional — el entrenador define el plan de UN atleta con un CONFIGURADOR inteligente.
+ //
++// El formulario (ConfiguradorPlan) calcula calorías y macros desde el objetivo y los datos del
++// atleta; este componente carga el plan vigente, el historial y los datos físicos del perfil.
+ // Cómo funciona el "cambio de plan":
+ //   - Nunca se EDITA un plan: se crea uno NUEVO y el anterior pasa al historial.
+-//     Así queda registro de cada ajuste y se puede ver cómo evolucionó el atleta.
+-//   - Lo hace una función de la base de datos (set_nutrition_plan, migración 08):
++//   - Lo hace una función de la base de datos (set_nutrition_plan, migraciones 08 y 26):
+ //     cierra el plan vigente y crea el nuevo en una sola operación (todo o nada).
+-//   - El atleta ve el plan nuevo al instante.
++//   - El atleta ve el plan nuevo al instante y «Comidas del día» lo usa como única referencia.
+ // =====================================================================
+ import { useEffect, useState } from 'react'
+ import { supabase } from '../lib/supabase'
+-import { aNumero } from '../lib/numeros'
+-import { diferenciaMacrosPct, kcalDeMacros } from '../lib/nutricion'
+-import { ESTADOS_CALORICOS, textoEstadoCalorico, textoOrigenPlan } from '../lib/opciones'
++import { textoEstadoCalorico, textoOrigenPlan } from '../lib/opciones'
++import { INTENSIDADES, OBJETIVOS, TIPOS_DIETA } from '../lib/planNutricional'
+ import { fechaCortaDeTimestamp } from '../lib/records'
+-import { CAMPO, BOTON, BOTON_SEC, TARJETA } from '../lib/estilos'
++import { BOTON_SEC, TARJETA } from '../lib/estilos'
+ import PlanNutricionalCard from '../components/PlanNutricionalCard'
++import ConfiguradorPlan from './ConfiguradorPlan'
+ 
+-const COLUMNAS = 'id, calorias_objetivo, proteina_g, carbohidratos_g, grasas_g, objetivo_calorico, origen, vigente_desde, vigente_hasta, notas'
++const COLUMNAS = 'id, calorias_objetivo, proteina_g, carbohidratos_g, grasas_g, objetivo_calorico, origen, vigente_desde, vigente_hasta, notas, objetivo_fisico, intensidad, tipo_dieta, tmb_kcal, gasto_kcal, peso_base_kg'
++const etiqueta = (lista, valor) => lista.find((o) => o.valor === valor)?.etiqueta
+ 
+-// El formulario arranca con los valores del plan vigente para que ajustes solo lo que cambie.
+-// Las notas NO se copian: son propias de cada plan.
+-function formDe(plan) {
+-  return {
+-    kcal: String(plan?.calorias_objetivo ?? ''),
+-    proteina: String(plan?.proteina_g ?? ''),
+-    carbos: String(plan?.carbohidratos_g ?? ''),
+-    grasas: String(plan?.grasas_g ?? ''),
+-    objetivo: plan?.objetivo_calorico ?? '',
+-    notas: '',
+-  }
+-}
+-
+-export default function PlanNutricional({ atletaId, onCambio }) {
++export default function PlanNutricional({ atletaId, fechaNacimiento = null, onCambio }) {
+   const [planes, setPlanes] = useState([])
++  const [perfil, setPerfil] = useState(null)
+   const [cargando, setCargando] = useState(true)
+   const [errorCarga, setErrorCarga] = useState('')
+   const [version, setVersion] = useState(0)
+-  const [form, setForm] = useState(() => formDe(null))
+-  const [guardando, setGuardando] = useState(false)
+   const [mensaje, setMensaje] = useState(null)
+ 
+   useEffect(() => {
+     let cancelado = false
+-    supabase
+-      .from('nutrition_plans')
+-      .select(COLUMNAS)
+-      .eq('user_id', atletaId)
+-      .order('vigente_desde', { ascending: false })
+-      .limit(20)
+-      .then(({ data, error }) => {
+-        if (cancelado) return
+-        if (error) setErrorCarga('No se pudo cargar el plan nutricional.')
+-        else {
+-          setPlanes(data)
+-          setForm(formDe(data.find((p) => p.vigente_hasta === null)))
+-          setErrorCarga('')
+-        }
+-        setCargando(false)
+-      })
++    Promise.all([
++      supabase.from('nutrition_plans').select(COLUMNAS).eq('user_id', atletaId)
++        .order('vigente_desde', { ascending: false }).limit(20),
++      // Datos físicos guardados en el perfil (migración 26); solo el entrenador puede cambiarlos
++      supabase.from('profiles').select('sexo, estatura_cm, nivel_actividad').eq('id', atletaId).maybeSingle(),
++    ]).then(([p, f]) => {
++      if (cancelado) return
++      if (p.error || f.error) setErrorCarga('No se pudo cargar el plan nutricional.')
++      else {
++        setPlanes(p.data)
++        setPerfil(f.data)
++        setErrorCarga('')
++      }
++      setCargando(false)
++    })
+     return () => { cancelado = true }
+   }, [atletaId, version])
+ 
+   const activo = planes.find((p) => p.vigente_hasta === null) ?? null
+   const anteriores = planes.filter((p) => p.vigente_hasta !== null)
+ 
+-  const actualizar = (campo, valor) => { setForm((a) => ({ ...a, [campo]: valor })); setMensaje(null) }
+-
+-  // Aviso en vivo: ¿los macros suman (más o menos) las calorías objetivo?
+-  const kcal = aNumero(form.kcal)
+-  const p = aNumero(form.proteina)
+-  const c = aNumero(form.carbos)
+-  const g = aNumero(form.grasas)
+-  const macrosCompletos = [p, c, g].every((n) => n !== null && !Number.isNaN(n))
+-  const kcalValida = kcal !== null && !Number.isNaN(kcal) && kcal > 0
+-  const sumaMacros = macrosCompletos ? kcalDeMacros(p, c, g) : null
+-  const diferencia = macrosCompletos && kcalValida ? diferenciaMacrosPct(kcal, p, c, g) : null
+-
+-  async function guardar(evento) {
+-    evento.preventDefault()
+-    setMensaje(null)
+-    const error = (texto) => setMensaje({ tipo: 'error', texto })
+-
+-    if (kcal === null || Number.isNaN(kcal)) return error('Escribe las calorías objetivo (solo números).')
+-    if (!Number.isInteger(kcal) || kcal < 500 || kcal > 10000) {
+-      return error('Las calorías deben ser un número entero entre 500 y 10.000.')
+-    }
+-    for (const [nombre, valor] of [['La proteína', p], ['Los carbohidratos', c], ['Las grasas', g]]) {
+-      if (Number.isNaN(valor)) return error(`${nombre}: escribe solo números.`)
+-      if (valor !== null && (!Number.isInteger(valor) || valor < 0 || valor > 1000)) {
+-        return error(`${nombre} deben ser un número entero entre 0 y 1.000 g.`)
+-      }
+-    }
+-
+-    setGuardando(true)
+-    const { error: errorBD } = await supabase.rpc('set_nutrition_plan', {
+-      p_user_id: atletaId,
+-      p_calorias: kcal,
+-      p_proteina_g: p,
+-      p_carbohidratos_g: c,
+-      p_grasas_g: g,
+-      p_objetivo: form.objetivo || null, // el <select> vacío da '' y la base de datos espera NULL
+-      p_notas: form.notas.trim() || null,
+-    })
+-    setGuardando(false)
+-
+-    if (errorBD) {
+-      // P0001 = mensaje que escribimos nosotros en la función (ya viene en español).
+-      return error(errorBD.code === 'P0001' ? errorBD.message : 'No se pudo guardar el plan. Inténtalo de nuevo.')
+-    }
+-    setMensaje({ tipo: 'ok', texto: 'Plan guardado. El atleta ya lo ve.' })
++  function alGuardar() {
+     setVersion((v) => v + 1)
+-    onCambio?.() // avisa a la ficha para que el gráfico de calorías actualice su línea de objetivo
++    onCambio?.() // avisa a la ficha: actualiza el gráfico de calorías y reajusta «Comidas del día»
+   }
+ 
+   async function finalizar() {
+@@ -127,8 +70,7 @@ export default function PlanNutricional({ atletaId, onCambio }) {
+       return setMensaje({ tipo: 'error', texto: 'No se pudo finalizar el plan.' })
+     }
+     setMensaje({ tipo: 'ok', texto: 'Plan finalizado.' })
+-    setVersion((v) => v + 1)
+-    onCambio?.()
++    alGuardar()
+   }
+ 
+   const colorMensaje = { error: 'text-alerta', ok: 'text-enlace' }
+@@ -148,64 +90,19 @@ export default function PlanNutricional({ atletaId, onCambio }) {
+               Finalizar plan actual
+             </button>
+           )}
++          {mensaje && (
++            <p role={mensaje.tipo === 'error' ? 'alert' : 'status'} className={colorMensaje[mensaje.tipo]}>{mensaje.texto}</p>
++          )}
+ 
+-          <form onSubmit={guardar} className={`${TARJETA} flex flex-col gap-3`}>
+-            <h4 className="font-semibold">{activo ? 'Cambiar plan' : 'Definir plan'}</h4>
+-
+-            <label htmlFor="plan-kcal" className="text-sm text-suave">Calorías objetivo (por día)</label>
+-            <input id="plan-kcal" inputMode="numeric" placeholder="Ej: 2600" value={form.kcal}
+-              onChange={(e) => actualizar('kcal', e.target.value)} className={CAMPO} />
+-
+-            <div className="grid grid-cols-3 gap-2">
+-              <div>
+-                <label htmlFor="plan-p" className="text-xs text-suave">Proteína (g)</label>
+-                <input id="plan-p" inputMode="numeric" value={form.proteina}
+-                  onChange={(e) => actualizar('proteina', e.target.value)} className={CAMPO} />
+-              </div>
+-              <div>
+-                <label htmlFor="plan-c" className="text-xs text-suave">Carbos (g)</label>
+-                <input id="plan-c" inputMode="numeric" value={form.carbos}
+-                  onChange={(e) => actualizar('carbos', e.target.value)} className={CAMPO} />
+-              </div>
+-              <div>
+-                <label htmlFor="plan-g" className="text-xs text-suave">Grasas (g)</label>
+-                <input id="plan-g" inputMode="numeric" value={form.grasas}
+-                  onChange={(e) => actualizar('grasas', e.target.value)} className={CAMPO} />
+-              </div>
+-            </div>
+-
+-            {sumaMacros !== null && (
+-              <p className={`text-sm ${diferencia !== null && Math.abs(diferencia) > 10 ? 'text-alerta' : 'text-suave'}`}>
+-                Los macros suman {sumaMacros.toLocaleString('es-CO')} kcal
+-                {diferencia !== null && (Math.abs(diferencia) > 10
+-                  ? ` (${diferencia > 0 ? '+' : ''}${diferencia} % respecto al objetivo: revisa los números).`
+-                  : ' (coherente con el objetivo).')}
+-              </p>
+-            )}
+-
+-            <label htmlFor="plan-objetivo" className="text-sm text-suave">Estado calórico (opcional)</label>
+-            <select id="plan-objetivo" value={form.objetivo} onChange={(e) => actualizar('objetivo', e.target.value)} className={CAMPO}>
+-              <option value="">Sin definir</option>
+-              {ESTADOS_CALORICOS.map((e) => <option key={e.valor} value={e.valor}>{e.etiqueta}</option>)}
+-            </select>
+-
+-            <label htmlFor="plan-notas" className="text-sm text-suave">Notas para el atleta (opcional)</label>
+-            <textarea id="plan-notas" rows={2} maxLength={300} value={form.notas}
+-              onChange={(e) => actualizar('notas', e.target.value)}
+-              className="w-full rounded-xl border border-[#5B6372] bg-fondo p-3" />
+-
+-            {mensaje && (
+-              <p role={mensaje.tipo === 'error' ? 'alert' : 'status'} className={colorMensaje[mensaje.tipo]}>
+-                {mensaje.texto}
+-              </p>
+-            )}
+-            <p className="text-xs text-suave">
+-              Al guardar, el plan actual pasa al historial y el atleta ve el nuevo al instante.
+-            </p>
+-            <button type="submit" disabled={guardando} className={BOTON}>
+-              {guardando ? 'Guardando...' : 'Guardar nuevo plan'}
+-            </button>
+-          </form>
++          {/* key: al guardar un plan nuevo el formulario arranca de nuevo con sus valores */}
++          <ConfiguradorPlan
++            key={activo?.id ?? 'sin-plan'}
++            atletaId={atletaId}
++            fechaNacimiento={fechaNacimiento}
++            activo={activo}
++            perfil={perfil}
++            onGuardado={alGuardar}
++          />
+ 
+           {anteriores.length > 0 && (
+             <div>
+@@ -214,6 +111,11 @@ export default function PlanNutricional({ atletaId, onCambio }) {
+                 {anteriores.map((a) => (
+                   <li key={a.id} className={TARJETA}>
+                     <p className="font-semibold">{a.calorias_objetivo.toLocaleString('es-CO')} kcal</p>
++                    {a.objetivo_fisico && (
++                      <p className="text-xs text-enlace">
++                        {[etiqueta(OBJETIVOS, a.objetivo_fisico), etiqueta(INTENSIDADES, a.intensidad), etiqueta(TIPOS_DIETA, a.tipo_dieta)].filter(Boolean).join(' · ')}
++                      </p>
++                    )}
+                     <p className="text-sm text-suave">
+                       {[
+                         a.proteina_g !== null && `P ${a.proteina_g} g`,
+diff --git a/src/atleta/Nutricion.jsx b/src/atleta/Nutricion.jsx
+index c24f224..78c127e 100644
+--- a/src/atleta/Nutricion.jsx
++++ b/src/atleta/Nutricion.jsx
+@@ -37,7 +37,7 @@ export default function Nutricion() {
+     cargarConCache(perfil.id, 'nutricion', async () => {
+       const [p, m, c] = await Promise.all([
+         supabase.from('nutrition_plans')
+-          .select('id, calorias_objetivo, proteina_g, carbohidratos_g, grasas_g, objetivo_calorico, vigente_desde, notas')
++          .select('id, calorias_objetivo, proteina_g, carbohidratos_g, grasas_g, objetivo_calorico, vigente_desde, notas, objetivo_fisico, intensidad, tipo_dieta')
+           .eq('user_id', perfil.id).is('vigente_hasta', null).maybeSingle(),
+         supabase.from('metrics')
+           .select('id, fecha, peso_corporal_kg, perimetro_cintura_cm, calorias_consumidas, estado_calorico, notas')
+diff --git a/src/components/PlanNutricionalCard.jsx b/src/components/PlanNutricionalCard.jsx
+index d9a687d..c145f2d 100644
+--- a/src/components/PlanNutricionalCard.jsx
++++ b/src/components/PlanNutricionalCard.jsx
+@@ -2,8 +2,11 @@
+ // consulta nada, solo dibuja el plan que recibe. La usan el atleta y el entrenador.
+ import { fechaCortaDeTimestamp } from '../lib/records'
+ import { textoEstadoCalorico } from '../lib/opciones'
++import { INTENSIDADES, OBJETIVOS, TIPOS_DIETA } from '../lib/planNutricional'
+ import { TARJETA } from '../lib/estilos'
+ 
++const etiqueta = (lista, valor) => lista.find((o) => o.valor === valor)?.etiqueta
++
+ export default function PlanNutricionalCard({ plan, titulo = 'Plan actual' }) {
+   if (!plan) {
+     return (
+@@ -32,6 +35,11 @@ export default function PlanNutricionalCard({ plan, titulo = 'Plan actual' }) {
+           {plan.objetivo_calorico ? `${textoEstadoCalorico(plan.objetivo_calorico)} · ` : ''}
+           desde el {fechaCortaDeTimestamp(plan.vigente_desde)}
+         </p>
++        {plan.objetivo_fisico && (
++          <p className="text-sm text-enlace">
++            {[etiqueta(OBJETIVOS, plan.objetivo_fisico), etiqueta(INTENSIDADES, plan.intensidad), etiqueta(TIPOS_DIETA, plan.tipo_dieta)].filter(Boolean).join(' · ')}
++          </p>
++        )}
+       </div>
+ 
+       {macros.some((m) => m.valor !== null) && (
+diff --git a/src/lib/cargarComidas.js b/src/lib/cargarComidas.js
+index 90f76c6..48eee64 100644
+--- a/src/lib/cargarComidas.js
++++ b/src/lib/cargarComidas.js
+@@ -14,12 +14,13 @@ import { armarComidas } from './comidas'
+ export async function cargarComidas(userId) {
+   const [c, a] = await Promise.all([
+     supabase.from('meals')
+-      .select('id, nombre, notas, orden, created_at')
++      .select('id, nombre, notas, orden, created_at, peso_reparto')
+       .eq('user_id', userId)
+       .order('orden', { ascending: true }),
+     supabase.from('meal_foods')
+-      // Incluye el snapshot de la migración 25 (estado y macros base/asignados).
+-      .select('id, meal_id, alimento, cantidad, unidad, nota, orden, food_id, estado, base_calorias, base_proteina_g, base_carbohidratos_g, base_grasas_g, calorias, proteina_g, carbohidratos_g, grasas_g')
++      // Incluye el snapshot de la migración 25 (estado y macros base/asignados) y los ajustes del
++      // autocálculo de la 26 (rol_macro, gramos_fijos; y peso_reparto en las comidas).
++      .select('id, meal_id, alimento, cantidad, unidad, nota, orden, food_id, estado, rol_macro, gramos_fijos, base_calorias, base_proteina_g, base_carbohidratos_g, base_grasas_g, calorias, proteina_g, carbohidratos_g, grasas_g')
+       .eq('user_id', userId)
+       .order('orden', { ascending: true }),
+   ])
+diff --git a/src/lib/cargarPesoReciente.js b/src/lib/cargarPesoReciente.js
+new file mode 100644
+index 0000000..9eb0b72
+--- /dev/null
++++ b/src/lib/cargarPesoReciente.js
+@@ -0,0 +1,26 @@
++// =====================================================================
++// src/lib/cargarPesoReciente.js — el peso más reciente conocido de un atleta.
++//
++// Para precargar el configurador del plan nutricional. Pide solo UNA fila de cada fuente
++// (mediciones oficiales y check-in diario) y se queda con la más nueva; si el mismo día hay
++// medición oficial, manda esa (misma regla que lib/pesoCombinado.js). No copia nada a `metrics`.
++// Devuelve { peso (número o null), fecha, origen: 'oficial' | 'checkin' | null } o { error }.
++// =====================================================================
++import { supabase } from './supabase'
++import { combinarPesos } from './pesoCombinado'
++
++export async function cargarPesoReciente(atletaId) {
++  const ultimo = (tabla) => supabase
++    .from(tabla)
++    .select('fecha, peso_corporal_kg')
++    .eq('user_id', atletaId)
++    .not('peso_corporal_kg', 'is', null)
++    .order('fecha', { ascending: false })
++    .limit(1)
++  const [oficial, checkin] = await Promise.all([ultimo('metrics'), ultimo('daily_check_ins')])
++  if (oficial.error || checkin.error) return { error: 'No se pudo leer el peso del atleta.' }
++  const [masReciente] = combinarPesos(oficial.data, checkin.data)
++  return masReciente
++    ? { peso: Number(masReciente.peso_corporal_kg), fecha: masReciente.fecha, origen: masReciente.origen }
++    : { peso: null, fecha: null, origen: null }
++}
+diff --git a/src/lib/comidas.js b/src/lib/comidas.js
+index 015eb10..436cfb0 100644
+--- a/src/lib/comidas.js
++++ b/src/lib/comidas.js
+@@ -14,10 +14,14 @@
+ //        su estado (crudo/cocido/n/a), sus macros por 100 g (`base`) y los macros de esos
+ //        gramos exactos (`asignado`). Son null/'' en los alimentos manuales y en los menús
+ //        guardados antes de la migración 25.
++//        Desde la migración 26 cada alimento trae también `rol` (macro que cubre en el
++//        autocálculo; '' = su macro dominante) y `fijo` (gramos fijados a mano), y cada comida
++//        `pesoReparto` (su peso al repartir el día entre comidas; por defecto 1).
+ //   - "borrador" (lo que se EDITA en el formulario): igual, pero sin ids de base de datos,
+ //        con una `clave` local para React y la cantidad como TEXTO (el usuario escribe "1,5").
+-//        Cada alimento del borrador también lleva `rol` y `fijo` (solo para el cálculo de
+-//        lib/dieta.js; no se guardan).
++//        Cada comida del borrador lleva `peso` (texto) y cada alimento `rol` y `fijo`: son los
++//        ajustes del autocálculo de lib/dieta.js y SÍ se guardan (migración 26), para que el
++//        ajuste automático respete lo que el entrenador fijó a mano.
+ // =====================================================================
+ import { aNumero } from './numeros'
+ import { sumarMacros } from './dieta'
+@@ -79,6 +83,8 @@ export function armarComidas(filasComidas, filasAlimentos) {
+         carbohidratos_g: Number(a.base_carbohidratos_g),
+         grasas_g: Number(a.base_grasas_g),
+       } : null,
++      rol: a.rol_macro ?? '',
++      fijo: Boolean(a.gramos_fijos),
+       asignado: conSnapshot ? {
+         calorias: Number(a.calorias),
+         proteina: Number(a.proteina_g),
+@@ -94,6 +100,7 @@ export function armarComidas(filasComidas, filasAlimentos) {
+       nombre: c.nombre,
+       notas: c.notas ?? '',
+       created_at: c.created_at,
++      pesoReparto: c.peso_reparto === null || c.peso_reparto === undefined ? 1 : Number(c.peso_reparto),
+       alimentos: alimentosDe.get(c.id) ?? [],
+     }))
+ }
+@@ -162,7 +169,7 @@ export function aplicarAlimentoCatalogo(fila, alimento) {
+ }
+ 
+ export function comidaNueva(nombre = '') {
+-  return { clave: nuevaClave(), nombre, notas: '', alimentos: [] }
++  return { clave: nuevaClave(), nombre, notas: '', peso: '1', alimentos: [] }
+ }
+ 
+ // De "comidas" (base de datos) a borrador (formulario). La cantidad pasa a texto con coma
+@@ -172,6 +179,7 @@ export function aBorrador(comidas) {
+     clave: nuevaClave(),
+     nombre: c.nombre,
+     notas: c.notas,
++    peso: String(c.pesoReparto ?? 1).replace('.', ','),
+     alimentos: c.alimentos.map((a) => ({
+       clave: nuevaClave(),
+       alimento: a.alimento,
+@@ -181,8 +189,8 @@ export function aBorrador(comidas) {
+       foodId: a.foodId,
+       estado: a.estado,
+       base: a.base,
+-      rol: '',
+-      fijo: false,
++      rol: a.rol ?? '',
++      fijo: Boolean(a.fijo),
+     })),
+   }))
+ }
+@@ -192,8 +200,8 @@ export function aBorrador(comidas) {
+ export function huellaBorrador(borrador) {
+   return JSON.stringify(
+     borrador.map((c) => [
+-      c.nombre, c.notas,
+-      c.alimentos.map((a) => [a.alimento, a.cantidad, a.unidad, a.nota, a.foodId, a.estado, a.base]),
++      c.nombre, c.notas, c.peso,
++      c.alimentos.map((a) => [a.alimento, a.cantidad, a.unidad, a.nota, a.foodId, a.estado, a.base, a.rol, a.fijo]),
+     ])
+   )
+ }
+@@ -219,6 +227,13 @@ export function validarComidas(borrador) {
+     if (nombre.length < 2 || nombre.length > 40) {
+       return `La comida ${i + 1} necesita un nombre de 2 a 40 letras.`
+     }
++    const peso = aNumero(c.peso ?? '1')
++    if (peso !== null && (Number.isNaN(peso) || peso < 0 || peso > 100)) {
++      return `El peso de reparto de «${nombre}» debe ser un número entre 0 y 100.`
++    }
++    if (peso !== null && Math.round(peso * 10) / 10 !== peso) {
++      return `El peso de reparto de «${nombre}» admite como máximo 1 decimal.`
++    }
+     if (c.notas.trim().length > 200) return `Las notas de «${nombre}» no pueden pasar de 200 caracteres.`
+     if (c.alimentos.length > MAX_ALIMENTOS) {
+       return `«${nombre}» puede tener como máximo ${MAX_ALIMENTOS} alimentos.`
+@@ -261,6 +276,7 @@ export function aPayload(borrador) {
+   return borrador.map((c) => ({
+     nombre: c.nombre.trim(),
+     notas: c.notas.trim() || null,
++    peso_reparto: aNumero(c.peso ?? '1') ?? 1, // número, no texto; vacío = 1
+     alimentos: c.alimentos.map((a) => ({
+       alimento: a.alimento.trim(),
+       cantidad: aNumero(a.cantidad), // número, no texto: la función SQL lo exige así
+@@ -268,7 +284,11 @@ export function aPayload(borrador) {
+       nota: a.nota.trim() || null,
+       // Snapshot (migración 25): solo los alimentos del catálogo lo llevan. La base de datos
+       // calcula los macros asignados a partir de esta base y de los gramos.
+-      ...(a.base ? { food_id: a.foodId, estado: a.estado || 'n/a', base: a.base } : {}),
++      ...(a.base ? {
++        food_id: a.foodId, estado: a.estado || 'n/a', base: a.base,
++        // Ajustes del autocálculo (migración 26): solo los alimentos del catálogo los llevan.
++        rol_macro: a.rol || null, gramos_fijos: Boolean(a.fijo),
++      } : {}),
+     })),
+   }))
+ }
+diff --git a/src/lib/dieta.js b/src/lib/dieta.js
+index 632b8fe..f418ae3 100644
+--- a/src/lib/dieta.js
++++ b/src/lib/dieta.js
+@@ -1,8 +1,9 @@
+ // =====================================================================
+ // src/lib/dieta.js — motor de AUTOCÁLCULO de la dieta (100 % JavaScript, sin IA).
+ //
+-// Qué resuelve: el entrenador elige alimentos del catálogo (con su estado crudo/cocido),
+-// define las comidas y los macros objetivo del día, y este módulo calcula los GRAMOS de cada
++// Qué resuelve: el entrenador elige alimentos del catálogo (con su estado crudo/cocido) y define
++// las comidas; los macros objetivo del día vienen del PLAN NUTRICIONAL vigente (única
++// referencia) y este módulo calcula los GRAMOS de cada
+ // alimento para cumplirlos, descontando los macros "indirectos" (por ejemplo, el arroz también
+ // aporta algo de proteína y el pollo casi nada de carbohidratos).
+ //
+@@ -265,6 +266,42 @@ export function calcularGramos({ comidas, objetivo, pesos = {}, paso = 1 }) {
+   return { gramos, avisos, convergio }
+ }
+ 
++// ---------------------------------------------------------------------
++// Conexión con el PLAN NUTRICIONAL (paso 36)
++// El Plan nutricional es la ÚNICA referencia: los objetivos del día salen de él, no se escriben
++// en el creador de dieta. Un plan sin macros (plan manual antiguo) no sirve para calcular.
++// ---------------------------------------------------------------------
++
++// Del plan vigente (fila de nutrition_plans) al objetivo { proteina, carbohidratos, grasas } en g,
++// o null si no hay plan o le faltan macros.
++export function objetivoDePlan(plan) {
++  if (!plan) return null
++  const valores = [plan.proteina_g, plan.carbohidratos_g, plan.grasas_g]
++  if (valores.some((v) => v === null || v === undefined || !Number.isFinite(Number(v)))) return null
++  return { proteina: Number(plan.proteina_g), carbohidratos: Number(plan.carbohidratos_g), grasas: Number(plan.grasas_g) }
++}
++
++// Peso de cada comida en el reparto del día: { [clave de comida]: número }. Vacío o inválido = 1.
++export function pesosDeComidas(comidas) {
++  const pesos = {}
++  for (const c of comidas) {
++    const n = aNumero(c.peso ?? '1')
++    pesos[c.clave] = n !== null && Number.isFinite(n) && n >= 0 ? n : 1
++  }
++  return pesos
++}
++
++// AJUSTE AUTOMÁTICO al plan: calcula los gramos de los alimentos del catálogo que NO están
++// fijados para cumplir los macros del plan vigente, descontando lo que ya aportan los demás.
++// Devuelve { comidas (copia nueva), avisos, aplicado }. Sin plan utilizable devuelve las comidas
++// tal cual y aplicado = false. No muta lo que recibe.
++export function ajustarAlPlan({ comidas, plan, paso = 1 }) {
++  const objetivo = objetivoDePlan(plan)
++  if (!objetivo) return { comidas, avisos: [], aplicado: false }
++  const { gramos, avisos } = calcularGramos({ comidas, objetivo, pesos: pesosDeComidas(comidas), paso })
++  return { comidas: aplicarGramos(comidas, gramos), avisos, aplicado: true }
++}
++
+ // Devuelve una copia de las comidas con los gramos calculados aplicados (cantidad como texto
+ // con coma decimal, como la escribiría el entrenador). No muta lo que recibe.
+ export function aplicarGramos(comidas, gramos) {
+diff --git a/src/lib/planNutricional.js b/src/lib/planNutricional.js
+new file mode 100644
+index 0000000..07960da
+--- /dev/null
++++ b/src/lib/planNutricional.js
+@@ -0,0 +1,311 @@
++// =====================================================================
++// src/lib/planNutricional.js — lógica PURA del "configurador" del Plan nutricional (paso 36).
++//
++// A partir de la edad, el peso, la estatura, el sexo y el nivel de actividad del atleta calcula:
++//   1. Metabolismo basal (TMB) con la ecuación de Mifflin-St Jeor.
++//   2. Gasto energético diario = TMB × factor de actividad.
++//   3. Calorías objetivo = gasto ± un porcentaje según el objetivo físico y la intensidad.
++//   4. Macros en gramos según el objetivo y el tipo de dieta.
++// Y ofrece `reequilibrar`: cuando el entrenador edita una calorías/macro (en g o en %), reparte
++// la diferencia entre los demás para que el total siga cuadrando con las calorías.
++//
++// Todo es JavaScript puro y DETERMINISTA (sin IA, sin consultas): los mismos datos dan siempre
++// el mismo resultado. No toca la base de datos ni la pantalla.
++//
++// ───────────── Criterios y de dónde salen (son ESTIMACIONES, no mediciones) ─────────────
++//  · TMB — Mifflin-St Jeor (peso, estatura, edad, sexo). Es la ecuación estándar para población
++//    general. OJO: una revisión sistemática de 2023 en atletas (Sports Medicine, Accuracy of RMR
++//    Prediction Equations in Athletes) encontró que sobre o subestima de forma significativa
++//    en ese grupo y que la ecuación de Ten Haaf fue la más precisa (80 % de los casos dentro de
++//    ±10 %). No se usó Ten Haaf porque no se pudieron verificar sus coeficientes. Por eso el
++//    gasto es EDITABLE y debe ajustarse con la tendencia real de peso del atleta.
++//  · Factor de actividad — 1,2 · 1,375 · 1,55 · 1,725 · 1,9 (valores clásicos de uso común; son
++//    aproximaciones poblacionales).
++//  · Ritmo del déficit — Helms et al. 2014 (J Int Soc Sports Nutr): 0,5–1 % del peso por semana,
++//    proteína 2,3–3,1 g/kg de masa libre de grasa, grasa 15–30 % de las kcal, carbohidratos el resto.
++//    Aquí se usa g/kg del PESO TOTAL (no hay masa libre de grasa registrada), de ahí 2,0–2,4.
++//  · Volumen — Iraki et al. 2019 (Nutrition Recommendations for Bodybuilders in the Off-Season):
++//    superávit ~10–20 %, ganancia 0,25–0,5 % del peso por semana (principiantes/intermedios; los
++//    avanzados, más conservador), proteína 1,6–2,2 g/kg, grasa 0,5–1,5 g/kg, carbohidratos el resto.
++//  · CRITERIO PROPIO (no es un rango de un estudio): los porcentajes exactos por intensidad
++//    (−10/−20/−25 %, +5/+10/+20 %), la recomposición (0/−5/−10 %), el piso de grasa de 0,6 g/kg y
++//    las proporciones de cada tipo de dieta. Están todos en constantes de abajo para ajustarlos.
++// =====================================================================
++import { aNumero } from './numeros'
++
++export const OBJETIVOS = [
++  { valor: 'deficit', etiqueta: 'Déficit', descripcion: 'Perder grasa conservando el músculo' },
++  { valor: 'recomposicion', etiqueta: 'Recomposición', descripcion: 'Bajar grasa y ganar músculo con el peso casi estable' },
++  { valor: 'volumen', etiqueta: 'Volumen', descripcion: 'Ganar músculo con superávit calórico' },
++]
++
++export const INTENSIDADES = [
++  { valor: 'conservadora', etiqueta: 'Conservadora' },
++  { valor: 'moderada', etiqueta: 'Moderada' },
++  { valor: 'agresiva', etiqueta: 'Agresiva' },
++]
++
++export const TIPOS_DIETA = [
++  { valor: 'equilibrada', etiqueta: 'Equilibrada', descripcion: 'Grasa 25 % de las calorías; carbohidratos el resto' },
++  { valor: 'alta_proteina', etiqueta: 'Alta en proteína', descripcion: 'Proteína +0,4 g/kg; grasa 25 %' },
++  { valor: 'alta_carbohidratos', etiqueta: 'Alta en carbohidratos', descripcion: 'Grasa 20 % (con piso de 0,6 g/kg)' },
++  { valor: 'baja_carbohidratos', etiqueta: 'Baja en carbohidratos', descripcion: 'Grasa 40 % de las calorías' },
++  { valor: 'cetogenica', etiqueta: 'Cetogénica', descripcion: '30 g de carbohidratos; grasa el resto' },
++]
++
++export const SEXOS = [
++  { valor: 'masculino', etiqueta: 'Masculino' },
++  { valor: 'femenino', etiqueta: 'Femenino' },
++]
++
++export const NIVELES_ACTIVIDAD = [
++  { valor: 'sedentario', etiqueta: 'Sedentario', factor: 1.2, descripcion: 'Poco o nada de ejercicio' },
++  { valor: 'ligero', etiqueta: 'Ligero', factor: 1.375, descripcion: 'Ejercicio 1–3 días a la semana' },
++  { valor: 'moderado', etiqueta: 'Moderado', factor: 1.55, descripcion: 'Ejercicio 3–5 días a la semana' },
++  { valor: 'intenso', etiqueta: 'Intenso', factor: 1.725, descripcion: 'Ejercicio 6–7 días a la semana' },
++  { valor: 'muy_intenso', etiqueta: 'Muy intenso', factor: 1.9, descripcion: 'Doble sesión o trabajo físico duro' },
++]
++
++// ───────────── Constantes de criterio (cámbialas aquí y se aplican en toda la app) ─────────────
++
++// Ajuste de calorías sobre el gasto (−0,20 = 20 % menos).
++export const AJUSTE_KCAL = {
++  deficit: { conservadora: -0.10, moderada: -0.20, agresiva: -0.25 },
++  recomposicion: { conservadora: 0, moderada: -0.05, agresiva: -0.10 },
++  volumen: { conservadora: 0.05, moderada: 0.10, agresiva: 0.20 },
++}
++
++// Proteína base en g por kg de peso total.
++export const PROTEINA_G_KG = {
++  deficit: { conservadora: 2.0, moderada: 2.2, agresiva: 2.4 },
++  recomposicion: { conservadora: 2.2, moderada: 2.2, agresiva: 2.2 },
++  volumen: { conservadora: 1.8, moderada: 1.8, agresiva: 1.8 },
++}
++const PROTEINA_EXTRA_ALTA_G_KG = 0.4
++const PROTEINA_MAX_G_KG = 3.0
++const PROTEINA_MIN_G_KG = 1.6
++const GRASA_MIN_G_KG = 0.6
++const GRASA_PCT_KCAL = { equilibrada: 0.25, alta_proteina: 0.25, alta_carbohidratos: 0.20, baja_carbohidratos: 0.40 }
++const CARBOS_CETOGENICA_G = 30
++const CARBOS_BAJOS_G_KG = 2 // por debajo de esto se avisa (salvo dietas bajas en carbohidratos)
++const KCAL_MINIMAS_HOMBRE = 1500 // referencia de uso común: por debajo se avisa (no se bloquea)
++const KCAL_MINIMAS_MUJER = 1200
++
++const KCAL_G = { proteina: 4, carbohidratos: 4, grasas: 9 }
++const CLAVES_MACRO = ['proteina', 'carbohidratos', 'grasas']
++const ETIQUETA_MACRO = { proteina: 'proteína', carbohidratos: 'carbohidratos', grasas: 'grasas' }
++
++// Mismos límites que la base de datos (migración 26).
++export const LIMITES = { pesoMin: 20, pesoMax: 400, estaturaMin: 100, estaturaMax: 250, edadMin: 14, edadMax: 100 }
++
++export const kcalDeMacrosG = ({ proteina, carbohidratos, grasas }) =>
++  KCAL_G.proteina * proteina + KCAL_G.carbohidratos * carbohidratos + KCAL_G.grasas * grasas
++
++// ───────────── Metabolismo y gasto ─────────────
++
++// Mifflin-St Jeor: 10·peso(kg) + 6,25·estatura(cm) − 5·edad + (5 hombres | −161 mujeres)
++export function calcularTMB({ sexo, pesoKg, estaturaCm, edad }) {
++  const base = 10 * pesoKg + 6.25 * estaturaCm - 5 * edad
++  return Math.round(base + (sexo === 'masculino' ? 5 : -161))
++}
++
++export const factorActividad = (nivel) => NIVELES_ACTIVIDAD.find((n) => n.valor === nivel)?.factor ?? null
++
++// Revisa los datos del atleta. Devuelve '' si están completos y son razonables, o el motivo.
++export function validarDatosFisicos({ sexo, edad, pesoKg, estaturaCm, nivelActividad }) {
++  if (edad === null || edad === undefined) return 'Falta la fecha de nacimiento del atleta (se agrega en la cabecera de la ficha).'
++  if (!Number.isFinite(edad) || edad < LIMITES.edadMin || edad > LIMITES.edadMax) {
++    return `La edad debe estar entre ${LIMITES.edadMin} y ${LIMITES.edadMax} años. Revisa la fecha de nacimiento.`
++  }
++  if (!SEXOS.some((s) => s.valor === sexo)) return 'Elige el sexo del atleta.'
++  if (!Number.isFinite(pesoKg) || pesoKg < LIMITES.pesoMin || pesoKg > LIMITES.pesoMax) {
++    return `El peso debe estar entre ${LIMITES.pesoMin} y ${LIMITES.pesoMax} kg.`
++  }
++  if (!Number.isFinite(estaturaCm) || estaturaCm < LIMITES.estaturaMin || estaturaCm > LIMITES.estaturaMax) {
++    return `La estatura debe estar entre ${LIMITES.estaturaMin} y ${LIMITES.estaturaMax} cm.`
++  }
++  if (factorActividad(nivelActividad) === null) return 'Elige el nivel de actividad.'
++  return ''
++}
++
++// ───────────── Calorías y macros objetivo ─────────────
++
++const aMultiplo10 = (n) => Math.round(n / 10) * 10
++
++// Calcula todo el plan. `gastoManual` (opcional) reemplaza el gasto estimado (el entrenador lo
++// ajustó a mano). Devuelve { error } o:
++//   { tmb, gasto, factor, ajustePct, kcal, proteina, carbohidratos, grasas, avisos: [texto] }
++export function calcularPlan({
++  sexo, edad, pesoKg, estaturaCm, nivelActividad, objetivo, intensidad, dieta, gastoManual = null,
++}) {
++  const problema = validarDatosFisicos({ sexo, edad, pesoKg, estaturaCm, nivelActividad })
++  if (problema) return { error: problema }
++  if (!Object.hasOwn(AJUSTE_KCAL, objetivo)) return { error: 'Elige el objetivo físico.' }
++  // Object.hasOwn y no "!valor": el ajuste de la recomposición conservadora es 0 (falso en JS).
++  if (!Object.hasOwn(AJUSTE_KCAL[objetivo], intensidad)) return { error: 'Elige la intensidad.' }
++  if (!TIPOS_DIETA.some((d) => d.valor === dieta)) return { error: 'Elige el tipo de dieta.' }
++  if (gastoManual !== null && (!Number.isFinite(gastoManual) || gastoManual < 800 || gastoManual > 10000)) {
++    return { error: 'El gasto energético debe estar entre 800 y 10.000 kcal.' }
++  }
++
++  const avisos = []
++  const factor = factorActividad(nivelActividad)
++  const tmb = calcularTMB({ sexo, pesoKg, estaturaCm, edad })
++  const gasto = gastoManual !== null ? Math.round(gastoManual) : Math.round(tmb * factor)
++  const ajustePct = AJUSTE_KCAL[objetivo][intensidad]
++
++  // Calorías: nunca por debajo del metabolismo basal (piso de seguridad).
++  let kcal = aMultiplo10(gasto * (1 + ajustePct))
++  const piso = Math.ceil(tmb / 10) * 10
++  if (kcal < piso) {
++    kcal = piso
++    avisos.push(`Las calorías quedaron en el metabolismo basal (${piso} kcal): con ese ajuste bajarían de ahí. Elige una intensidad menor o revisa el gasto.`)
++  }
++
++  // Proteína
++  const pKg = Math.min(
++    PROTEINA_MAX_G_KG,
++    PROTEINA_G_KG[objetivo][intensidad] + (dieta === 'alta_proteina' ? PROTEINA_EXTRA_ALTA_G_KG : 0),
++  )
++  let proteina = Math.round(pKg * pesoKg)
++  const proteinaMin = Math.round(PROTEINA_MIN_G_KG * pesoKg)
++  const grasaMin = Math.round(GRASA_MIN_G_KG * pesoKg)
++
++  // Grasa y carbohidratos
++  let grasas
++  let carbohidratos
++  if (dieta === 'cetogenica') {
++    carbohidratos = CARBOS_CETOGENICA_G
++    grasas = Math.round((kcal - 4 * proteina - 4 * carbohidratos) / 9)
++    if (grasas < grasaMin) {
++      // Calorías muy bajas: se recorta primero la proteína hasta su mínimo.
++      proteina = Math.max(proteinaMin, Math.round((kcal - 4 * carbohidratos - 9 * grasaMin) / 4))
++      grasas = Math.max(grasaMin, Math.round((kcal - 4 * proteina - 4 * carbohidratos) / 9))
++    }
++    avisos.push('La dieta cetogénica tiene poco respaldo para hipertrofia y entrenamientos de alta intensidad. Úsala solo por indicación.')
++  } else {
++    grasas = Math.max(grasaMin, Math.round((GRASA_PCT_KCAL[dieta] * kcal) / 9))
++    carbohidratos = Math.round((kcal - 4 * proteina - 9 * grasas) / 4)
++    if (carbohidratos < 0) {
++      // Calorías muy bajas para esos macros: primero la grasa baja a su piso, luego la proteína a su mínimo.
++      grasas = grasaMin
++      carbohidratos = Math.round((kcal - 4 * proteina - 9 * grasas) / 4)
++      if (carbohidratos < 0) {
++        proteina = Math.max(proteinaMin, Math.round((kcal - 9 * grasas) / 4))
++        carbohidratos = Math.max(0, Math.round((kcal - 4 * proteina - 9 * grasas) / 4))
++      }
++      avisos.push('Las calorías son muy bajas para la proteína y la grasa mínimas: se recortaron. Revisa el objetivo.')
++    }
++    if (dieta !== 'baja_carbohidratos' && carbohidratos < CARBOS_BAJOS_G_KG * pesoKg) {
++      avisos.push(`Los carbohidratos quedan en ${(carbohidratos / pesoKg).toFixed(1).replace('.', ',')} g/kg: pueden ser pocos para entrenar fuerte.`)
++    }
++  }
++
++  const kcalMinimas = sexo === 'masculino' ? KCAL_MINIMAS_HOMBRE : KCAL_MINIMAS_MUJER
++  if (kcal < kcalMinimas) {
++    avisos.push(`${kcal.toLocaleString('es-CO')} kcal es muy poco (referencia: no bajar de ${kcalMinimas.toLocaleString('es-CO')} sin supervisión profesional).`)
++  }
++  if (edad < 18) avisos.push('Las ecuaciones de gasto están validadas en adultos: con menores de 18 años úsalas solo como referencia.')
++  if (gastoManual !== null) avisos.push('Estás usando un gasto energético ajustado a mano, no el estimado.')
++
++  return { tmb, gasto, factor, ajustePct, kcal, proteina, carbohidratos, grasas, avisos }
++}
++
++// Estado calórico (el que ya usa la app) según las calorías frente al gasto: ±2 % = normocalórica.
++export function estadoCaloricoDe(kcal, gasto) {
++  if (!(kcal > 0) || !(gasto > 0)) return ''
++  const razon = kcal / gasto - 1
++  if (razon < -0.02) return 'deficit'
++  if (razon > 0.02) return 'superavit'
++  return 'normocalorica'
++}
++
++// ───────────── Porcentajes y reequilibrio ─────────────
++
++// Porcentaje de las calorías objetivo que aporta cada macro (1 decimal). Con kcal vacío, de lo que suman.
++export function porcentajes(estado) {
++  const total = estado.kcal > 0 ? estado.kcal : kcalDeMacrosG(estado)
++  const pct = (clave) => (total > 0 ? Math.round((KCAL_G[clave] * estado[clave] * 1000) / total) / 10 : 0)
++  return { proteina: pct('proteina'), carbohidratos: pct('carbohidratos'), grasas: pct('grasas') }
++}
++
++// Lee el texto de un campo numérico. Devuelve { valor } o { error } (en español).
++export function leerNumeroPlan(texto, etiqueta, { maximo = 10000, entero = true } = {}) {
++  const n = aNumero(texto)
++  if (n === null) return { error: `Escribe ${etiqueta}.` }
++  if (Number.isNaN(n)) return { error: `${etiqueta[0].toUpperCase()}${etiqueta.slice(1)}: escribe solo números.` }
++  if (n < 0 || n > maximo) return { error: `${etiqueta[0].toUpperCase()}${etiqueta.slice(1)} debe estar entre 0 y ${maximo.toLocaleString('es-CO')}.` }
++  if (entero && !Number.isInteger(n)) return { error: `${etiqueta[0].toUpperCase()}${etiqueta.slice(1)} debe ser un número entero.` }
++  return { valor: n }
++}
++
++// REEQUILIBRIO. El entrenador cambia UNA cosa y los demás macros se ajustan para que el total
++// siga siendo el de las calorías objetivo.
++//   estado      { kcal, proteina, carbohidratos, grasas }  (gramos; kcal puede ser 0 = "sin calorías aún")
++//   cambio      { campo: 'kcal' | 'proteina' | 'carbohidratos' | 'grasas', valor, unidad: 'g' | 'pct' }
++//               ('pct' = % de las calorías; solo para macros)
++//   bloqueados  macros que NO se tocan al repartir (el editado siempre se respeta)
++// Reglas:
++//   · Editar calorías: los macros bloqueados conservan sus gramos y los libres se escalan, en
++//     proporción a lo que aportaban, hasta cuadrar con las nuevas calorías.
++//   · Editar un macro: ese macro queda como se escribió (con tope: no puede pasar de las
++//     calorías) y los demás libres absorben la diferencia en proporción a lo que aportaban.
++//   · Si no hay calorías objetivo todavía, no se reparte nada: las calorías pasan a ser la suma.
++// Devuelve { estado: nuevoEstado, avisos: [texto] }. No muta lo que recibe.
++export function reequilibrar(estado, cambio, bloqueados = []) {
++  const avisos = []
++  const g = { proteina: estado.proteina, carbohidratos: estado.carbohidratos, grasas: estado.grasas }
++  const fijos = new Set(bloqueados)
++  let kcal = estado.kcal
++
++  if (cambio.campo === 'kcal') {
++    kcal = Math.round(cambio.valor)
++  } else {
++    const k = KCAL_G[cambio.campo]
++    let gramos = cambio.unidad === 'pct' ? ((cambio.valor / 100) * (kcal > 0 ? kcal : 0)) / k : cambio.valor
++    gramos = Math.max(0, gramos)
++    if (kcal > 0 && gramos * k > kcal) {
++      gramos = Math.floor(kcal / k)
++      avisos.push(`No puede pasar de las calorías objetivo: ${ETIQUETA_MACRO[cambio.campo]} quedó en ${gramos} g.`)
++    }
++    g[cambio.campo] = Math.round(gramos)
++    fijos.add(cambio.campo)
++    if (!(kcal > 0)) {
++      // Sin calorías objetivo todavía: no hay nada que cuadrar.
++      return { estado: { kcal: kcalDeMacrosG(g), ...g }, avisos }
++    }
++  }
++
++  const libres = CLAVES_MACRO.filter((c) => !fijos.has(c))
++  const kcalFijos = CLAVES_MACRO.filter((c) => fijos.has(c)).reduce((s, c) => s + g[c] * KCAL_G[c], 0)
++  const restante = kcal - kcalFijos
++
++  if (libres.length === 0) {
++    if (restante !== 0) {
++      avisos.push(`Quedan ${Math.abs(Math.round(restante))} kcal ${restante > 0 ? 'sin repartir' : 'de más'}: desbloquea algún macro para que se ajuste.`)
++    }
++    return { estado: { kcal, ...g }, avisos }
++  }
++  if (restante < 0) {
++    for (const c of libres) g[c] = 0
++    avisos.push('Los macros fijados ya superan las calorías: desbloquea alguno o sube las calorías.')
++    return { estado: { kcal, ...g }, avisos }
++  }
++
++  // Reparto proporcional a lo que cada libre aportaba (o en partes iguales si ninguno aportaba).
++  const aporte = libres.map((c) => g[c] * KCAL_G[c])
++  const suma = aporte.reduce((s, n) => s + n, 0)
++  libres.forEach((c, i) => {
++    const parte = suma > 0 ? aporte[i] / suma : 1 / libres.length
++    g[c] = Math.max(0, Math.round((restante * parte) / KCAL_G[c]))
++  })
++
++  // Corrección del redondeo a gramos enteros: se absorbe en el macro libre de 4 kcal/g (carbohidratos,
++  // si no proteína) y, si solo hay grasa libre, en la grasa. Así el total queda a ±2 kcal del objetivo.
++  const dif = kcal - kcalDeMacrosG(g)
++  const candidato = libres.includes('carbohidratos') ? 'carbohidratos' : libres.includes('proteina') ? 'proteina' : 'grasas'
++  const ajuste = Math.round(dif / KCAL_G[candidato])
++  if (g[candidato] + ajuste >= 0) g[candidato] += ajuste
++
++  return { estado: { kcal, ...g }, avisos }
++}
+diff --git a/src/lib/usePlanVigente.js b/src/lib/usePlanVigente.js
+new file mode 100644
+index 0000000..7bf98dc
+--- /dev/null
++++ b/src/lib/usePlanVigente.js
+@@ -0,0 +1,37 @@
++// =====================================================================
++// src/lib/usePlanVigente.js — hook: lee el plan nutricional VIGENTE de un atleta.
++//
++// Es la referencia única de "Comidas del día": calorías, macros y (si existen) los datos del
++// configurador. Pide UNA sola fila con las columnas mínimas. Vuelve a leer cuando `version` sube
++// (la ficha la sube cada vez que se guarda un plan). Mientras relee, conserva el plan anterior
++// para que la pantalla no parpadee.
++//
++// Devuelve { plan (fila o null si no hay), cargando (solo la primera vez), error }.
++// =====================================================================
++import { useEffect, useState } from 'react'
++import { supabase } from './supabase'
++
++export const COLUMNAS_PLAN_VIGENTE =
++  'id, calorias_objetivo, proteina_g, carbohidratos_g, grasas_g, objetivo_calorico, objetivo_fisico, intensidad, tipo_dieta, vigente_desde'
++
++export function usePlanVigente(atletaId, version = 0) {
++  const [estado, setEstado] = useState({ plan: null, cargando: true, error: '' })
++
++  useEffect(() => {
++    let cancelado = false
++    supabase
++      .from('nutrition_plans')
++      .select(COLUMNAS_PLAN_VIGENTE)
++      .eq('user_id', atletaId)
++      .is('vigente_hasta', null)
++      .maybeSingle()
++      .then(({ data, error }) => {
++        if (cancelado) return
++        if (error) setEstado((e) => ({ ...e, cargando: false, error: 'No se pudo leer el plan nutricional.' }))
++        else setEstado({ plan: data, cargando: false, error: '' })
++      })
++    return () => { cancelado = true }
++  }, [atletaId, version])
++
++  return estado
++}
+diff --git a/supabase/sql/README.md b/supabase/sql/README.md
+index 150cc9e..afd3e40 100644
+--- a/supabase/sql/README.md
++++ b/supabase/sql/README.md
+@@ -24,6 +24,7 @@ Estos archivos son la **fuente de verdad del esquema** de Supabase. Se ejecutan
+ | 19 | `migracion_19_fecha_nacimiento.sql` | `migracion_19_fecha_nacimiento` (nombre sugerido) | Columna `profiles.fecha_nacimiento` (opcional, CHECK ≥ 1900), trigger `validar_fecha_nacimiento` (no futura) y RPC `set_fecha_nacimiento` (solo admin) | Aplicado |
+ | 20 | `migracion_20_gestion_usuarios.sql` | `migracion_20_gestion_usuarios` (nombre sugerido) | Columna `profiles.activo` (estado del atleta) y RPC `set_perfil_atleta` (solo admin: nombre y fecha de nacimiento) | **Pendiente de aplicar** |
+ | 23 | `migracion_23_comidas_del_dia.sql` | `migracion_23` | Tablas `meals` y `meal_foods` (comidas del día con alimentos y cantidades exactas, con RLS: el atleta lee, solo el admin escribe) y RPC `set_meal_plan` (reemplaza el menú completo de un atleta, todo o nada). Contiene un `delete` dentro de la función (solo actúa al guardar desde la app) | **Pendiente de aplicar** |
++| 26 | `migracion_26_plan_configurador.sql` | `migracion_26` | Configurador del plan nutricional: `profiles.sexo`, `estatura_cm`, `nivel_actividad` (solo admin los edita); `nutrition_plans.objetivo_fisico`, `intensidad`, `tipo_dieta`, `tmb_kcal`, `gasto_kcal`, `peso_base_kg` (todo o nada por CHECK); `set_nutrition_plan` reemplazada (firma ampliada, la llamada antigua de 7 parámetros sigue funcionando); `meals.peso_reparto`, `meal_foods.rol_macro`, `gramos_fijos` y `set_meal_plan` reemplazada (acepta esos campos). Contiene un `drop function` y el `delete` de `set_meal_plan` | **Pendiente de aplicar** |
+ | 25 | `migracion_25_catalogo_alimentos.sql` | `migracion_25` | Tabla `foods` (catálogo de alimentos por 100 g, estado crudo/cocido/n/a, macro dominante generada, RLS solo admin) con seed de ~92 alimentos, columnas de snapshot en `meal_foods` (`food_id`, `estado`, macros base y asignados) y `set_meal_plan` reemplazada (misma firma; calcula y valida el snapshot). Contiene el `delete` de `set_meal_plan` | **Pendiente de aplicar** |
+ | 24 | `migracion_24_semana_descarga.sql` | `migracion_24` | Tabla `deload_weeks` (semana de descarga de 7 días, RLS solo lectura), columna `routine_logs.en_descarga` con trigger, RPC `activar_descarga` y `cancelar_descarga`, y `ultimas_series_por_ejercicio` ignorando series de descarga (`create or replace`). No elimina nada | **Pendiente de aplicar** |
+ | 22 | `migracion_22_historial_rutina.sql` | `migracion_22` | Tabla `routine_versions` (periodos de la rutina con foto de la prescripción), funciones `foto_rutina`, `congelar_version_rutina` y `resumen_periodo_rutina` y triggers que guardan la foto antes de ajustar una rutina con series registradas. No elimina nada | **Pendiente de aplicar** |
+@@ -50,6 +51,7 @@ No existe una "migración 01": el esquema inicial hace de base. La numeración s
+ - La 20 requiere la 19 (usa `profiles.fecha_nacimiento` y su trigger). Además, la app nueva necesita desplegar la Edge Function `supabase/functions/admin-usuarios` (ver `docs/ARQUITECTURA.md`, sección 9).
+ - La 21 requiere el esquema inicial (usa `routine_logs` y sus políticas RLS).
+ - La 25 requiere la 23 (altera `meal_foods` y reemplaza `set_meal_plan`) y el esquema inicial (`is_admin()`); es independiente de la 24.
++- La 26 requiere la 25 (reemplaza `set_meal_plan` y altera `meal_foods`), la 08 (`set_nutrition_plan`) y la 19 (`profiles.fecha_nacimiento`, que usa el cliente para la edad). **Aplícala antes de desplegar el código del paso 36**: la app lee las columnas nuevas.
+ - La 24 requiere el esquema inicial (usa `profiles`, `routine_logs` e `is_admin()`); vuelve a definir la función de la 21, así que no exige tenerla aplicada antes.
+ - La 23 requiere el esquema inicial (usa `profiles` e `is_admin()`); no depende de la 22.
+ - La 22 requiere la 04, la 11, la 12 y la 16 (la foto lee `routine_exercises` con `bloque`, `pide_rpe` y la progresión) y el esquema inicial (`is_admin()`).
+@@ -67,4 +69,4 @@ No existe una "migración 01": el esquema inicial hace de base. La numeración s
+ 
+ ## Avisos esperables del SQL Editor
+ 
+-Supabase muestra "Potential issue detected" cuando un script contiene `drop` o `delete`. Es normal en estos casos: la 02, la 03 y la 05 eliminan políticas o índices antiguos para reemplazarlos, y la 06 contiene un `delete` dentro de una función que solo se ejecuta cuando guardas los músculos de un ejercicio desde la app. Ninguna borra tablas ni datos de los usuarios. La 23 contiene un `delete` dentro de la función `set_meal_plan` (borra las comidas anteriores del atleta para reemplazarlas, solo cuando el entrenador pulsa "Guardar comidas"), por eso puede mostrar el aviso; no borra tablas ni datos de otros atletas. La 25 conserva ese mismo `delete` (reemplaza `set_meal_plan`), por eso también puede mostrar el aviso; su seed usa `on conflict do nothing`. La 07, la 08, la 09, la 11, la 17, la 18, la 19, la 20, la 21 y la 22 no eliminan nada (vistas, funciones, columnas y reglas de validación nuevas), así que no deberían mostrar el aviso.
++Supabase muestra "Potential issue detected" cuando un script contiene `drop` o `delete`. Es normal en estos casos: la 02, la 03 y la 05 eliminan políticas o índices antiguos para reemplazarlos, y la 06 contiene un `delete` dentro de una función que solo se ejecuta cuando guardas los músculos de un ejercicio desde la app. Ninguna borra tablas ni datos de los usuarios. La 23 contiene un `delete` dentro de la función `set_meal_plan` (borra las comidas anteriores del atleta para reemplazarlas, solo cuando el entrenador pulsa "Guardar comidas"), por eso puede mostrar el aviso; no borra tablas ni datos de otros atletas. La 25 conserva ese mismo `delete` (reemplaza `set_meal_plan`), por eso también puede mostrar el aviso; la 26 también lo conserva y además contiene un `drop function` (reemplaza la firma antigua de `set_nutrition_plan`), por lo que puede mostrar el aviso; su seed usa `on conflict do nothing`. La 07, la 08, la 09, la 11, la 17, la 18, la 19, la 20, la 21 y la 22 no eliminan nada (vistas, funciones, columnas y reglas de validación nuevas), así que no deberían mostrar el aviso.
+diff --git a/supabase/sql/migracion_26_plan_configurador.sql b/supabase/sql/migracion_26_plan_configurador.sql
+new file mode 100644
+index 0000000..f955991
+--- /dev/null
++++ b/supabase/sql/migracion_26_plan_configurador.sql
+@@ -0,0 +1,419 @@
++-- =====================================================================
++-- Migración 26 — Plan nutricional como configurador + Comidas del día conectadas (paso 36)
++--
++-- Qué hace:
++--   1. DATOS FÍSICOS del atleta en `profiles`: sexo, estatura (cm) y nivel de actividad.
++--      Hasta hoy no existían. Con ellos y con la edad (fecha de nacimiento, ya existente) y el
++--      peso (ya existente) la app calcula el metabolismo basal y el gasto energético.
++--      Permisos: el atleta NO los puede editar (el GRANT por columnas de la migración inicial
++--      solo le deja cambiar nombre_completo); el admin los guarda con set_nutrition_plan.
++--   2. CONFIGURADOR en `nutrition_plans`: objetivo físico (déficit / recomposición / volumen),
++--      intensidad (conservadora / moderada / agresiva), tipo de dieta, y la foto del cálculo
++--      (TMB, gasto energético y peso usado). Son opcionales: los planes manuales anteriores
++--      siguen siendo válidos. Si hay configurador, tiene que estar COMPLETO (CHECK).
++--   3. `set_nutrition_plan` se REEMPLAZA por una versión con parámetros nuevos (todos con valor
++--      por defecto, así que una llamada vieja sigue funcionando). Es el único lugar que
++--      escribe el plan, y ahora también guarda los datos físicos del atleta en la misma
++--      operación (todo o nada).
++--   4. COMIDAS DEL DÍA ligadas al plan: se guardan los ajustes del autocálculo para que
++--      sobrevivan al guardar y recargar: `meals.peso_reparto` (peso de la comida en el reparto
++--      del día), `meal_foods.rol_macro` (macro que cubre el alimento) y
++--      `meal_foods.gramos_fijos` (gramos que el entrenador fijó a mano y el autoajuste respeta).
++--      `set_meal_plan` se reemplaza (misma firma) para aceptarlos y validarlos.
++--
++-- AVISO: contiene un `drop function` (la versión anterior de set_nutrition_plan; si se
++-- dejara, una llamada con los parámetros viejos sería ambigua) y el `delete` interno de
++-- set_meal_plan. El SQL Editor puede mostrar "Potential issue detected": es esperable.
++-- No se borra ninguna tabla ni dato.
++--
++-- Requiere: esquema inicial, migraciones 08 (set_nutrition_plan), 19 (fecha de nacimiento),
++-- 23 y 25 (comidas y catálogo). Aplicar PRIMERO este SQL y después subir el código.
++-- =====================================================================
++
++-- ---------------------------------------------------------------------
++-- 1. Datos físicos del atleta
++-- ---------------------------------------------------------------------
++alter table public.profiles
++  add column sexo            text         check (sexo in ('masculino', 'femenino')),
++  add column estatura_cm     numeric(4,1) check (estatura_cm >= 100 and estatura_cm <= 250),
++  add column nivel_actividad text         check (nivel_actividad in ('sedentario', 'ligero', 'moderado', 'intenso', 'muy_intenso'));
++
++comment on column public.profiles.sexo is 'Sexo biológico para las ecuaciones de gasto energético. Solo lo cambia el admin (set_nutrition_plan).';
++comment on column public.profiles.estatura_cm is 'Estatura en cm (100–250). Solo lo cambia el admin.';
++comment on column public.profiles.nivel_actividad is 'Nivel de actividad física (factor del gasto energético). Solo lo cambia el admin.';
++
++-- ---------------------------------------------------------------------
++-- 2. Configurador en nutrition_plans (todo opcional, pero completo si existe)
++-- ---------------------------------------------------------------------
++alter table public.nutrition_plans
++  add column objetivo_fisico text check (objetivo_fisico in ('deficit', 'recomposicion', 'volumen')),
++  add column intensidad      text check (intensidad in ('conservadora', 'moderada', 'agresiva')),
++  add column tipo_dieta      text check (tipo_dieta in ('equilibrada', 'alta_proteina', 'alta_carbohidratos', 'baja_carbohidratos', 'cetogenica')),
++  add column tmb_kcal        integer      check (tmb_kcal >= 500 and tmb_kcal <= 6000),
++  add column gasto_kcal      integer      check (gasto_kcal >= 800 and gasto_kcal <= 10000),
++  add column peso_base_kg    numeric(5,1) check (peso_base_kg >= 20 and peso_base_kg <= 400);
++
++alter table public.nutrition_plans
++  add constraint nutrition_plans_configurador_completo check (
++    (objetivo_fisico is null and intensidad is null and tipo_dieta is null
++       and tmb_kcal is null and gasto_kcal is null and peso_base_kg is null)
++    or
++    (objetivo_fisico is not null and intensidad is not null and tipo_dieta is not null
++       and tmb_kcal is not null and gasto_kcal is not null and peso_base_kg is not null)
++  );
++
++-- ---------------------------------------------------------------------
++-- 3. set_nutrition_plan nueva (reemplaza la de la migración 08)
++-- ---------------------------------------------------------------------
++drop function if exists public.set_nutrition_plan(uuid, integer, integer, integer, integer, text, text);
++
++create function public.set_nutrition_plan(
++  p_user_id          uuid,
++  p_calorias         integer,
++  p_proteina_g       integer default null,
++  p_carbohidratos_g  integer default null,
++  p_grasas_g         integer default null,
++  p_objetivo         text    default null,   -- 'deficit' | 'superavit' | 'normocalorica' | NULL
++  p_notas            text    default null,
++  -- Configurador (todo o nada)
++  p_objetivo_fisico  text    default null,   -- 'deficit' | 'recomposicion' | 'volumen'
++  p_intensidad       text    default null,   -- 'conservadora' | 'moderada' | 'agresiva'
++  p_tipo_dieta       text    default null,
++  p_tmb              integer default null,
++  p_gasto            integer default null,
++  p_peso_base        numeric default null,
++  -- Datos físicos del atleta (solo se actualiza lo que llega con valor)
++  p_sexo             text    default null,
++  p_estatura_cm      numeric default null,
++  p_nivel_actividad  text    default null
++)
++returns uuid                                  -- id del nuevo plan
++language plpgsql
++security definer
++set search_path = ''
++as $$
++declare
++  v_id         uuid;
++  v_config     integer;
++begin
++  if not public.is_admin() then
++    raise exception 'Solo un administrador puede definir planes nutricionales.'
++      using errcode = '42501';
++  end if;
++
++  if not exists (select 1 from public.profiles where id = p_user_id and rol = 'client') then
++    raise exception 'El destinatario no es un atleta.';
++  end if;
++
++  if p_calorias is null or p_calorias < 500 or p_calorias > 10000 then
++    raise exception 'Las calorías deben estar entre 500 y 10.000.';
++  end if;
++
++  if coalesce(p_proteina_g, 0) < 0 or coalesce(p_proteina_g, 0) > 1000
++     or coalesce(p_carbohidratos_g, 0) < 0 or coalesce(p_carbohidratos_g, 0) > 1000
++     or coalesce(p_grasas_g, 0) < 0 or coalesce(p_grasas_g, 0) > 1000 then
++    raise exception 'Los macros deben estar entre 0 y 1.000 g.';
++  end if;
++
++  -- Configurador: o llegan los 6 datos o ninguno
++  v_config := (p_objetivo_fisico is not null)::int + (p_intensidad is not null)::int
++            + (p_tipo_dieta is not null)::int + (p_tmb is not null)::int
++            + (p_gasto is not null)::int + (p_peso_base is not null)::int;
++  if v_config not in (0, 6) then
++    raise exception 'El configurador está incompleto: faltan datos del cálculo.';
++  end if;
++  if v_config = 6 then
++    if p_objetivo_fisico not in ('deficit', 'recomposicion', 'volumen') then
++      raise exception 'El objetivo físico debe ser déficit, recomposición o volumen.';
++    end if;
++    if p_intensidad not in ('conservadora', 'moderada', 'agresiva') then
++      raise exception 'La intensidad debe ser conservadora, moderada o agresiva.';
++    end if;
++    if p_tipo_dieta not in ('equilibrada', 'alta_proteina', 'alta_carbohidratos', 'baja_carbohidratos', 'cetogenica') then
++      raise exception 'El tipo de dieta no es válido.';
++    end if;
++    if p_tmb < 500 or p_tmb > 6000 or p_gasto < 800 or p_gasto > 10000 then
++      raise exception 'El metabolismo basal o el gasto energético están fuera de rango.';
++    end if;
++    if p_peso_base < 20 or p_peso_base > 400 then
++      raise exception 'El peso usado en el cálculo debe estar entre 20 y 400 kg.';
++    end if;
++  end if;
++
++  -- Datos físicos del atleta (si llegan): se validan con los CHECK de la tabla, pero aquí
++  -- se avisa en español.
++  if p_sexo is not null and p_sexo not in ('masculino', 'femenino') then
++    raise exception 'El sexo debe ser masculino o femenino.';
++  end if;
++  if p_estatura_cm is not null and (p_estatura_cm < 100 or p_estatura_cm > 250) then
++    raise exception 'La estatura debe estar entre 100 y 250 cm.';
++  end if;
++  if p_nivel_actividad is not null
++     and p_nivel_actividad not in ('sedentario', 'ligero', 'moderado', 'intenso', 'muy_intenso') then
++    raise exception 'El nivel de actividad no es válido.';
++  end if;
++
++  update public.profiles
++     set sexo            = coalesce(p_sexo, sexo),
++         estatura_cm     = coalesce(round(p_estatura_cm, 1), estatura_cm),
++         nivel_actividad = coalesce(p_nivel_actividad, nivel_actividad)
++   where id = p_user_id
++     and (p_sexo is not null or p_estatura_cm is not null or p_nivel_actividad is not null);
++
++  -- Cierra el plan vigente (si lo hay)...
++  update public.nutrition_plans
++     set vigente_hasta = now()
++   where user_id = p_user_id and vigente_hasta is null;
++
++  -- ...y crea el nuevo.
++  insert into public.nutrition_plans
++    (user_id, calorias_objetivo, proteina_g, carbohidratos_g, grasas_g,
++     objetivo_calorico, origen, creado_por, notas,
++     objetivo_fisico, intensidad, tipo_dieta, tmb_kcal, gasto_kcal, peso_base_kg)
++  values
++    (p_user_id, p_calorias, p_proteina_g, p_carbohidratos_g, p_grasas_g,
++     p_objetivo, 'manual', (select auth.uid()), nullif(trim(p_notas), ''),
++     p_objetivo_fisico, p_intensidad, p_tipo_dieta, p_tmb, p_gasto, round(p_peso_base, 1))
++  returning id into v_id;
++
++  return v_id;
++end;
++$$;
++
++revoke all on function public.set_nutrition_plan(uuid, integer, integer, integer, integer, text, text,
++  text, text, text, integer, integer, numeric, text, numeric, text) from public, anon;
++grant execute on function public.set_nutrition_plan(uuid, integer, integer, integer, integer, text, text,
++  text, text, text, integer, integer, numeric, text, numeric, text) to authenticated;
++
++-- ---------------------------------------------------------------------
++-- 4. Comidas del día: ajustes del autocálculo que se guardan con el menú
++-- ---------------------------------------------------------------------
++alter table public.meals
++  add column peso_reparto numeric(4,1) not null default 1
++    check (peso_reparto >= 0 and peso_reparto <= 100);
++
++alter table public.meal_foods
++  add column rol_macro    text check (rol_macro in ('proteina', 'carbohidratos', 'grasas')),
++  add column gramos_fijos boolean not null default false;
++
++-- Un macro asignado solo tiene sentido en un alimento del catálogo (el que trae snapshot)
++alter table public.meal_foods
++  add constraint meal_foods_rol_solo_catalogo check (rol_macro is null or estado is not null);
++
++-- ---------------------------------------------------------------------
++-- 5. set_meal_plan (misma firma que en las migraciones 23 y 25): ahora acepta
++--      comida:   "peso_reparto": número 0–100 (por defecto 1)
++--      alimento: "rol_macro": "proteina" | "carbohidratos" | "grasas" (solo catálogo)
++--                "gramos_fijos": true | false (por defecto false)
++-- ---------------------------------------------------------------------
++create or replace function public.set_meal_plan(
++  p_user_id uuid,
++  p_comidas jsonb
++)
++returns void
++language plpgsql
++security definer
++set search_path = ''
++as $$
++declare
++  v_comida    jsonb;
++  v_pos       bigint;
++  v_alimentos jsonb;
++  v_alimento  jsonb;
++  v_pos_a     bigint;
++  v_nombre    text;
++  v_nombre_a  text;
++  v_notas     text;
++  v_nota      text;
++  v_unidad    text;
++  v_cantidad  numeric;
++  v_meal_id   uuid;
++  -- Snapshot
++  v_base      jsonb;
++  v_food_id   uuid;
++  v_estado    text;
++  b_cal       numeric;
++  b_p         numeric;
++  b_c         numeric;
++  b_g         numeric;
++  -- Ajustes del autocálculo (migración 26)
++  v_peso      numeric;
++  v_rol       text;
++  v_fijo      boolean;
++begin
++  if not public.is_admin() then
++    raise exception 'Solo un administrador puede definir las comidas de un atleta.'
++      using errcode = '42501';
++  end if;
++
++  if not exists (select 1 from public.profiles where id = p_user_id and rol = 'client') then
++    raise exception 'El destinatario no es un atleta.';
++  end if;
++
++  if p_comidas is null or jsonb_typeof(p_comidas) <> 'array' then
++    raise exception 'Las comidas deben enviarse como una lista.';
++  end if;
++  if jsonb_array_length(p_comidas) > 10 then
++    raise exception 'Un día puede tener como máximo 10 comidas.';
++  end if;
++
++  -- Se borra lo anterior y se inserta lo nuevo. Si algo falla más abajo, la excepción
++  -- deshace TODO (también este delete): el atleta nunca se queda con un menú a medias.
++  delete from public.meals where user_id = p_user_id;
++
++  for v_comida, v_pos in
++    select e.value, e.ordinality
++      from jsonb_array_elements(p_comidas) with ordinality as e(value, ordinality)
++     order by e.ordinality
++  loop
++    if jsonb_typeof(v_comida) <> 'object' then
++      raise exception 'La comida % no tiene el formato correcto.', v_pos;
++    end if;
++
++    v_nombre := btrim(coalesce(v_comida ->> 'nombre', ''));
++    if char_length(v_nombre) < 2 or char_length(v_nombre) > 40 then
++      raise exception 'La comida % necesita un nombre de 2 a 40 caracteres.', v_pos;
++    end if;
++
++    v_notas := nullif(btrim(coalesce(v_comida ->> 'notas', '')), '');
++    if v_notas is not null and char_length(v_notas) > 200 then
++      raise exception 'Las notas de «%» no pueden pasar de 200 caracteres.', v_nombre;
++    end if;
++
++    -- Peso de la comida en el reparto del día (opcional; por defecto 1). Si llega, debe ser un número
++    -- (si la clave falta, jsonb_typeof da NULL y la condición no se cumple).
++    if jsonb_typeof(v_comida -> 'peso_reparto') not in ('number', 'null') then
++      raise exception 'El peso de reparto de «%» debe ser un número.', v_nombre;
++    end if;
++    v_peso := coalesce(case when jsonb_typeof(v_comida -> 'peso_reparto') = 'number'
++                            then (v_comida ->> 'peso_reparto')::numeric end, 1);
++    if v_peso < 0 or v_peso > 100 then
++      raise exception 'El peso de reparto de «%» debe estar entre 0 y 100.', v_nombre;
++    end if;
++    v_peso := round(v_peso, 1);
++
++    v_alimentos := coalesce(v_comida -> 'alimentos', '[]'::jsonb);
++    if jsonb_typeof(v_alimentos) <> 'array' then
++      raise exception 'Los alimentos de «%» deben ser una lista.', v_nombre;
++    end if;
++    if jsonb_array_length(v_alimentos) > 30 then
++      raise exception '«%» puede tener como máximo 30 alimentos.', v_nombre;
++    end if;
++
++    insert into public.meals (user_id, nombre, notas, orden, peso_reparto)
++    values (p_user_id, v_nombre, v_notas, v_pos, v_peso)
++    returning id into v_meal_id;
++
++    for v_alimento, v_pos_a in
++      select e.value, e.ordinality
++        from jsonb_array_elements(v_alimentos) with ordinality as e(value, ordinality)
++       order by e.ordinality
++    loop
++      if jsonb_typeof(v_alimento) <> 'object' then
++        raise exception 'El alimento % de «%» no tiene el formato correcto.', v_pos_a, v_nombre;
++      end if;
++
++      v_nombre_a := btrim(coalesce(v_alimento ->> 'alimento', ''));
++      if char_length(v_nombre_a) < 2 or char_length(v_nombre_a) > 80 then
++        raise exception 'El alimento % de «%» necesita un nombre de 2 a 80 caracteres.', v_pos_a, v_nombre;
++      end if;
++
++      -- La cantidad debe llegar como NÚMERO (no como texto). Se usa CASE porque, a diferencia
++      -- de OR, garantiza que solo se convierte a número lo que ya se comprobó que es número.
++      v_cantidad := case when jsonb_typeof(v_alimento -> 'cantidad') = 'number'
++                         then (v_alimento ->> 'cantidad')::numeric end;
++      if v_cantidad is null or v_cantidad <= 0 or v_cantidad > 10000 then
++        raise exception 'La cantidad de «%» (en «%») debe ser un número mayor que 0 y hasta 10.000.', v_nombre_a, v_nombre;
++      end if;
++      v_cantidad := round(v_cantidad, 2);
++
++      v_unidad := v_alimento ->> 'unidad';
++      if v_unidad is null or v_unidad not in ('g', 'ml', 'unidad', 'porcion') then
++        raise exception 'La unidad de «%» (en «%») debe ser g, ml, unidad o porcion.', v_nombre_a, v_nombre;
++      end if;
++
++      v_nota := nullif(btrim(coalesce(v_alimento ->> 'nota', '')), '');
++      if v_nota is not null and char_length(v_nota) > 120 then
++        raise exception 'La nota de «%» no puede pasar de 120 caracteres.', v_nombre_a;
++      end if;
++
++      -- ---- Snapshot opcional (alimento del catálogo) ----
++      v_base := v_alimento -> 'base';
++      v_food_id := null;
++      v_estado := null;
++      b_cal := null; b_p := null; b_c := null; b_g := null;
++
++      if v_base is not null and jsonb_typeof(v_base) = 'object' then
++        if v_unidad <> 'g' then
++          raise exception 'El alimento «%» (en «%») del catálogo debe medirse en gramos.', v_nombre_a, v_nombre;
++        end if;
++
++        v_estado := v_alimento ->> 'estado';
++        if v_estado is null or v_estado not in ('crudo', 'cocido', 'n/a') then
++          raise exception 'El estado de «%» (en «%») debe ser crudo, cocido o n/a.', v_nombre_a, v_nombre;
++        end if;
++
++        -- food_id: si no es un uuid válido es un error; si el alimento ya no existe, se guarda sin enlace
++        if v_alimento ->> 'food_id' is not null then
++          if jsonb_typeof(v_alimento -> 'food_id') <> 'string'
++             or (v_alimento ->> 'food_id') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
++            raise exception 'El identificador de «%» (en «%») no es válido.', v_nombre_a, v_nombre;
++          end if;
++          v_food_id := (v_alimento ->> 'food_id')::uuid;
++          if not exists (select 1 from public.foods where id = v_food_id) then
++            v_food_id := null;
++          end if;
++        end if;
++
++        b_cal := case when jsonb_typeof(v_base -> 'calorias') = 'number' then (v_base ->> 'calorias')::numeric end;
++        b_p   := case when jsonb_typeof(v_base -> 'proteina_g') = 'number' then (v_base ->> 'proteina_g')::numeric end;
++        b_c   := case when jsonb_typeof(v_base -> 'carbohidratos_g') = 'number' then (v_base ->> 'carbohidratos_g')::numeric end;
++        b_g   := case when jsonb_typeof(v_base -> 'grasas_g') = 'number' then (v_base ->> 'grasas_g')::numeric end;
++
++        if b_cal is null or b_p is null or b_c is null or b_g is null
++           or b_cal < 0 or b_cal > 1000
++           or b_p < 0 or b_p > 100 or b_c < 0 or b_c > 100 or b_g < 0 or b_g > 100
++           or b_p + b_c + b_g > 100.5 then
++          raise exception 'Los macros por 100 g de «%» (en «%») no son válidos.', v_nombre_a, v_nombre;
++        end if;
++        b_cal := round(b_cal, 1); b_p := round(b_p, 1); b_c := round(b_c, 1); b_g := round(b_g, 1);
++      elsif v_base is not null and jsonb_typeof(v_base) <> 'null' then
++        raise exception 'Los macros de «%» (en «%») no tienen el formato correcto.', v_nombre_a, v_nombre;
++      end if;
++
++      -- Ajustes del autocálculo: macro que cubre el alimento y si sus gramos están fijados.
++      -- Solo tienen sentido en alimentos del catálogo (los manuales no tienen macros).
++      v_rol := nullif(v_alimento ->> 'rol_macro', '');
++      if v_rol is not null and v_rol not in ('proteina', 'carbohidratos', 'grasas') then
++        raise exception 'El macro que cubre «%» (en «%») debe ser proteina, carbohidratos o grasas.', v_nombre_a, v_nombre;
++      end if;
++      if v_rol is not null and v_estado is null then
++        raise exception '«%» (en «%») es manual: no puede tener un macro asignado.', v_nombre_a, v_nombre;
++      end if;
++      if jsonb_typeof(v_alimento -> 'gramos_fijos') not in ('boolean', 'null') then
++        raise exception 'Los gramos fijos de «%» (en «%») deben ser verdadero o falso.', v_nombre_a, v_nombre;
++      end if;
++      v_fijo := coalesce(case when jsonb_typeof(v_alimento -> 'gramos_fijos') = 'boolean'
++                              then (v_alimento ->> 'gramos_fijos')::boolean end, false);
++
++      insert into public.meal_foods
++        (meal_id, user_id, alimento, cantidad, unidad, nota, orden,
++         rol_macro, gramos_fijos,
++         food_id, estado,
++         base_calorias, base_proteina_g, base_carbohidratos_g, base_grasas_g,
++         calorias, proteina_g, carbohidratos_g, grasas_g)
++      values
++        (v_meal_id, p_user_id, v_nombre_a, v_cantidad, v_unidad, v_nota, v_pos_a,
++         v_rol, v_fijo,
++         v_food_id, v_estado,
++         b_cal, b_p, b_c, b_g,
++         -- Macros asignados: los calcula la base de datos (null si el alimento es manual)
++         round(b_cal * v_cantidad / 100, 1), round(b_p * v_cantidad / 100, 1),
++         round(b_c * v_cantidad / 100, 1), round(b_g * v_cantidad / 100, 1));
++    end loop;
++  end loop;
++end;
++$$;
++
++revoke all on function public.set_meal_plan(uuid, jsonb) from public, anon;
++grant execute on function public.set_meal_plan(uuid, jsonb) to authenticated;

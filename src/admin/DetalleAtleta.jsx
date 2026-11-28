@@ -237,10 +237,10 @@ export default function DetalleAtleta() {
               <>
                 <IndiceSecciones items={INDICE.cuerpo} onIr={irA} pestana="cuerpo" />
                 <div id="seccion-plan" className="scroll-mt-20">
-                  <PlanNutricional atletaId={atleta.id} onCambio={() => setVersionPlan((v) => v + 1)} />
+                  <PlanNutricional atletaId={atleta.id} fechaNacimiento={atleta.fecha_nacimiento} onCambio={() => setVersionPlan((v) => v + 1)} />
                 </div>
                 <div id="seccion-comidas" className="scroll-mt-20">
-                  <PlanComidas atletaId={atleta.id} onCambiosSinGuardar={marcarComidasSinGuardar} />
+                  <PlanComidas atletaId={atleta.id} versionPlan={versionPlan} onCambiosSinGuardar={marcarComidasSinGuardar} />
                 </div>
                 {/* Componente autónomo: solo necesita saber de qué atleta es. */}
                 <div id="seccion-mediciones" className="scroll-mt-20">

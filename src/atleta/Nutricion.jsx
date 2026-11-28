@@ -37,7 +37,7 @@ export default function Nutricion() {
     cargarConCache(perfil.id, 'nutricion', async () => {
       const [p, m, c] = await Promise.all([
         supabase.from('nutrition_plans')
-          .select('id, calorias_objetivo, proteina_g, carbohidratos_g, grasas_g, objetivo_calorico, vigente_desde, notas')
+          .select('id, calorias_objetivo, proteina_g, carbohidratos_g, grasas_g, objetivo_calorico, vigente_desde, notas, objetivo_fisico, intensidad, tipo_dieta')
           .eq('user_id', perfil.id).is('vigente_hasta', null).maybeSingle(),
         supabase.from('metrics')
           .select('id, fecha, peso_corporal_kg, perimetro_cintura_cm, calorias_consumidas, estado_calorico, notas')

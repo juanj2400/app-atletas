@@ -1,8 +1,9 @@
 // =====================================================================
 // src/lib/dieta.js — motor de AUTOCÁLCULO de la dieta (100 % JavaScript, sin IA).
 //
-// Qué resuelve: el entrenador elige alimentos del catálogo (con su estado crudo/cocido),
-// define las comidas y los macros objetivo del día, y este módulo calcula los GRAMOS de cada
+// Qué resuelve: el entrenador elige alimentos del catálogo (con su estado crudo/cocido) y define
+// las comidas; los macros objetivo del día vienen del PLAN NUTRICIONAL vigente (única
+// referencia) y este módulo calcula los GRAMOS de cada
 // alimento para cumplirlos, descontando los macros "indirectos" (por ejemplo, el arroz también
 // aporta algo de proteína y el pollo casi nada de carbohidratos).
 //
@@ -263,6 +264,42 @@ export function calcularGramos({ comidas, objetivo, pesos = {}, paso = 1 }) {
     }
   }
   return { gramos, avisos, convergio }
+}
+
+// ---------------------------------------------------------------------
+// Conexión con el PLAN NUTRICIONAL (paso 36)
+// El Plan nutricional es la ÚNICA referencia: los objetivos del día salen de él, no se escriben
+// en el creador de dieta. Un plan sin macros (plan manual antiguo) no sirve para calcular.
+// ---------------------------------------------------------------------
+
+// Del plan vigente (fila de nutrition_plans) al objetivo { proteina, carbohidratos, grasas } en g,
+// o null si no hay plan o le faltan macros.
+export function objetivoDePlan(plan) {
+  if (!plan) return null
+  const valores = [plan.proteina_g, plan.carbohidratos_g, plan.grasas_g]
+  if (valores.some((v) => v === null || v === undefined || !Number.isFinite(Number(v)))) return null
+  return { proteina: Number(plan.proteina_g), carbohidratos: Number(plan.carbohidratos_g), grasas: Number(plan.grasas_g) }
+}
+
+// Peso de cada comida en el reparto del día: { [clave de comida]: número }. Vacío o inválido = 1.
+export function pesosDeComidas(comidas) {
+  const pesos = {}
+  for (const c of comidas) {
+    const n = aNumero(c.peso ?? '1')
+    pesos[c.clave] = n !== null && Number.isFinite(n) && n >= 0 ? n : 1
+  }
+  return pesos
+}
+
+// AJUSTE AUTOMÁTICO al plan: calcula los gramos de los alimentos del catálogo que NO están
+// fijados para cumplir los macros del plan vigente, descontando lo que ya aportan los demás.
+// Devuelve { comidas (copia nueva), avisos, aplicado }. Sin plan utilizable devuelve las comidas
+// tal cual y aplicado = false. No muta lo que recibe.
+export function ajustarAlPlan({ comidas, plan, paso = 1 }) {
+  const objetivo = objetivoDePlan(plan)
+  if (!objetivo) return { comidas, avisos: [], aplicado: false }
+  const { gramos, avisos } = calcularGramos({ comidas, objetivo, pesos: pesosDeComidas(comidas), paso })
+  return { comidas: aplicarGramos(comidas, gramos), avisos, aplicado: true }
 }
 
 // Devuelve una copia de las comidas con los gramos calculados aplicados (cantidad como texto

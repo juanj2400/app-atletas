@@ -23,7 +23,7 @@ import {
 } from '../lib/panelAtleta'
 
 const COLUMNAS_CICLO = 'id, parent_id, nivel, nombre, fecha_inicio, fecha_fin'
-const COLUMNAS_PLAN = 'id, calorias_objetivo, proteina_g, carbohidratos_g, grasas_g, objetivo_calorico, vigente_desde'
+const COLUMNAS_PLAN = 'id, calorias_objetivo, proteina_g, carbohidratos_g, grasas_g, objetivo_calorico, objetivo_fisico, intensidad, tipo_dieta, vigente_desde'
 
 // Una tarjeta del panel: toda ella es un botón para ir a editar esa sección.
 function Tarjeta({ titulo, valor, detalle, destino, onIr }) {

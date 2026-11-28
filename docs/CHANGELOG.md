@@ -4,6 +4,12 @@ Registro cronológico de cambios. Agregar entradas nuevas arriba (`feat`, `fix`,
 
 ---
 
+## 2026-11-28 · Paso 36 — Plan nutricional inteligente conectado a «Comidas del día»
+- **feat:** «Plan nutricional» es ahora un configurador (`ConfiguradorPlan`): objetivo físico (déficit/recomposición/volumen), intensidad (conservadora/moderada/agresiva) y tipo de dieta; con edad (de la fecha de nacimiento), peso (precargado de la última medición/check-in), estatura, sexo y actividad calcula metabolismo basal (Mifflin-St Jeor), gasto, calorías y macros (`lib/planNutricional.js`, sin IA). Proteína/carbos/grasas en g y % editables; al editar uno los demás se reequilibran (con «Fijar»); gasto editable; estado calórico automático. Un plan manual sigue funcionando.
+- **feat:** «Comidas del día» usa el plan vigente como ÚNICA referencia (`ObjetivoDieta`, `usePlanVigente`, `ajustarAlPlan` en `lib/dieta.js`): ajuste automático de gramos al agregar/quitar/cambiar alimentos y al cambiar el plan; escribir gramos fija ese alimento; «Reajustar al plan», «Soltar gramos fijados», reparto por comida (`peso_reparto`). Al abrir no se modifica el menú guardado.
+- **refactor:** se elimina `CalculadoraDieta` (calculadora independiente). `PlanNutricionalCard`, `Nutricion` y `PanelAtleta` muestran objetivo/intensidad/dieta.
+- **db:** `migracion_26_plan_configurador.sql` — columnas de datos físicos en `profiles`, configuración en `nutrition_plans`, ajustes de autocálculo en `meals`/`meal_foods`, `set_nutrition_plan` y `set_meal_plan` reemplazadas. **Aplicar SQL primero.**
+
 ## 2026-11-27 · Paso 35 — PWA sin internet (datos locales y cola de sincronización)
 - **feat:** El atleta puede abrir la app, ver su rutina/metas/plan nutricional y registrar check-in, series, cierres y *Terminar rutina* sin señal. Los datos se guardan en IndexedDB por usuario y los registros pendientes suben solos en orden (id y hora generados en el celular, subida idempotente y sin duplicados). `IndicadorConexion` muestra el estado y los pendientes; `NotaDatosGuardados` avisa cuando se ve una copia. Acciones del entrenador/IA sin internet muestran aviso claro (`AvisoSoloConConexion`, `exigirConexion`).
 - **fix:** Con el token vencido y sin red ya no se cae al login: sesión local con perfil recordado (`AuthProvider`, `identidadLocal.js`).

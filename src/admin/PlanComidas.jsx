@@ -4,8 +4,9 @@
 // Cada comida (desayuno, almuerzo, cena, snacks...) lleva sus alimentos con la cantidad exacta.
 // Los alimentos pueden ser:
 //   - del CATÁLOGO (/admin/alimentos): llevan estado (crudo/cocido), se miden en gramos y traen
-//     macros. Con ellos funciona la "Calculadora de gramos" (lib/dieta.js, sin IA) y los totales
-//     por comida y del día se recalculan en vivo al editar cualquier gramo.
+//     macros. Sus gramos se calculan SOLOS (lib/dieta.js, sin IA) para cumplir el objetivo del
+//     PLAN NUTRICIONAL vigente, que es la única referencia (no hay calculadora independiente).
+//     Si el entrenador escribe los gramos de un alimento, queda "fijado" y el resto se ajusta.
 //   - MANUALES (como antes): nombre libre y cualquier unidad, sin macros.
 // El atleta lo ve en su pestaña Nutrición.
 //
@@ -14,10 +15,12 @@
 //     "Guardar comidas": la función de la base de datos `set_meal_plan` (migraciones 23 y 25)
 //     reemplaza el menú completo en una sola operación (todo o nada) y guarda un SNAPSHOT de
 //     los macros por 100 g y de los macros asignados a los gramos exactos.
-//   - El menú es del atleta, no del plan de calorías: cambiar calorías o macros no lo toca.
+//   - Al abrir NO se modifica el menú guardado (solo se avisa si se desvía del plan). Con el ajuste
+//     automático activo, cada cambio estructural o del plan reajusta los gramos en el borrador;
+//     nada se guarda hasta pulsar "Guardar comidas".
 //   - Antes de enviar se valida en la pantalla (lib/comidas.js); la base de datos valida otra vez.
 // =====================================================================
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { cargarComidas } from '../lib/cargarComidas'
 import { buscarVariante } from '../lib/buscarAlimentos'
@@ -26,12 +29,13 @@ import {
   aBorrador, aPayload, alimentoNuevo, aplicarAlimentoCatalogo, comidaNueva, filaDeCatalogo,
   huellaBorrador, moverComida, resumenComidas, ultimaActualizacion, validarComidas,
 } from '../lib/comidas'
-import { MACROS, esDeCatalogo, macrosDeFila, rolDeFila, totalesComida } from '../lib/dieta'
+import { MACROS, ajustarAlPlan, esDeCatalogo, macrosDeFila, objetivoDePlan, rolDeFila, totalesComida } from '../lib/dieta'
+import { usePlanVigente } from '../lib/usePlanVigente'
 import { TEXTO_MACRO, textoEstado } from '../lib/alimentos'
 import { fechaCortaDeTimestamp } from '../lib/records'
 import { CAMPO, BOTON, BOTON_SEC, TARJETA } from '../lib/estilos'
 import BuscadorAlimentos from './BuscadorAlimentos'
-import CalculadoraDieta from './CalculadoraDieta'
+import ObjetivoDieta from './ObjetivoDieta'
 
 const numero = (n) => Number(n).toLocaleString('es-CO', { maximumFractionDigits: 1 })
 
@@ -146,6 +150,11 @@ function FilaAlimento({ alimento: a, numero: n, nombreComida, onCambiar, onQuita
               Fijar gramos
             </label>
           </div>
+          <p className="text-xs text-suave">
+            {a.fijo
+              ? 'Gramos fijados: el ajuste automático no los cambia y calcula el resto alrededor.'
+              : 'Los gramos los calcula el plan nutricional. Si los escribes tú, quedan fijados.'}
+          </p>
         </>
       )}
 
@@ -250,7 +259,7 @@ function TarjetaComida({
   )
 }
 
-export default function PlanComidas({ atletaId, onCambiosSinGuardar }) {
+export default function PlanComidas({ atletaId, versionPlan = 0, onCambiosSinGuardar }) {
   const [borrador, setBorrador] = useState([])
   const [huellaGuardada, setHuellaGuardada] = useState(huellaBorrador([]))
   const [actualizado, setActualizado] = useState(null)
@@ -259,6 +268,10 @@ export default function PlanComidas({ atletaId, onCambiosSinGuardar }) {
   const [version, setVersion] = useState(0)
   const [guardando, setGuardando] = useState(false)
   const [mensaje, setMensaje] = useState(null)
+  const [auto, setAuto] = useState(true)
+  const [paso, setPaso] = useState(1)
+  const [avisos, setAvisos] = useState([])
+  const { plan, cargando: cargandoPlan, error: errorPlan } = usePlanVigente(atletaId, versionPlan)
 
   useEffect(() => {
     let cancelado = false
@@ -271,6 +284,7 @@ export default function PlanComidas({ atletaId, onCambiosSinGuardar }) {
         setHuellaGuardada(huellaBorrador(inicial))
         setActualizado(ultimaActualizacion(comidas))
         setErrorCarga('')
+        setAvisos([])
       }
       setCargando(false)
     })
@@ -295,32 +309,62 @@ export default function PlanComidas({ atletaId, onCambiosSinGuardar }) {
     return () => window.removeEventListener('beforeunload', avisar)
   }, [sucio])
 
-  // Todo cambio al borrador pasa por aquí: se copia (nunca se muta) y se borra el mensaje anterior.
-  const cambiar = (transformar) => { setBorrador((b) => transformar(b)); setMensaje(null) }
+  // Todo cambio al borrador pasa por `aplicar`: recibe el borrador NUEVO ya construido (copia, nunca
+  // se muta). Si `reajustar` es true, los gramos de los alimentos no fijados se recalculan con el
+  // plan nutricional vigente antes de guardarlo en pantalla.
+  function aplicar(nuevo, reajustar, pasoUsado = paso) {
+    setMensaje(null)
+    if (!reajustar) return setBorrador(nuevo)
+    const r = ajustarAlPlan({ comidas: nuevo, plan, paso: pasoUsado })
+    setBorrador(r.comidas)
+    setAvisos(r.avisos)
+  }
+  // Cambio de texto (nombre, notas, orden): no toca los gramos.
+  const cambiar = (nuevo) => aplicar(nuevo, false)
+  // Cambio que afecta al reparto (alimentos, roles, pesos): reajusta si el ajuste automático está activo.
+  const cambiarYAjustar = (nuevo) => aplicar(nuevo, auto)
+
+  // Si el plan nutricional cambia (el entrenador lo guardó arriba), las comidas se reajustan solas.
+  // La primera lectura NO cuenta: abrir la ficha nunca modifica el menú guardado.
+  const objetivoPlan = objetivoDePlan(plan)
+  const claveObjetivo = objetivoPlan ? JSON.stringify(objetivoPlan) : ''
+  const claveAnterior = useRef(null)
+  useEffect(() => { claveAnterior.current = null }, [atletaId])
+  useEffect(() => {
+    if (cargandoPlan) return
+    if (claveAnterior.current === null) { claveAnterior.current = claveObjetivo; return }
+    if (claveAnterior.current === claveObjetivo) return
+    claveAnterior.current = claveObjetivo
+    if (auto && claveObjetivo && !cargando && !errorCarga) aplicar(borrador, true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo debe reaccionar a un cambio del plan
+  }, [claveObjetivo, cargandoPlan])
 
   const agregarComida = (nombre) =>
     // Empieza con una fila de alimento vacía para que escribir sea inmediato.
-    cambiar((b) => [...b, { ...comidaNueva(nombre), alimentos: [alimentoNuevo()] }])
+    cambiar([...borrador, { ...comidaNueva(nombre), alimentos: [alimentoNuevo()] }])
 
   const cambiarComida = (clave, campo, valor) =>
-    cambiar((b) => b.map((c) => (c.clave === clave ? { ...c, [campo]: valor } : c)))
+    cambiar(borrador.map((c) => (c.clave === clave ? { ...c, [campo]: valor } : c)))
+
+  const cambiarPesoComida = (clave, valor) =>
+    cambiarYAjustar(borrador.map((c) => (c.clave === clave ? { ...c, peso: valor } : c)))
 
   const quitarComida = (comida) => {
     if (comida.alimentos.length > 0 && !window.confirm(`¿Quitar «${comida.nombre.trim() || 'esta comida'}» con sus alimentos? (Se aplica al guardar.)`)) return
-    cambiar((b) => b.filter((c) => c.clave !== comida.clave))
+    cambiarYAjustar(borrador.filter((c) => c.clave !== comida.clave))
   }
 
   const agregarAlimento = (clave) =>
-    cambiar((b) => b.map((c) => {
+    cambiar(borrador.map((c) => {
       if (c.clave !== clave || c.alimentos.length >= MAX_ALIMENTOS) return c
       // La unidad del alimento anterior se repite: suele ser la misma (gramos, gramos...).
       return { ...c, alimentos: [...c.alimentos, alimentoNuevo(c.alimentos.at(-1)?.unidad)] }
     }))
 
-  // Agrega un alimento del catálogo a la comida (sin gramos: se escriben o se calculan).
+  // Agrega un alimento del catálogo a la comida; sus gramos los calcula el plan (si hay ajuste automático).
   // Si la comida solo tiene la fila vacía inicial, la reemplaza en vez de dejarla sobrando.
   const agregarDelCatalogo = (clave, alimento) =>
-    cambiar((b) => b.map((c) => {
+    cambiarYAjustar(borrador.map((c) => {
       if (c.clave !== clave) return c
       const vacia = (a) => !a.base && a.alimento.trim() === '' && a.cantidad.trim() === '' && a.nota.trim() === ''
       const base = c.alimentos.length === 1 && vacia(c.alimentos[0]) ? [] : c.alimentos
@@ -328,23 +372,45 @@ export default function PlanComidas({ atletaId, onCambiosSinGuardar }) {
       return { ...c, alimentos: [...base, filaDeCatalogo(alimento)] }
     }))
 
-  // INTERCAMBIO: la misma fila pasa a otro alimento del catálogo, conservando gramos y posición.
+  // INTERCAMBIO: la misma fila pasa a otro alimento del catálogo; los gramos se recalculan
+  // (el alimento nuevo tiene otros macros), salvo que la fila esté fijada.
   const intercambiarAlimento = (claveComida, claveAlimento, alimento) =>
-    cambiar((b) => b.map((c) => (c.clave !== claveComida ? c : {
+    cambiarYAjustar(borrador.map((c) => (c.clave !== claveComida ? c : {
       ...c,
       alimentos: c.alimentos.map((a) => (a.clave === claveAlimento ? aplicarAlimentoCatalogo(a, alimento) : a)),
     })))
 
-  const cambiarAlimento = (claveComida, claveAlimento, campo, valor) =>
-    cambiar((b) => b.map((c) => (c.clave !== claveComida ? c : {
+  const cambiarAlimento = (claveComida, claveAlimento, campo, valor) => {
+    const nuevo = borrador.map((c) => (c.clave !== claveComida ? c : {
       ...c,
-      alimentos: c.alimentos.map((a) => (a.clave === claveAlimento ? { ...a, [campo]: valor } : a)),
-    })))
+      alimentos: c.alimentos.map((a) => {
+        if (a.clave !== claveAlimento) return a
+        // Escribir los gramos de un alimento del catálogo lo FIJA: el resto se ajusta a su alrededor.
+        if (campo === 'cantidad' && esDeCatalogo(a)) return { ...a, cantidad: valor, fijo: true }
+        return { ...a, [campo]: valor }
+      }),
+    }))
+    // Rol y fijo cambian el reparto; los gramos escritos también (los demás se reajustan).
+    const afectaReparto = campo === 'rol' || campo === 'fijo' || campo === 'cantidad'
+    if (afectaReparto) cambiarYAjustar(nuevo)
+    else cambiar(nuevo)
+  }
 
   const quitarAlimento = (claveComida, claveAlimento) =>
-    cambiar((b) => b.map((c) => (c.clave !== claveComida ? c : {
+    cambiarYAjustar(borrador.map((c) => (c.clave !== claveComida ? c : {
       ...c, alimentos: c.alimentos.filter((a) => a.clave !== claveAlimento),
     })))
+
+  const cambiarAuto = (valor) => {
+    setAuto(valor)
+    if (valor) aplicar(borrador, true) // al encenderlo se reajusta de inmediato
+  }
+  const cambiarPaso = (valor) => {
+    setPaso(valor)
+    if (auto) aplicar(borrador, true, valor)
+  }
+  const liberarFijados = () =>
+    aplicar(borrador.map((c) => ({ ...c, alimentos: c.alimentos.map((a) => (a.fijo ? { ...a, fijo: false } : a)) })), true)
 
   async function guardar() {
     setMensaje(null)
@@ -383,8 +449,8 @@ export default function PlanComidas({ atletaId, onCambiosSinGuardar }) {
       <div>
         <h3 className="text-lg font-bold">Comidas del día</h3>
         <p className="text-sm text-suave">
-          Arma el menú del atleta: cada comida con sus alimentos y cantidades exactas. Con alimentos del catálogo
-          (crudo o cocido) puedes calcular los gramos automáticamente. Él lo consulta en su sección Nutrición.
+          Arma el menú del atleta: cada comida con sus alimentos. Con alimentos del catálogo (crudo o cocido) los
+          gramos se calculan solos para cumplir el Plan nutricional. Él lo consulta en su sección Nutrición.
         </p>
       </div>
 
@@ -398,10 +464,19 @@ export default function PlanComidas({ atletaId, onCambiosSinGuardar }) {
             {actualizado && ` · guardado el ${fechaCortaDeTimestamp(actualizado)}`}
           </p>
 
-          <CalculadoraDieta
-            atletaId={atletaId}
+          <ObjetivoDieta
+            plan={plan}
+            cargandoPlan={cargandoPlan}
+            errorPlan={errorPlan}
             comidas={borrador}
-            onAplicar={(nuevasComidas) => cambiar(() => nuevasComidas)}
+            auto={auto}
+            paso={paso}
+            avisos={avisos}
+            onAuto={cambiarAuto}
+            onPaso={cambiarPaso}
+            onReajustar={() => aplicar(borrador, true)}
+            onLiberar={liberarFijados}
+            onPesoComida={cambiarPesoComida}
           />
 
           {borrador.length === 0 && (
@@ -417,7 +492,7 @@ export default function PlanComidas({ atletaId, onCambiosSinGuardar }) {
               indice={i}
               total={borrador.length}
               onCambiar={(campo, valor) => cambiarComida(comida.clave, campo, valor)}
-              onMover={(delta) => cambiar((b) => moverComida(b, i, delta))}
+              onMover={(delta) => cambiar(moverComida(borrador, i, delta))}
               onQuitar={() => quitarComida(comida)}
               onAgregarAlimento={() => agregarAlimento(comida.clave)}
               onAgregarDelCatalogo={(alimento) => agregarDelCatalogo(comida.clave, alimento)}
